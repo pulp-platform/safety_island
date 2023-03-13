@@ -1,0 +1,5 @@
+.bender
+sim/compile.tcl
+sim/work
+sim/modelsim.ini
+sim/transcript
