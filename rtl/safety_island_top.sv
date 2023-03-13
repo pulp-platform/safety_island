@@ -734,7 +734,31 @@ module safety_island_top import safety_island_pkg::*; #(
 
 `ifdef TARGET_SIMULATION
   // TB Printf
-  // TODO
+  tb_fs_handler #(
+    .ADDR_WIDTH ( AddrWidth ),
+    .DATA_WIDTH ( DataWidth ),
+    .NB_CORES   ( 1         ),
+    .OPEN_FILES ( 1 )
+  ) i_fs_handler (
+    .clk   ( clk_i          ),
+    .rst_n ( rst_ni         ),
+    .CSN   ( ~tbprintf_req  ),
+    .WEN   ( ~tbprintf_we   ),
+    .ADDR  ( tbprintf_addr  ),
+    .WDATA ( tbprintf_wdata ),
+    .BE    ( tbprintf_be    ),
+    .RDATA ( tbprintf_rdata )
+  );
+
+  assign tbprintf_gnt = 1'b1;
+  assign tbrpintf_err = 1'b0;
+  always_ff @(posedge clk_i or negedge rst_ni) begin : proc_tbprintf_rvalid
+    if(!rst_ni) begin
+      tbprintf_rvalid <= '0;
+    end else begin
+      tbprintf_rvalid <= tbprintf_req;
+    end
+  end
 `endif
 
   // -----------------

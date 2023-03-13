@@ -19,9 +19,14 @@ dependencies:
   clic:                 { git: "https://github.com/pulp-platform/clic.git", rev: "6431785" }
 
 sources:
+  # Level 1
   - rtl/safety_island_pkg.sv
   - rtl/soc_ctrl/safety_soc_ctrl_reg_pkg.sv
-
+  - target: simulation
+    files:
+      - rtl/tb/tb_fs_handler.sv
+  # Level 2
   - rtl/safety_core_wrap.sv
   - rtl/soc_ctrl/safety_soc_ctrl_reg_top.sv
+  # Level 3
   - rtl/safety_island_top.sv
