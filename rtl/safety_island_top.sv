@@ -9,6 +9,8 @@
 // specific language governing permissions and limitations under the License.
 
 `include "register_interface/typedef.svh"
+`include "axi/typedef.svh"
+`include "axi/assign.svh"
 
 module safety_island_top import safety_island_pkg::*; #(
   parameter int unsigned             HartId          = 32'd1,
@@ -27,12 +29,17 @@ module safety_island_top import safety_island_pkg::*; #(
   parameter int unsigned PulpJtagIdCode = 32'h1_0000_db3,
 
   /// AXI slave port structs (input)
-  parameter type axi_input_req_t = logic,
-  parameter type axi_input_resp_t = logic,
+  parameter int unsigned AxiDataWidth      = 64,
+  parameter int unsigned AxiAddrWidth      = GlobalAddrWidth,
+  parameter int unsigned AxiInputIdWidth   = 1,
+  parameter int unsigned AxiUserWidth      = 1,
+  parameter type         axi_input_req_t   = logic,
+  parameter type         axi_input_resp_t  = logic,
 
   /// AXI master port structs (output)
-  parameter type axi_output_req_t = logic,
-  parameter type axi_output_resp_t = logic
+  parameter int unsigned AxiOutputIdWidth  = 1,
+  parameter type         axi_output_req_t  = logic,
+  parameter type         axi_output_resp_t = logic
 
 ) (
   input  logic            clk_i,
@@ -54,8 +61,8 @@ module safety_island_top import safety_island_pkg::*; #(
   output axi_input_resp_t axi_input_resp_o,
 
   /// AXI output
-  output axi_output_req_t  axi_output_req_i,
-  input  axi_output_resp_t axi_output_resp_o
+  output axi_output_req_t  axi_output_req_o,
+  input  axi_output_resp_t axi_output_resp_i
 );
 
   localparam int unsigned AddrWidth = 32;
@@ -735,10 +742,166 @@ module safety_island_top import safety_island_pkg::*; #(
   // -----------------
 
   // AXI input
-  
+
+  // Typedefs
+  `AXI_TYPEDEF_AW_CHAN_T(axi_in_aw_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_AW_CHAN_T(axi_in_aw32_aw_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_W_CHAN_T(axi_in_w_chan_t,                                 logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0],                             logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_W_CHAN_T(axi_in_dw32_w_chan_t,                            logic[DataWidth-1:0],    logic[DataWidth/8-1:0],                                logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_B_CHAN_T(axi_in_b_chan_t,                                                                                     logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_AR_CHAN_T(axi_in_ar_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_AR_CHAN_T(axi_in_aw32_ar_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_R_CHAN_T(axi_in_r_chan_t,                                 logic[AxiDataWidth-1:0],                            logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_R_CHAN_T(axi_in_dw32_r_chan_t,                            logic[DataWidth-1:0],                               logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
+
+  `AXI_TYPEDEF_REQ_T(axi_in_alt_req_t, axi_in_aw_chan_t, axi_in_w_chan_t, axi_in_ar_chan_t)
+  `AXI_TYPEDEF_RESP_T(axi_in_alt_resp_t, axi_in_b_chan_t, axi_in_r_chan_t)
+  `AXI_TYPEDEF_REQ_T(axi_in_dw32_req_t, axi_in_aw_chan_t, axi_in_dw32_w_chan_t, axi_in_ar_chan_t)
+  `AXI_TYPEDEF_RESP_T(axi_in_dw32_resp_t, axi_in_b_chan_t, axi_in_dw32_r_chan_t)
+  `AXI_TYPEDEF_REQ_T(axi_in_dw32_aw32_req_t, axi_in_aw32_aw_chan_t, axi_in_dw32_w_chan_t, axi_in_aw32_ar_chan_t)
+
+  // Consistency alternates for AXI input
+  axi_in_alt_req_t  axi_in_alt_req;
+  axi_in_alt_resp_t axi_in_alt_resp;
+  `AXI_ASSIGN_REQ_STRUCT(axi_in_alt_req, axi_input_req_i)
+  `AXI_ASSIGN_RESP_STRUCT(axi_input_resp_o, axi_in_alt_resp)
+
+  // AXI corrected data width
+  axi_in_dw32_req_t  axi_in_dw32_req;
+  axi_in_dw32_resp_t axi_in_dw32_resp;
+
+  // AXI corrected address width
+  axi_in_dw32_aw32_req_t axi_in_dw32_aw32_req;
+
+  // AXI Data Width converter
+  axi_dw_converter #(
+    .AxiMaxReads         ( 1                    ),
+    .AxiSlvPortDataWidth ( AxiDataWidth         ),
+    .AxiMstPortDataWidth ( DataWidth            ),
+    .AxiAddrWidth        ( AxiAddrWidth         ),
+    .AxiIdWidth          ( AxiInputIdWidth      ),
+    .aw_chan_t           ( axi_in_aw_chan_t     ),
+    .mst_w_chan_t        ( axi_in_dw32_w_chan_t ),
+    .slv_w_chan_t        ( axi_in_w_chan_t      ),
+    .b_chan_t            ( axi_in_b_chan_t      ),
+    .ar_chan_t           ( axi_in_ar_chan_t     ),
+    .mst_r_chan_t        ( axi_in_dw32_r_chan_t ),
+    .slv_r_chan_t        ( axi_in_r_chan_t      ),
+    .axi_mst_req_t       ( axi_in_dw32_req_t    ),
+    .axi_mst_resp_t      ( axi_in_dw32_resp_t   ),
+    .axi_slv_req_t       ( axi_in_alt_req_t     ),
+    .axi_slv_resp_t      ( axi_in_alt_resp_t    )
+  ) i_axi_input_dw (
+    .clk_i,
+    .rst_ni,
+
+    .slv_req_i  ( axi_in_alt_req   ),
+    .slv_resp_o ( axi_in_alt_resp  ),
+
+    .mst_req_o  ( axi_in_dw32_req  ),
+    .mst_resp_i ( axi_in_dw32_resp )
+  );
+
+  // AXI Address Width aligment
+  // TODO: check for correct behavior!
+  `AXI_ASSIGN_REQ_STRUCT(axi_in_dw32_aw32_req, axi_in_dw32_req)
+
+  // AXI to Mem
+  axi_to_mem #(
+    .axi_req_t    ( axi_in_dw32_aw32_req_t ),
+    .axi_resp_t   ( axi_in_dw32_resp_t     ),
+    .AddrWidth    ( AddrWidth              ),
+    .DataWidth    ( DataWidth              ),
+    .IdWidth      ( AxiInputIdWidth        ),
+    .NumBanks     ( 1                      ),
+    .BufDepth     ( 1                      ),
+    .HideStrb     ( 1'b1                   ),
+    .OutFifoDepth ( 1                      )
+  ) i_axi_to_mem (
+    .clk_i,
+    .rst_ni,
+
+    .busy_o       (),
+
+    .axi_req_i    ( axi_in_dw32_aw32_req  ),
+    .axi_resp_o   ( axi_in_dw32_resp      ),
+
+    .mem_req_o    ( axi_input_req         ),
+    .mem_gnt_i    ( axi_input_gnt         ),
+    .mem_addr_o   ( axi_input_addr        ),
+    .mem_wdata_o  ( axi_input_wdata       ),
+    .mem_strb_o   ( axi_input_be          ),
+    .mem_we_o     ( axi_input_we          ),
+    .mem_atop_o   (), // TODO?
+    .mem_rvalid_i ( axi_input_rvalid      ),
+    .mem_rdata_i  ( axi_input_rdata       )
+  );
 
   // AXI output
+  
+  // Typedefs
+  `AXI_TYPEDEF_AW_CHAN_T(axi_out_aw_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_AW_CHAN_T(axi_out_aw32_aw_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_W_CHAN_T(axi_out_w_chan_t,                                 logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0],                              logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_W_CHAN_T(axi_out_dw32_w_chan_t,                            logic[DataWidth-1:0],    logic[DataWidth/8-1:0],                                 logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_B_CHAN_T(axi_out_b_chan_t,                                                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_AR_CHAN_T(axi_out_ar_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_AR_CHAN_T(axi_out_aw32_ar_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_R_CHAN_T(axi_out_r_chan_t,                                 logic[AxiDataWidth-1:0],                            logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_R_CHAN_T(axi_out_dw32_r_chan_t,                            logic[DataWidth-1:0],                               logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
+
+  `AXI_TYPEDEF_REQ_T(axi_out_alt_req_t, axi_in_aw_chan_t, axi_in_w_chan_t, axi_in_ar_chan_t)
+  `AXI_TYPEDEF_RESP_T(axi_out_alt_resp_t, axi_in_b_chan_t, axi_in_r_chan_t)
+  `AXI_TYPEDEF_REQ_T(axi_out_dw32_req_t, axi_in_aw_chan_t, axi_in_dw32_w_chan_t, axi_in_ar_chan_t)
+  `AXI_TYPEDEF_RESP_T(axi_out_dw32_resp_t, axi_in_b_chan_t, axi_in_dw32_r_chan_t)
+  `AXI_TYPEDEF_REQ_T(axi_out_dw32_aw32_req_t, axi_in_aw32_aw_chan_t, axi_in_dw32_w_chan_t, axi_in_aw32_ar_chan_t)
+
+  // Consistency alternates for AXI output
+  axi_in_alt_req_t  axi_out_alt_req;
+  axi_in_alt_resp_t axi_out_alt_resp;
+
+  // AXI corrected data width
+  axi_out_dw32_req_t  axi_out_dw32_req;
+  axi_out_dw32_resp_t axi_out_dw32_resp;
+
+  // AXI corrected address width
+  axi_out_dw32_aw32_req_t axi_out_dw32_aw32_req;
 
 
+  // TODO: mem to AXI
+
+  // TODO: AXI AddrWidth prepend
+
+  // AXI Data Width converter
+  axi_dw_converter #(
+    .AxiMaxReads         ( 1                     ),
+    .AxiSlvPortDataWidth ( DataWidth             ),
+    .AxiMstPortDataWidth ( AxiDataWidth          ),
+    .AxiAddrWidth        ( AxiAddrWidth          ),
+    .AxiIdWidth          ( AxiOutputIdWidth      ),
+    .aw_chan_t           ( axi_out_aw_chan_t     ),
+    .mst_w_chan_t        ( axi_out_w_chan_t      ),
+    .slv_w_chan_t        ( axi_out_dw32_w_chan_t ),
+    .b_chan_t            ( axi_out_b_chan_t      ),
+    .ar_chan_t           ( axi_out_ar_chan_t     ),
+    .mst_r_chan_t        ( axi_out_r_chan_t      ),
+    .slv_r_chan_t        ( axi_out_dw32_r_chan_t ),
+    .axi_mst_req_t       ( axi_out_alt_req_t     ),
+    .axi_mst_resp_t      ( axi_out_alt_resp_t    ),
+    .axi_slv_req_t       ( axi_out_dw32_req_t    ),
+    .axi_slv_resp_t      ( axi_out_dw32_resp_t   )
+  ) i_axi_output_dw (
+    .clk_i,
+    .rst_ni,
+
+    .slv_req_i  ( axi_out_dw32_req  ),
+    .slv_resp_o ( axi_out_dw32_resp ),
+    .mst_req_o  ( axi_out_alt_req   ),
+    .mst_resp_i ( axi_out_alt_resp  )
+  );
+
+  // Consistency alternatives for AXI output
+  `AXI_ASSIGN_REQ_STRUCT(axi_output_req_o, axi_out_alt_req)
+  `AXI_ASSIGN_RESP_STRUCT(axi_out_alt_resp, axi_output_resp_i)
 
 endmodule
