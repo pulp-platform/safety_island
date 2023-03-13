@@ -8,15 +8,15 @@ package:
     - "Michael Rogenmoser <michaero@iis.ee.ethz.ch>"
 
 dependencies:
-  common_cells: { git: "https://github.com/pulp-platform/common_cells.git", version: 1.26.0 }
-  axi: { git: "https://github.com/pulp-platform/axi.git", version: 0.38.0 }
-  redundancy_cells: { git: "https://github.com/pulp-platform/redundancy_cells.git", version: 0.5.0 }
-  riscv-dbg:            { git: "https://github.com/pulp-platform/riscv-dbg.git", version: 0.5.1 }
-  tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git", version: 0.2.3 }
+  common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",         version: 1.26.0 }
+  axi:                  { git: "https://github.com/pulp-platform/axi.git",                  version: 0.38.0 }
+  redundancy_cells:     { git: "https://github.com/pulp-platform/redundancy_cells.git",     version: 0.5.0 }
+  riscv-dbg:            { git: "https://github.com/pulp-platform/riscv-dbg.git",            version: 0.5.1 }
+  tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.3 }
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", version: 1.1.1 }
-  register_interface:   { git: "https://github.com/pulp-platform/register_interface.git", version: 0.3.1 }
-  cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git", rev: pulpissimo-v4.1.0 }
-  clic:                 { git: "https://github.com/pulp-platform/clic.git", rev: "6431785" }
+  register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.3.1 }
+  cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: pulpissimo-v4.1.0 }
+  clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "6431785" }
 
 sources:
   # Level 1
@@ -25,8 +25,15 @@ sources:
   - target: simulation
     files:
       - rtl/tb/tb_fs_handler.sv
+      - rtl/tb/riscv_pkg.sv
+      - rtl/tb/jtag_pkg.sv
+      - rtl/tb/srec/srec_pkg.sv
   # Level 2
   - rtl/safety_core_wrap.sv
   - rtl/soc_ctrl/safety_soc_ctrl_reg_top.sv
   # Level 3
   - rtl/safety_island_top.sv
+  # Level 4
+  - target: simulation
+    files:
+      - rtl/tb/fixture_safety_island.sv

@@ -17,8 +17,8 @@ module safety_island_top import safety_island_pkg::*; #(
   parameter int unsigned             GlobalAddrWidth = 48,
   parameter bit[GlobalAddrWidth-1:0] BaseAddr        = 48'h0003_0000_0000,
   parameter bit[31:0]                AddrRange       =      32'h0080_0000,
-  parameter bit[31:0]                MemOffset       =      32'h0000_0000,
-  parameter bit[31:0]                PeriphOffset    =      32'h0002_0000,
+  parameter bit[31:0]                MemOffset       =      32'h0010_0000,
+  parameter bit[31:0]                PeriphOffset    =      32'h0000_0000,
   parameter int unsigned             BankNumBytes    =      32'h0000_8000,
   parameter int unsigned             NumInterrupts   = 256,
 
@@ -112,7 +112,7 @@ module safety_island_top import safety_island_pkg::*; #(
     '{ idx: PeriphBootROM,       start_addr: PeriphBaseAddr+32'h0000_1000, end_addr: PeriphBaseAddr+32'h0000_2000}, // 2: Boot ROM
     '{ idx: PeriphGlobalPrepend, start_addr: PeriphBaseAddr+32'h0000_2000, end_addr: PeriphBaseAddr+32'h0000_3000}, // 3: Global prepend
     '{ idx: PeriphDebug,         start_addr: PeriphBaseAddr+32'h0000_3000, end_addr: PeriphBaseAddr+32'h0000_4000}, // 4: Debug
-    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+32'h0000_4000, end_addr: PeriphBaseAddr+32'h0000_5000}, // 5: CLIC
+    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+32'h0001_0000, end_addr: PeriphBaseAddr+32'h0002_0000}, // 5: CLIC
     '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+32'h0000_5000, end_addr: PeriphBaseAddr+32'h0000_6000}  // 6: TCLS
 `ifdef TARGET_SIMULATION
     ,
