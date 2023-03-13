@@ -244,6 +244,8 @@ module safety_island_top import safety_island_pkg::*; #(
   logic [RDataAggLen-1:0] soc_ctrl_rdata_agg;
   assign {soc_ctrl_we, soc_ctrl_be, soc_ctrl_addr, soc_ctrl_wdata} = soc_ctrl_wdata_agg;
   assign soc_ctrl_rdata_agg = {soc_ctrl_rdata, soc_ctrl_err};
+  safety_reg_req_t soc_ctrl_reg_req;
+  safety_reg_rsp_t soc_ctrl_reg_rsp;
 
   // Boot ROM bus
   logic        boot_rom_req, boot_rom_gnt, boot_rom_rvalid, boot_rom_we, boot_rom_err;
@@ -637,9 +639,59 @@ module safety_island_top import safety_island_pkg::*; #(
   assign error_gnt = 1'b1;
   assign error_err = 1'b1;
   assign error_rdata = 32'hBADCAB1E;
+  always_ff @(posedge clk_i or negedge rst_ni) begin : proc_error_rvalid
+    if(!rst_ni) begin
+      error_rvalid <= '0;
+    end else begin
+      error_rvalid <= error_req;
+    end
+  end
 
   // SoC Control
-  // TODO
+  periph_to_reg #(
+    .AW ( AddrWidth ),
+    .DW ( DataWidth ),
+    .BW ( 8 ),
+    .IW ( 1 ),
+    .req_t ( safety_reg_req_t ),
+    .rsp_t ( safety_reg_rsp_t )
+  ) i_soc_ctrl_translate (
+    .clk_i,
+    .rst_ni,
+
+    .req_i     ( soc_ctrl_req     ),
+    .add_i     ( soc_ctrl_addr    ),
+    .wen_i     ( soc_ctrl_we      ),
+    .wdata_i   ( soc_ctrl_wdata   ),
+    .be_i      ( soc_ctrl_be      ),
+    .id_i      ( '0 ),
+
+    .gnt_o     ( soc_ctrl_gnt     ),
+    .r_rdata_o ( soc_ctrl_rdata   ),
+    .r_opc_o   ( soc_ctrl_rdata   ),
+    .r_id_o    (),
+    .r_valid_o ( soc_ctrl_rvalid  ),
+
+    .reg_req_o ( soc_ctrl_reg_req ),
+    .reg_rsp_i ( soc_ctrl_reg_rsp )
+  );
+
+  safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t soc_ctrl_reg2hw;
+  assign fetch_enable = soc_ctrl_reg2hw.fetchen.q;
+  assign boot_addr    = soc_ctrl_reg2hw.bootaddr.q;
+
+  safety_soc_ctrl_reg_top #(
+    .reg_req_t( safety_reg_req_t ),
+    .reg_rsp_t( safety_reg_rsp_t ),
+    .AW       ( 32        )
+  ) i_soc_ctrl (
+    .clk_i,
+    .rst_ni,
+    .reg_req_i ( soc_ctrl_req    ),
+    .reg_rsp_o ( soc_ctrl_rsp    ),
+    .reg2hw    ( soc_ctrl_reg2hw ),
+    .devmode_i ( 1'b0            )
+  );
 
   // Boot ROM
   // TODO

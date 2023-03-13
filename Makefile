@@ -1,12 +1,6 @@
-# Copyright 2021 ETH Zurich and University of Bologna.
-# Copyright and related rights are licensed under the Solderpad Hardware
-# License, Version 0.51 (the "License"); you may not use this file except in
-# compliance with the License.  You may obtain a copy of the License at
-# http://solderpad.org/licenses/SHL-0.51. Unless required by applicable law
-# or agreed to in writing, software, hardware and materials distributed under
-# this License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2023 ETH Zurich and University of Bologna
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
 
 VLOG_ARGS += -suppress 2583 -suppress 13314 \"+incdir+\$$ROOT/rtl/includes\"
 
@@ -45,5 +39,21 @@ build: $(BENDER_SIM_BUILD_DIR)/compile.tcl
 ## Remove the RTL model files
 clean:
 	$(MAKE) -C sim clean
+
+
+REG_PATH = $(shell bender path register_interface)
+REG_TOOL = $(REG_PATH)/vendor/lowrisc_opentitan/util/regtool.py
+
+HJSON = rtl/soc_ctrl/safety_soc_ctrl_regs.hjson
+TARGET_DIR = rtl/soc_ctrl
+REG_HTML_STRING = "<!DOCTYPE html>\n<html>\n<head>\n<link rel="stylesheet" href="reg_html.css">\n</head>\n"
+
+gen_soc_ctrl_regs:
+	python $(REG_TOOL) $(HJSON) -t $(TARGET_DIR) -r
+	printf $(REG_HTML_STRING) > $(TARGET_DIR)/safety_soc_ctrl.html
+	python $(REG_TOOL) $(HJSON) -d >> $(TARGET_DIR)/safety_soc_ctrl.html
+	printf "</html>\n" >> $(TARGET_DIR)/safety_soc_ctrl.html
+	python $(REG_TOOL) $(HJSON) -D > $(TARGET_DIR)/safety_soc_ctrl.h
+	cp $(REG_PATH)/vendor/lowrisc_opentitan/util/reggen/reg_html.css $(TARGET_DIR)
 
 
