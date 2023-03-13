@@ -361,7 +361,7 @@ package jtag_pkg;
       jtag_idcode.setIR(s_tck, s_tms, s_trstn, s_tdi);
       jtag_idcode.shift('0, s_idcode, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
       $display("[JTAG] %t - Tap ID: %h", $realtime, s_idcode[31:0]);
-      if(s_idcode[31:0] !== 32'h19a6edb3) begin
+      if(s_idcode[31:0] !== 32'h1_0000_db3) begin
          $display("[JTAG] %t - Tap ID Test FAILED", $realtime);
       end else begin
          $display("[JTAG] %t - Tap ID Test PASSED", $realtime);

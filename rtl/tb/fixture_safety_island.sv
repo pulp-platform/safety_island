@@ -75,7 +75,7 @@ module fixture_safety_island;
     .PeriphOffset      ( PeriphOffset      ),
     .BankNumBytes      ( BankNumBytes      ),
     .NumInterrupts     ( NumInterrupts     ),
-    .PulpJtagIdCode    ( 32'h1_0000_db3    ),
+    .PulpJtagIdCode    ( 32'h1_0000_db3    ), // TODO!
     .AxiDataWidth      ( AxiDataWidth      ),
     .AxiAddrWidth      ( AxiAddrWidth      ),
     .AxiInputIdWidth   ( AxiInputIdWidth   ),
@@ -86,22 +86,22 @@ module fixture_safety_island;
     .axi_output_req_t  ( axi_output_req_t  ),
     .axi_output_resp_t ( axi_output_resp_t )
   ) i_dut (
-    .clk_i            ( s_clk                   ),
-    .rst_ni           ( s_rst_n                 ),
-    .test_enable_i    ( s_test_enable           ),
+    .clk_i             ( s_clk                   ),
+    .rst_ni            ( s_rst_n                 ),
+    .test_enable_i     ( s_test_enable           ),
 
-    .jtag_tck_i       ( s_tck                   ),
-    .jtag_tdi_i       ( s_tdi                   ),
-    .jtag_tdo_o       ( s_tdo                   ),
-    .jtag_tms_i       ( s_tms                   ),
-    .jtag_trst_i      ( s_trstn                 ),
+    .jtag_tck_i        ( s_tck                   ),
+    .jtag_tdi_i        ( s_tdi                   ),
+    .jtag_tdo_o        ( s_tdo                   ),
+    .jtag_tms_i        ( s_tms                   ),
+    .jtag_trst_i       ( s_trstn                 ),
 
-    .bootmode_i       ( safety_island_pkg::Jtag ),
+    .bootmode_i        ( safety_island_pkg::Jtag ),
 
-    .axi_input_req_i  (),
-    .axi_input_resp_o (),
-    .axi_output_req_o (),
-    .axi_output_resp_i()
+    .axi_input_req_i   ( '0 ),
+    .axi_input_resp_o  (  ),
+    .axi_output_req_o  (  ),
+    .axi_output_resp_i ( '0 )
   );
 
   // ----------------

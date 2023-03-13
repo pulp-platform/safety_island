@@ -21,7 +21,7 @@ VOPT_FLAGS      ?= +acc
 VLIB            ?= vlib
 VMAP            ?= vmap
 
-SIM_TOP = safety_island_top
+SIM_TOP = tb_safety_island
 
 ## Compile RTL with Questasim
 all: build opt
