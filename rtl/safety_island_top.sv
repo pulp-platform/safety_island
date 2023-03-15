@@ -673,7 +673,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .req_i     ( soc_ctrl_req     ),
     .add_i     ( soc_ctrl_addr    ),
-    .wen_i     ( soc_ctrl_we      ),
+    .wen_i     ( ~soc_ctrl_we     ),
     .wdata_i   ( soc_ctrl_wdata   ),
     .be_i      ( soc_ctrl_be      ),
     .id_i      ( '0 ),
@@ -694,9 +694,8 @@ module safety_island_top import safety_island_pkg::*; #(
 
   safety_soc_ctrl_reg_top #(
     .reg_req_t( safety_reg_req_t ),
-    .reg_rsp_t( safety_reg_rsp_t ),
-    .AW       ( 32        ),
-    .BootAddrDefault ( PeriphBaseAddr + 32'h0000_1000 )
+    .reg_rsp_t( safety_reg_rsp_t )
+    .BootAddrDefault ( PeriphBaseAddr + 32'h0000_1000 + 32'h80 )
   ) i_soc_ctrl (
     .clk_i,
     .rst_ni,
@@ -740,7 +739,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .req_i     ( cl_periph_req    ),
     .add_i     ( cl_periph_addr   ),
-    .wen_i     ( cl_periph_we     ),
+    .wen_i     ( ~cl_periph_we    ),
     .wdata_i   ( cl_periph_wdata  ),
     .be_i      ( cl_periph_be     ),
     .id_i      ( '0 ),

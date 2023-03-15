@@ -51,16 +51,16 @@ module safety_core_wrap #(
   input  logic        fetch_enable_i
 );
 
-// `ifdef PULP_FPGA_EMUL
-//   cv32e40p_core #(
-// `elsif SYNTHESIS
-//   cv32e40p_core #(
-// `elsif VERILATOR
+`ifdef PULP_FPGA_EMUL
   cv32e40p_core #(
-// `else
-//   cv32e40p_wrapper #(
-// `endif
-    .PULP_XPULP   (0),
+`elsif SYNTHESIS
+  cv32e40p_core #(
+`elsif VERILATOR
+  cv32e40p_core #(
+`else
+  cv32e40p_wrapper #(
+`endif
+    .PULP_XPULP   (1),
     .PULP_CLUSTER (0),
     .FPU          (0),
     .PULP_ZFINX   (0),

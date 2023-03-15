@@ -111,8 +111,8 @@ module fixture_safety_island;
   // Read entry point from commandline
   task read_entry_point(output logic [31:0] begin_l2_instr);
     int entry_point;
-    if ($value$plusargs("ENTRY_POINT=%h", entry_point)) begin_l2_instr = entry_point;
-    else begin_l2_instr = BaseAddr[31:0]+MemOffset;
+    if ($value$plusargs("ENTRY_POINT=%h", entry_point)) begin_l2_instr = entry_point - 32'h80;
+    else begin_l2_instr = BaseAddr[31:0]+MemOffset+BankNumBytes;
     $display("[TB  ] %t - Entry point is set to 0x%h", $realtime, begin_l2_instr);
   endtask  // read_entry_point
   
@@ -197,7 +197,7 @@ module fixture_safety_island;
     // We need our core the fetching and running from the bootrom.
     debug_mode_if.init_dmi_access(s_tck, s_tms, s_trstn, s_tdi);
     debug_mode_if.set_dmactive(1'b1,  s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-    debug_mode_if.writeMem(BootAddrAddr, 32'h1A00_0000, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+    debug_mode_if.writeMem(BootAddrAddr, entrypoint, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
     debug_mode_if.writeMem(FetchEnAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
     // Setup debug module and hart, halt hart and set dpc (return point
