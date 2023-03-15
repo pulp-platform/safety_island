@@ -60,4 +60,9 @@ gen_soc_ctrl_regs:
 	python $(REG_TOOL) $(HJSON) -D > $(TARGET_DIR)/safety_soc_ctrl.h
 	cp $(REG_PATH)/vendor/lowrisc_opentitan/util/reggen/reg_html.css $(TARGET_DIR)
 
+##############
+## SOFTWARE ##
+##############
 
+pulp-runtime:
+	git clone https://github.com/pulp-platform/pulp-runtime.git -b safety-island
