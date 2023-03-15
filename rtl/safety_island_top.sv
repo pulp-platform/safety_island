@@ -694,7 +694,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   safety_soc_ctrl_reg_top #(
     .reg_req_t( safety_reg_req_t ),
-    .reg_rsp_t( safety_reg_rsp_t )
+    .reg_rsp_t( safety_reg_rsp_t ),
     .BootAddrDefault ( PeriphBaseAddr + 32'h0000_1000 + 32'h80 )
   ) i_soc_ctrl (
     .clk_i,
@@ -756,22 +756,25 @@ module safety_island_top import safety_island_pkg::*; #(
 
 `ifdef TARGET_SIMULATION
   // TB Printf
-  tb_fs_handler #(
-    .ADDR_WIDTH ( AddrWidth ),
+  tb_fs_handler_debug #(
+    .ADDR_WIDTH ( 12 ),
     .DATA_WIDTH ( DataWidth ),
     .NB_CORES   ( 1         ),
-    .OPEN_FILES ( 1 )
+    .CLUSTER_ID ( 0 ),
+    .OPEN_FILES ( 1 ),
+    .DEBUG_TYPE ( "PE" ),
+    .SILENT_MODE ( "OFF" ),
+    .FULL_LINE   ( "ON" ),
+    .COLORED_MODE ( "ON" )
   ) i_fs_handler (
-    .clk   ( clk_i          ),
-    .rst_n ( rst_ni         ),
-    .CSN   ( ~tbprintf_req  ),
-    .WEN   ( ~tbprintf_we   ),
-    .ADDR  ( tbprintf_addr  ),
-    .WDATA ( tbprintf_wdata ),
-    .BE    ( tbprintf_be    ),
-    .RDATA ( tbprintf_rdata )
+    .clk_i  ( clk_i          ),
+    .rst_ni ( rst_ni         ),
+    .req_i  ( tbprintf_req  ),
+    .add_i  ( '0 ),//tbprintf_addr[11:0]  ),
+    .dat_i  ( tbprintf_wdata )
   );
 
+  assign tbprintf_rdata = '0;
   assign tbprintf_gnt = 1'b1;
   assign tbrpintf_err = 1'b0;
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_tbprintf_rvalid

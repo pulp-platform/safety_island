@@ -102,6 +102,6 @@ proc run_and_exit {} {
     if {[info exists ::env(VSIM_EXIT_SIGNAL)]} {
         quit -code [examine -radix decimal sim:$::env(VSIM_EXIT_SIGNAL)]
     } else {
-        quit -code [examine -radix decimal sim:/tb_pulp/exit_status]
+        quit -code [examine -radix decimal sim:/tb_safety_island/exit_status]
     }
 }
