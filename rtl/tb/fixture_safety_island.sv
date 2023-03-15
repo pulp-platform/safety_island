@@ -111,8 +111,8 @@ module fixture_safety_island;
   // Read entry point from commandline
   task read_entry_point(output logic [31:0] begin_l2_instr);
     int entry_point;
-    if ($value$plusargs("ENTRY_POINT=%h", entry_point)) begin_l2_instr = entry_point - 32'h80; // Align for ibex
-    else begin_l2_instr = 32'h1C008000;
+    if ($value$plusargs("ENTRY_POINT=%h", entry_point)) begin_l2_instr = entry_point;
+    else begin_l2_instr = BaseAddr[31:0]+MemOffset;
     $display("[TB  ] %t - Entry point is set to 0x%h", $realtime, begin_l2_instr);
   endtask  // read_entry_point
   

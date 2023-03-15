@@ -74,9 +74,9 @@ module safety_core_wrap #(
     .scan_cg_en_i        ( test_enable_i ),
     .boot_addr_i,
     .mtvec_addr_i        ( 32'h0000_0000 ),
-    .dm_halt_addr_i      ( DmBaseAddr + dm::HaltAddress      ),
+    .dm_halt_addr_i      ( DmBaseAddr + dm::HaltAddress[31:0]      ),
     .hart_id_i,
-    .dm_exception_addr_i ( DmBaseAddr + dm::ExceptionAddress ),
+    .dm_exception_addr_i ( DmBaseAddr + dm::ExceptionAddress[31:0] ),
 
     .instr_req_o,
     .instr_gnt_i,
