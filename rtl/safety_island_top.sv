@@ -695,7 +695,8 @@ module safety_island_top import safety_island_pkg::*; #(
   safety_soc_ctrl_reg_top #(
     .reg_req_t( safety_reg_req_t ),
     .reg_rsp_t( safety_reg_rsp_t ),
-    .AW       ( 32        )
+    .AW       ( 32        ),
+    .BootAddrDefault ( PeriphBaseAddr + 32'h0000_1000 )
   ) i_soc_ctrl (
     .clk_i,
     .rst_ni,
@@ -706,7 +707,24 @@ module safety_island_top import safety_island_pkg::*; #(
   );
 
   // Boot ROM
-  // TODO
+  safety_island_bootrom #(
+    .ADDR_WIDTH ( 10 ),
+    .DATA_WIDTH ( DataWidth )
+  ) i_bootrom (
+    .CLK ( clk_i ),
+    .CEN ( ~boot_rom_req ),
+    .A   ( boot_rom_addr[11:2] ),
+    .Q   ( boot_rom_rdata )
+  );
+  assign boot_rom_gnt = 1'b1;
+  assign boot_rom_err = 1'b0;
+  always_ff @(posedge clk_i or negedge rst_ni) begin : proc_boot_rom_rvalid
+    if(!rst_ni) begin
+      boot_rom_rvalid <= '0;
+    end else begin
+      boot_rom_rvalid <= boot_rom_req;
+    end
+  end
 
   // Core-local Peripherals
   periph_to_reg #(

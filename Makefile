@@ -40,6 +40,9 @@ build: $(BENDER_SIM_BUILD_DIR)/compile.tcl
 clean:
 	$(MAKE) -C sim clean
 
+bootrom:
+	$(MAKE) -C boot clean safety_island_bootrom.sv
+	cp boot/safety_island_bootrom.sv rtl/safety_island_bootrom.sv
 
 REG_PATH = $(shell bender path register_interface)
 REG_TOOL = $(REG_PATH)/vendor/lowrisc_opentitan/util/regtool.py
@@ -50,6 +53,7 @@ REG_HTML_STRING = "<!DOCTYPE html>\n<html>\n<head>\n<link rel="stylesheet" href=
 
 gen_soc_ctrl_regs:
 	python $(REG_TOOL) $(HJSON) -t $(TARGET_DIR) -r
+	git apply rtl/soc_ctrl/boot_addr.patch
 	printf $(REG_HTML_STRING) > $(TARGET_DIR)/safety_soc_ctrl.html
 	python $(REG_TOOL) $(HJSON) -d >> $(TARGET_DIR)/safety_soc_ctrl.html
 	printf "</html>\n" >> $(TARGET_DIR)/safety_soc_ctrl.html

@@ -22,6 +22,7 @@ sources:
   # Level 1
   - rtl/safety_island_pkg.sv
   - rtl/soc_ctrl/safety_soc_ctrl_reg_pkg.sv
+  - rtl/safety_island_bootrom.sv
   - target: simulation
     files:
       - rtl/tb/tb_fs_handler.sv
