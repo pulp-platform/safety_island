@@ -23,6 +23,7 @@ sources:
   - rtl/safety_island_pkg.sv
   - rtl/soc_ctrl/safety_soc_ctrl_reg_pkg.sv
   - rtl/safety_island_bootrom.sv
+  - rtl/cv32e40p_fpu_wrap.sv
   - target: simulation
     files:
       - rtl/tb/tb_fs_handler.sv
