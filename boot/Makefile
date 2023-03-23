@@ -42,8 +42,8 @@ CPPFLAGS  += -DEXIT_REG_ADDR=0x1a1040a0 -DPULP_CHIP_STR=safety-island
 CPPFLAGS += -I$(CURDIR) -I$(CURDIR)/include
 
 # CPPFLAGS += -I$(CURDIR) -I$(CURDIR)/include -I$(CURDIR)/include/hal \
-# 	-I$(CURDIR)/include/archi -I$(CURDIR)/zforth \
-# 	-I$(CURDIR)/zforth-riscv -I$(CURDIR)/padframe/include
+#	-I$(CURDIR)/include/archi -I$(CURDIR)/zforth \
+#	-I$(CURDIR)/zforth-riscv -I$(CURDIR)/padframe/include
 
 ASFLAGS  = $(CFLAGS) -DLANGUAGE_ASSEMBLY
 
@@ -55,20 +55,14 @@ CFLAGS  += -flto
 LDFLAGS += -flto
 
 BOOTCODE = boot_code
-BOOTCODE_FPGA = boot_code_fpga
 
 OBJS =  boot_code.o crt0.o
 
-all: $(BOOTCODE) $(BOOTCODE_FPGA) boot.rtl boot.gvsoc
+all: $(BOOTCODE) boot.rtl boot.gvsoc
 
 # # ASIC bootrom 100 MHz periph freq
 # $(BOOTCODE):      CPPFLAGS += -DPERIPH_FREQUENCY=18000000
 $(BOOTCODE):      $(OBJS)
-
-# # FPGA bootrom 10 MHz periph freq
-# # need separate objects
-# $(BOOTCODE_FPGA): CPPFLAGS += -DPERIPH_FREQUENCY=10000000
-# $(BOOTCODE_FPGA): $(addsuffix .2,$(OBJS))
 
 # Makefile implicit rules for .o
 # %.o: %.c
@@ -91,9 +85,6 @@ $(BOOTCODE):      $(OBJS)
 %.o.2: %.S
 	$(CC) $(ASFLAGS) $(CPPFLAGS) $(TARGET_MACH) -c -o $@ $<
 
-%_fpga: %.o.2
-	$(CC) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
 boot.gvsoc: rom.bin
 
 # gvsoc bootrom
@@ -104,12 +95,9 @@ rom.bin: $(BOOTCODE)
 		--area=0x00201000:0x00202000
 
 # The rtl bootrom is just a verilog dump of the elf file
-boot.rtl: boot_code_asic.cde boot_code_fpga.cde
+boot.rtl: boot_code_asic.cde
 
 boot_code_asic.objdump: $(BOOTCODE)
-	$(OBJDUMP) -Sr boot_code > $@
-
-boot_code_fpga.objdump: $(BOOTCODE)
 	$(OBJDUMP) -Sr boot_code > $@
 
 boot_code_asic.cde: $(BOOTCODE) boot_code_asic.objdump
@@ -117,27 +105,16 @@ boot_code_asic.cde: $(BOOTCODE) boot_code_asic.objdump
 	./s19toboot.py $(BOOTCODE).s19 boot_code_asic.cde pulpissimo
 	$(SIZE) -A $(BOOTCODE)
 
-boot_code_fpga.cde: $(BOOTCODE_FPGA) boot_code_fpga.objdump
-	$(OBJCOPY) --srec-len 1 --output-target=srec $(BOOTCODE_FPGA) $(BOOTCODE_FPGA).s19
-	./s19toboot.py $(BOOTCODE_FPGA).s19 boot_code_fpga.cde pulpissimo
-	$(SIZE) -A $(BOOTCODE_FPGA)
-
-asic_autogen_rom.sv: boot_code_asic.cde
-	$(PYTHON) gen_rom.py boot_code_asic.cde $@ --title "ASIC Bootrom for Safety Island"
-
 safety_island_bootrom.sv: boot_code_asic.cde
 	$(PYTHON) gen_rom.py boot_code_asic.cde $@ --title "ASIC Bootrom for Safety Island"
-
-fpga_autogen_rom.sv: boot_code_fpga.cde
-	$(PYTHON) gen_rom.py boot_code_fpga.cde $@ --title "FPGA Bootrom for Safety Island"
 
 
 .PHONY: clean
 clean:
-	$(RM) $(BOOTCODE) $(BOOTCODE_FPGA) $(OBJS) $(addsuffix .2,$(OBJS)) \
+	$(RM) $(BOOTCODE) $(OBJS) $(addsuffix .2,$(OBJS)) \
 		boot_code.cde boot_code.sv boot_code.s19 rom.bin \
-		boot_code_asic.cde boot_code_fpga.cde \
-		boot_code.map asic_autogen_rom.sv fpga_autogen_rom.sv \
+		boot_code_asic.cde \
+		boot_code.map safety_island_bootrom.sv \
 		boot_code_asic.objdump
 
 .PHONY: TAGS

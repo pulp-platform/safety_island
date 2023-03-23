@@ -25,5 +25,6 @@
 #include "archi/riscv/priv_1_12.h"
 
 #include "archi/chips/safety-island/memory_map.h"
+#include "archi/chips/safety-island/safety_soc_ctrl.h"
 
 #endif
