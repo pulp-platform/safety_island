@@ -76,6 +76,32 @@ gen_soc_ctrl_regs:
 ##############
 ## SOFTWARE ##
 ##############
+.PHONY: pulp-runtime
+## Clone pulp-runtime for bare-metal verification
+pulp-runtime: sw/pulp-runtime
+sw/pulp-runtime:
+	git clone https://github.com/pulp-platform/pulp-runtime.git -b safety-island $@
 
-pulp-runtime:
-	git clone https://github.com/pulp-platform/pulp-runtime.git -b safety-island
+.PHONY: pulp-freertos
+## Clone freertos for real-time OS verification
+pulp-freertos: sw/pulp-freertos
+sw/pulp-freertos:
+	git clone git@github.com:pulp-platform/pulp-freertos.git $@
+	cd $@; \
+	git checkout carfield/safety-island; \
+	git submodule update --init --recursive
+
+.PHONY: help
+help: Makefile
+	@printf "Safety Island\n"
+	@printf "Available targets\n\n"
+	@awk '/^[a-zA-Z\-\_0-9]+:/ { \
+		helpMessage = match(lastLine, /^## (.*)/); \
+		if (helpMessage) { \
+			helpCommand = substr($$1, 0, index($$1, ":")-1); \
+			helpMessage = substr(lastLine, RSTART + 3, RLENGTH); \
+			printf "%-15s %s\n", helpCommand, helpMessage; \
+		} \
+	} \
+	{ lastLine = $$0 }' $(MAKEFILE_LIST)
+
