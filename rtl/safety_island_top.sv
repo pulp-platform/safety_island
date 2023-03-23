@@ -13,21 +13,9 @@
 `include "axi/assign.svh"
 
 module safety_island_top import safety_island_pkg::*; #(
-  parameter int unsigned             HartId          = 32'd1,
-  parameter int unsigned             GlobalAddrWidth = 48,
-  parameter bit[GlobalAddrWidth-1:0] BaseAddr        = 48'h0003_0000_0000,
-  parameter bit[31:0]                AddrRange       =      32'h0080_0000,
-  parameter bit[31:0]                MemOffset       =      32'h0000_0000,
-  parameter bit[31:0]                PeriphOffset    =      32'h0020_0000,
-  parameter int unsigned             BankNumBytes    =      32'h0000_8000,
-  parameter int unsigned             NumInterrupts   = 256,
+  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
 
-  // LSB                       [0]:     1'h1
-  // PULP Platform Manufacturer[11:1]:  11'h6d9
-  // Part Number               [27:12]: 16'h0000 --> TBD!
-  // Version                   [31:28]: 4'h1
-  parameter int unsigned PulpJtagIdCode = 32'h1_0000_db3,
-
+  // TODO Add to pkg
   /// AXI slave port structs (input)
   parameter int unsigned AxiDataWidth      = 64,
   parameter int unsigned AxiAddrWidth      = GlobalAddrWidth,
@@ -46,6 +34,8 @@ module safety_island_top import safety_island_pkg::*; #(
   input  logic            rst_ni,
   input  logic            test_enable_i,
 
+  input logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
+
   /// JTAG
   input  logic            jtag_tck_i,
   input  logic            jtag_tdi_i,
@@ -55,6 +45,10 @@ module safety_island_top import safety_island_pkg::*; #(
 
   /// Bootmode
   input  bootmode_e       bootmode_i,
+
+  /// Fetch enable
+  input logic             fetch_enable_selector_i,
+  input logic             fetch_enable_i,
 
   /// AXI input
   input  axi_input_req_t  axi_input_req_i,
@@ -67,8 +61,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   localparam int unsigned AddrWidth = 32;
   localparam int unsigned DataWidth = 32;
-  localparam int unsigned BaseAddr32 = BaseAddr[31:0];
-  localparam int unsigned BankNumWords = BankNumBytes/4;
+  localparam int unsigned BankNumWords = SafetyIslandCfg.BankNumBytes/4;
 
   localparam WDataAggLen =  1 +  4 +   32 +    32;
   //                       we   be   addr   wdata
@@ -77,7 +70,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   `REG_BUS_TYPEDEF_ALL(safety_reg, logic[AddrWidth-1:0], logic[DataWidth-1:0], logic[(DataWidth/8)-1:0]);
 
-  // Address map of miniPULP
+  // Address map of safety_island
   typedef struct packed {
       logic [31:0] idx;
       logic [31:0] start_addr;
@@ -85,16 +78,16 @@ module safety_island_top import safety_island_pkg::*; #(
   } addr_map_rule_t;
 
   localparam int unsigned NumSlaves = 4;
-  localparam int unsigned NumRules  = MemOffset > 0 ? 4 : 3;
-  localparam addr_map_rule_t [NumRules-1:0] main_addr_map = MemOffset > 0 ? '{             // 0: below/above address space, so AXI out (default)
+  localparam int unsigned NumRules = /*(MemOffset > 0) ? 4 :*/ 3;
+  localparam addr_map_rule_t [NumRules-1:0] main_addr_map = /*(MemOffset > 0) ? '{             // 0: below/above address space, so AXI out (default)
     '{ idx: 3, start_addr: BaseAddr32,                          end_addr: BaseAddr32+MemOffset},                // 3: Periphs
-    '{ idx: 1, start_addr: BaseAddr32+MemOffset,                end_addr: BaseAddr32+MemOffset+BankNumBytes  }, // 1: Bank 0
-    '{ idx: 2, start_addr: BaseAddr32+MemOffset+BankNumBytes,   end_addr: BaseAddr32+MemOffset+2*BankNumBytes}, // 2: Bank 1
-    '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
-  } : '{             // 0: below/above address space, so AXI out (default)
-    '{ idx: 1, start_addr: BaseAddr32+MemOffset,                end_addr: BaseAddr32+MemOffset+BankNumBytes  }, // 1: Bank 0
-    '{ idx: 2, start_addr: BaseAddr32+MemOffset+BankNumBytes,   end_addr: BaseAddr32+MemOffset+2*BankNumBytes}, // 2: Bank 1
-    '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
+    '{ idx: 1, start_addr: BaseAddr32+MemOffset,                end_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes  }, // 1: Bank 0
+    '{ idx: 2, start_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes,   end_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes}, // 2: Bank 1
+    '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
+  } : */ '{             // 0: below/above address space, so AXI out (default)
+    '{ idx: 1, start_addr: BaseAddr32+MemOffset,                end_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes  }, // 1: Bank 0
+    '{ idx: 2, start_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes,   end_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes}, // 2: Bank 1
+    '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
   };
 
 `ifdef TARGET_SIMULATION
@@ -104,7 +97,6 @@ module safety_island_top import safety_island_pkg::*; #(
   localparam int unsigned NumPeriphs     = 6;
   localparam int unsigned NumPeriphRules = 6;
 `endif
-  localparam bit[31:0] PeriphBaseAddr = BaseAddr32+PeriphOffset;
   localparam int unsigned PeriphErrorSlv      = 0;
   localparam int unsigned PeriphSocCtrl       = 1;
   localparam int unsigned PeriphBootROM       = 2;
@@ -349,19 +341,20 @@ module safety_island_top import safety_island_pkg::*; #(
   logic debug_req;
 
   safety_core_wrap #(
-    .DmBaseAddr    ( PeriphBaseAddr+32'h0000_3000 ),
+    .SafetyIslandCfg (SafetyIslandCfg),
     .reg_req_t     ( safety_reg_req_t ),
-    .reg_rsp_t     ( safety_reg_rsp_t ),
-    .NumInterrupts ( NumInterrupts    )
+    .reg_rsp_t     ( safety_reg_rsp_t )
   ) i_core_wrap (
     .clk_i,
     .rst_ni,
     .test_enable_i,
 
+    .irqs_i,
+
     .cl_periph_req_i  ( cl_periph_reg_req ),
     .cl_periph_rsp_o  ( cl_periph_reg_rsp ),
 
-    .hart_id_i        ( HartId            ),
+    .hart_id_i        ( SafetyIslandCfg.HartId ),
     .boot_addr_i      ( boot_addr         ),
 
     .instr_req_o      ( core_instr_req    ),
@@ -397,13 +390,13 @@ module safety_island_top import safety_island_pkg::*; #(
     datasize: dm::DataCount,
     dataaddr: dm::DataAddr
   };
-  
+
   logic dmi_rst_n, dmi_req_valid, dmi_req_ready, dmi_resp_valid, dmi_resp_ready;
   dm::dmi_req_t dmi_req;
   dm::dmi_resp_t dmi_resp;
 
   dmi_jtag #(
-    .IdcodeValue(PulpJtagIdCode)
+    .IdcodeValue(SafetyIslandCfg.PulpJtagIdCode)
   ) i_dmi_jtag (
     .clk_i,
     .rst_ni,
@@ -456,7 +449,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .master_r_valid_i     ( dbg_req_rvalid ),
     .master_r_err_i       ( dbg_req_err    ),
     .master_r_other_err_i ( 1'b0           ),
-    .master_r_rdata_i     ( dbg_req_rdata  ), 
+    .master_r_rdata_i     ( dbg_req_rdata  ),
 
     .dmi_rst_ni           ( dmi_rst_n      ),
     .dmi_req_valid_i      ( dmi_req_valid  ),
@@ -551,7 +544,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .req_i   ( mem_bank0_req   ),
     .we_i    ( mem_bank0_we    ),
-    .addr_i  ( mem_bank0_addr [$clog2(BankNumBytes)-1:2] ),
+    .addr_i  ( mem_bank0_addr [$clog2(SafetyIslandCfg.BankNumBytes)-1:2] ),
     .wdata_i ( mem_bank0_wdata ),
     .be_i    ( mem_bank0_be    ),
 
@@ -580,7 +573,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .req_i   ( mem_bank1_req   ),
     .we_i    ( mem_bank1_we    ),
-    .addr_i  ( mem_bank1_addr[$clog2(BankNumBytes)-1:2]  ),
+    .addr_i  ( mem_bank1_addr[$clog2(SafetyIslandCfg.BankNumBytes)-1:2]  ),
     .wdata_i ( mem_bank1_wdata ),
     .be_i    ( mem_bank1_be    ),
 
@@ -689,8 +682,12 @@ module safety_island_top import safety_island_pkg::*; #(
   );
 
   safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t soc_ctrl_reg2hw;
-  assign fetch_enable = soc_ctrl_reg2hw.fetchen.q || bootmode_i == Jtag;
-  assign boot_addr    = soc_ctrl_reg2hw.bootaddr.q;
+  safety_soc_ctrl_reg_pkg::safety_soc_ctrl_hw2reg_t soc_ctrl_hw2reg;
+  // allow control of fetch_enable from hardware
+  assign fetch_enable = (fetch_enable_selector_i) ? fetch_enable_i : soc_ctrl_reg2hw.fetchen.q;
+  // allow control of bootmode from hardware
+  assign soc_ctrl_hw2reg.bootmode.d = bootmode_i;
+  assign boot_addr = soc_ctrl_reg2hw.bootaddr.q;
 
   safety_soc_ctrl_reg_top #(
     .reg_req_t( safety_reg_req_t ),
@@ -702,6 +699,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .reg_req_i ( soc_ctrl_reg_req    ),
     .reg_rsp_o ( soc_ctrl_reg_rsp    ),
     .reg2hw    ( soc_ctrl_reg2hw ),
+    .hw2reg    ( soc_ctrl_hw2reg ),
     .devmode_i ( 1'b0            )
   );
 
@@ -887,7 +885,7 @@ module safety_island_top import safety_island_pkg::*; #(
   );
 
   // AXI output
-  
+
   // Typedefs
   `AXI_TYPEDEF_AW_CHAN_T(axi_out_aw_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
   `AXI_TYPEDEF_AW_CHAN_T(axi_out_aw32_aw_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])

@@ -9,14 +9,15 @@
 // specific language governing permissions and limitations under the License.
 
 module safety_core_wrap #(
-  parameter bit[31:0] DmBaseAddr       = 32'h0001_3000,
+  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
   parameter type      reg_req_t        = logic,
-  parameter type      reg_rsp_t        = logic,
-  parameter int unsigned NumInterrupts = 256
+  parameter type      reg_rsp_t        = logic
 ) (
   input  logic clk_i,
   input  logic rst_ni,
   input  logic test_enable_i,
+
+  input logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
 
   // Core-local peripherals
   input  reg_req_t    cl_periph_req_i,
@@ -51,6 +52,25 @@ module safety_core_wrap #(
   input  logic        fetch_enable_i
 );
 
+ // Interrupt signals
+ logic [SafetyIslandCfg.NumInterrupts-1:0] core_irq_onehot;
+ logic [$clog2(SafetyIslandCfg.NumInterrupts)-1:0]  core_irq_id;
+ logic [7:0]  core_irq_level;
+ logic core_irq_valid, core_irq_ready, core_irq_shv;
+
+ // APU signals
+ logic                           apu_req;
+ logic [cv32e40p_apu_core_pkg::APU_NARGS_CPU-1:0][31:0] apu_operands;
+ logic [cv32e40p_apu_core_pkg::APU_WOP_CPU-1:0]         apu_op;
+ logic [cv32e40p_apu_core_pkg::APU_NDSFLAGS_CPU-1:0]    apu_flags;
+ logic                           apu_gnt;
+ logic                           apu_rvalid;
+ logic [31:0]                    apu_rdata;
+ logic [cv32e40p_apu_core_pkg::APU_NUSFLAGS_CPU-1:0]    apu_rflags;
+
+ // TODO: add mnxti to cv32
+ // TODO: add fastirq extension (shadowing) to cv32
+ // TODO: add atomic support to cv32 + adapter (if needed)
 `ifdef PULP_FPGA_EMUL
   cv32e40p_core #(
 `elsif SYNTHESIS
@@ -60,13 +80,15 @@ module safety_core_wrap #(
 `else
   cv32e40p_wrapper #(
 `endif
-    .PULP_XPULP   (1),
-    .PULP_CLUSTER (0),
-    .FPU          (0),
-    .PULP_ZFINX   (0),
-    // .NUM_EXTERNAL_PERF(0),
-    .NUM_MHPMCOUNTERS(1)
-  ) i_RISCV_CORE (
+    .PULP_XPULP   (SafetyIslandCfg.UseXPulp),
+    .PULP_CLUSTER (SafetyIslandCfg.UseIntegerCluster),
+    .FPU          (SafetyIslandCfg.UseFpu),
+    .PULP_ZFINX   (SafetyIslandCfg.UseZfinx),
+    .NUM_MHPMCOUNTERS (SafetyIslandCfg.NumMhpmCounters),
+    .NUM_INTERRUPTS   (SafetyIslandCfg.NumInterrupts),
+    .CLIC             (SafetyIslandCfg.UseClic),
+    .MCLICBASE_ADDR   (safety_island_pkg::ClicBaseAddr)
+  ) i_cv32e40p (
     .clk_i,
     .rst_ni,
 
@@ -74,9 +96,10 @@ module safety_core_wrap #(
     .scan_cg_en_i        ( test_enable_i ),
     .boot_addr_i,
     .mtvec_addr_i        ( 32'h0000_0000 ),
-    .dm_halt_addr_i      ( DmBaseAddr + dm::HaltAddress[31:0]      ),
+    .mtvt_addr_i         ( 32'h0000_0000 ),
+    .dm_halt_addr_i      ( safety_island_pkg::DmBaseAddr + dm::HaltAddress[31:0]      ),
     .hart_id_i,
-    .dm_exception_addr_i ( DmBaseAddr + dm::ExceptionAddress[31:0] ),
+    .dm_exception_addr_i ( safety_island_pkg::DmBaseAddr + dm::ExceptionAddress[31:0] ),
 
     .instr_req_o,
     .instr_gnt_i,
@@ -93,18 +116,21 @@ module safety_core_wrap #(
     .data_wdata_o,
     .data_rdata_i,
 
-    .apu_req_o           (),
-    .apu_gnt_i           ('0),
-    .apu_operands_o      (),
-    .apu_op_o            (),
-    .apu_flags_o         (),
-    .apu_rvalid_i        ('0),
-    .apu_result_i        ('0),
-    .apu_flags_i         ('0),
+    .apu_req_o           (apu_req),
+    .apu_gnt_i           (apu_gnt),
+    .apu_operands_o      (apu_operands),
+    .apu_op_o            (apu_op),
+    .apu_flags_o         (apu_flags),
+    .apu_rvalid_i        (apu_rvalid),
+    .apu_result_i        (apu_rdata),
+    .apu_flags_i         (apu_rflags),
 
-    .irq_i               ('0),
-    .irq_ack_o           (),
-    .irq_id_o            (),
+    // Interrupt inputs
+    .irq_i                 (core_irq_onehot),
+    .irq_level_i           (core_irq_level),
+    .irq_shv_i             (core_irq_shv),
+    .irq_ack_o             (core_irq_ready),
+    .irq_id_o              ( ),
 
     .debug_req_i,
     .debug_havereset_o   (),
@@ -136,27 +162,63 @@ module safety_core_wrap #(
     .out_rsp_i ( cl_periph_rsp   )
   );
 
-  // TODO: CLIC
+
+  // Interrupts
+
+  always_comb begin : gen_core_irq_onehot
+      core_irq_onehot = '0;
+      if (core_irq_valid) begin
+          core_irq_onehot[core_irq_id] = 1'b1;
+      end
+  end
+
   clic #(
-    .reg_req_t ( reg_req_t     ),
-    .reg_rsp_t ( reg_rsp_t     ),
-    .N_SOURCE  ( NumInterrupts )
+    .reg_req_t ( reg_req_t ),
+    .reg_rsp_t ( reg_rsp_t ),
+    .N_SOURCE  ( SafetyIslandCfg.NumInterrupts )
   ) i_clic (
     .clk_i,
     .rst_ni,
-
+     // Bus Interface
     .reg_req_i   ( cl_periph_req[0] ),
     .reg_rsp_o   ( cl_periph_rsp[0] ),
-
-    .intr_src_i  ('0),
-    .irq_valid_o (),
-    .irq_ready_i ('0),
-    .irq_id_o    (),
-    .irq_level_o (),
-    .irq_shv_o   ()
+    // Interrupt Sources
+    .intr_src_i  ( irqs_i         ),
+    // Interrupt notification to core
+    .irq_valid_o ( core_irq_valid ),
+    .irq_ready_i ( core_irq_ready ),
+    .irq_id_o    ( core_irq_id    ),
+    .irq_level_o ( core_irq_level ),
+    .irq_shv_o   ( core_irq_shv   )
   );
 
+  // FPU
+  if (SafetyIslandCfg.UseFpu) begin : gen_safety_island_fpu
+      cv32e40p_fpu_wrap #(
+          .FP_DIVSQRT (1)
+      ) i_fpu (
+          .clk_i,
+          .rst_ni,
+          .apu_req_i     (apu_req),
+          .apu_gnt_o     (apu_gnt),
+          .apu_operands_i(apu_operands),
+          .apu_op_i      (apu_op),
+          .apu_flags_i   (apu_flags),
+          .apu_rvalid_o  (apu_rvalid),
+          .apu_rdata_o   (apu_rdata),
+          .apu_rflags_o  (apu_rflags)
+      );
+  end else begin : gen_no_safety_island_fpu
+      //assign apu_req      = 1'b0;
+      assign apu_gnt      = 1'b0;
+      //assign apu_operands = 1'b0;
+      //assign apu_op       = 1'b0;
+      //assign apu_flags    = 1'b0;
+      assign apu_rvalid   = 1'b0;
+      assign apu_rdata    = 1'b0;
+      assign apu_rflags   = 1'b0;
+  end
+
   // TODO: TCLS
-  // TODO: FPU?
 
 endmodule
