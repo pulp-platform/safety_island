@@ -17,6 +17,19 @@ Bender.lock:
 	bender checkout
 	touch Bender.lock
 
+######################
+# Nonfree components #
+######################
+
+NONFREE_REMOTE ?= git@iis-git.ee.ethz.ch:carfield/safety-island-nonfree.git
+NONFREE_COMMIT ?= f91371be85fbd1bf14a85135b70bc34f7c954bd7
+
+nonfree-init:
+	git clone $(NONFREE_REMOTE) nonfree
+	cd nonfree && git checkout $(NONFREE_COMMIT)
+
+-include nonfree/nonfree.mk
+
 .PHONY: scripts
 ## Generate scripts for all tools
 scripts: scripts-bender-vsim 
