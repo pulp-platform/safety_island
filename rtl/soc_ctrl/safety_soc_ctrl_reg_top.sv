@@ -19,6 +19,7 @@ module safety_soc_ctrl_reg_top #(
   output reg_rsp_t reg_rsp_o,
   // To HW
   output safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t reg2hw, // Write
+  input  safety_soc_ctrl_reg_pkg::safety_soc_ctrl_hw2reg_t hw2reg, // Read
 
 
   // Config
@@ -77,6 +78,9 @@ module safety_soc_ctrl_reg_top #(
   logic [31:0] corestatus_qs;
   logic [31:0] corestatus_wd;
   logic corestatus_we;
+  logic [3:0] bootmode_qs;
+  logic [3:0] bootmode_wd;
+  logic bootmode_we;
 
   // Register instances
   // R[bootaddr]: V(False)
@@ -121,8 +125,8 @@ module safety_soc_ctrl_reg_top #(
     .wd     (fetchen_wd),
 
     // from internal hardware
-    .de     (1'b0),
-    .d      ('0  ),
+    .de     (hw2reg.fetchen.de),
+    .d      (hw2reg.fetchen.d ),
 
     // to internal hardware
     .qe     (),
@@ -160,14 +164,42 @@ module safety_soc_ctrl_reg_top #(
   );
 
 
+  // R[bootmode]: V(False)
+
+  prim_subreg #(
+    .DW      (4),
+    .SWACCESS("RW"),
+    .RESVAL  (4'h0)
+  ) u_bootmode (
+    .clk_i   (clk_i    ),
+    .rst_ni  (rst_ni  ),
+
+    // from register interface
+    .we     (bootmode_we),
+    .wd     (bootmode_wd),
+
+    // from internal hardware
+    .de     (hw2reg.bootmode.de),
+    .d      (hw2reg.bootmode.d ),
+
+    // to internal hardware
+    .qe     (),
+    .q      (reg2hw.bootmode.q ),
+
+    // to register interface (read)
+    .qs     (bootmode_qs)
+  );
 
 
-  logic [2:0] addr_hit;
+
+
+  logic [3:0] addr_hit;
   always_comb begin
     addr_hit = '0;
     addr_hit[0] = (reg_addr == SAFETY_SOC_CTRL_BOOTADDR_OFFSET);
     addr_hit[1] = (reg_addr == SAFETY_SOC_CTRL_FETCHEN_OFFSET);
     addr_hit[2] = (reg_addr == SAFETY_SOC_CTRL_CORESTATUS_OFFSET);
+    addr_hit[3] = (reg_addr == SAFETY_SOC_CTRL_BOOTMODE_OFFSET);
   end
 
   assign addrmiss = (reg_re || reg_we) ? ~|addr_hit : 1'b0 ;
@@ -177,7 +209,8 @@ module safety_soc_ctrl_reg_top #(
     wr_err = (reg_we &
               ((addr_hit[0] & (|(SAFETY_SOC_CTRL_PERMIT[0] & ~reg_be))) |
                (addr_hit[1] & (|(SAFETY_SOC_CTRL_PERMIT[1] & ~reg_be))) |
-               (addr_hit[2] & (|(SAFETY_SOC_CTRL_PERMIT[2] & ~reg_be)))));
+               (addr_hit[2] & (|(SAFETY_SOC_CTRL_PERMIT[2] & ~reg_be))) |
+               (addr_hit[3] & (|(SAFETY_SOC_CTRL_PERMIT[3] & ~reg_be)))));
   end
 
   assign bootaddr_we = addr_hit[0] & reg_we & !reg_error;
@@ -188,6 +221,9 @@ module safety_soc_ctrl_reg_top #(
 
   assign corestatus_we = addr_hit[2] & reg_we & !reg_error;
   assign corestatus_wd = reg_wdata[31:0];
+
+  assign bootmode_we = addr_hit[3] & reg_we & !reg_error;
+  assign bootmode_wd = reg_wdata[3:0];
 
   // Read data return
   always_comb begin
@@ -203,6 +239,10 @@ module safety_soc_ctrl_reg_top #(
 
       addr_hit[2]: begin
         reg_rdata_next[31:0] = corestatus_qs;
+      end
+
+      addr_hit[3]: begin
+        reg_rdata_next[3:0] = bootmode_qs;
       end
 
       default: begin
@@ -235,6 +275,7 @@ module safety_soc_ctrl_reg_top_intf
   REG_BUS.in  regbus_slave,
   // To HW
   output safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t reg2hw, // Write
+  input  safety_soc_ctrl_reg_pkg::safety_soc_ctrl_hw2reg_t hw2reg, // Read
   // Config
   input devmode_i // If 1, explicit error return for unmapped register access
 );
@@ -268,6 +309,7 @@ module safety_soc_ctrl_reg_top_intf
     .reg_req_i(s_reg_req),
     .reg_rsp_o(s_reg_rsp),
     .reg2hw, // Write
+    .hw2reg, // Read
     .devmode_i
   );
   
