@@ -45,7 +45,7 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   cv32e40p:
-    revision: d6d457b5694ff9ae9c04c968f0ffb09bc9526409
+    revision: 8e1898f5b1b12696601f665d05de2e52e409eb3d
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40p.git
