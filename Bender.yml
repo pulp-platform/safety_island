@@ -39,4 +39,5 @@ sources:
   - target: simulation
     files:
       - rtl/tb/fixture_safety_island.sv
-      - rtl/tb/tb_safety_island.sv
+      - rtl/tb/tb_safety_island_jtag.sv
+      - rtl/tb/tb_safety_island_preloaded.sv
