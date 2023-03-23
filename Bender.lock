@@ -1,0 +1,104 @@
+packages:
+  apb:
+    revision: 56ca84b687c9f6dc650e2a7cb221cb2bd4b2a456
+    version: 0.2.3
+    source:
+      Git: https://github.com/pulp-platform/apb.git
+    dependencies:
+    - common_cells
+  axi:
+    revision: 2f395b176bee1c769c80f060a4345fda965bb04b
+    version: 0.38.0
+    source:
+      Git: https://github.com/pulp-platform/axi.git
+    dependencies:
+    - common_cells
+    - common_verification
+    - tech_cells_generic
+  clic:
+    revision: 6431785a4375736a73f3df98f39a4fc5bffb80c9
+    version: null
+    source:
+      Git: https://github.com/pulp-platform/clic.git
+    dependencies:
+    - common_cells
+    - register_interface
+  cluster_interconnect:
+    revision: 7d0a4f8acae71a583a6713cab5554e60b9bb8d27
+    version: 1.2.1
+    source:
+      Git: https://github.com/pulp-platform/cluster_interconnect.git
+    dependencies:
+    - common_cells
+  common_cells:
+    revision: 4dc9413990622dcbf4b37a19f792834c800da5c7
+    version: 1.28.0
+    source:
+      Git: https://github.com/pulp-platform/common_cells.git
+    dependencies:
+    - common_verification
+    - tech_cells_generic
+  common_verification:
+    revision: 9c07fa860593b2caabd9b5681740c25fac04b878
+    version: 0.2.3
+    source:
+      Git: https://github.com/pulp-platform/common_verification.git
+    dependencies: []
+  cv32e40p:
+    revision: d6d457b5694ff9ae9c04c968f0ffb09bc9526409
+    version: null
+    source:
+      Git: https://github.com/pulp-platform/cv32e40p.git
+    dependencies:
+    - common_cells
+    - fpnew
+    - tech_cells_generic
+  fpnew:
+    revision: 8dc44406b1ccbc4487121710c1883e805f893965
+    version: 0.6.6
+    source:
+      Git: https://github.com/pulp-platform/fpnew.git
+    dependencies:
+    - common_cells
+    - fpu_div_sqrt_mvp
+  fpu_div_sqrt_mvp:
+    revision: 86e1f558b3c95e91577c41b2fc452c86b04e85ac
+    version: 1.0.4
+    source:
+      Git: https://github.com/pulp-platform/fpu_div_sqrt_mvp.git
+    dependencies:
+    - common_cells
+  redundancy_cells:
+    revision: beddf8127619b08fbb24920466a88b6722a80c37
+    version: 0.5.0
+    source:
+      Git: https://github.com/pulp-platform/redundancy_cells.git
+    dependencies:
+    - common_cells
+    - common_verification
+    - register_interface
+    - tech_cells_generic
+  register_interface:
+    revision: e3a4955071fcf554febd4b29a7c7a52c7f1e7fc6
+    version: 0.3.8
+    source:
+      Git: https://github.com/pulp-platform/register_interface.git
+    dependencies:
+    - apb
+    - axi
+    - common_cells
+  riscv-dbg:
+    revision: 69be5ddc03ea1688c0eab47d6ed9d0e8725beda1
+    version: 0.5.1
+    source:
+      Git: https://github.com/pulp-platform/riscv-dbg.git
+    dependencies:
+    - common_cells
+    - tech_cells_generic
+  tech_cells_generic:
+    revision: a9cae21902e75b1434328ecf36f85327ba5717de
+    version: 0.2.11
+    source:
+      Git: https://github.com/pulp-platform/tech_cells_generic.git
+    dependencies:
+    - common_verification
