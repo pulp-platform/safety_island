@@ -60,9 +60,9 @@ void __attribute__((noreturn)) main(void)
     /*
      *  Current boot modes:
      *  bootsel     meaning
-     *  2'b0        default boot (to be determined)
-     *  2'b1        jtag boot for openocd (busy loop)
-     *  2'b2        preloaded boot (jump to address in bootaddr register)
+     *  2'b00       default boot (to be determined)
+     *  2'b01       jtag boot for openocd (busy loop)
+     *  2'b10       preloaded boot (jump to address in bootaddr register)
      */
 
     switch (ARCHI_READ(ARCHI_SOC_CTRL_ADDR, SAFETY_SOC_CTRL_BOOTMODE_REG_OFFSET)) {
