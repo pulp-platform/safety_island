@@ -26,7 +26,7 @@ package safety_soc_ctrl_reg_pkg;
   } safety_soc_ctrl_reg2hw_corestatus_reg_t;
 
   typedef struct packed {
-    logic [3:0]  q;
+    logic [1:0]  q;
   } safety_soc_ctrl_reg2hw_bootmode_reg_t;
 
   typedef struct packed {
@@ -35,22 +35,22 @@ package safety_soc_ctrl_reg_pkg;
   } safety_soc_ctrl_hw2reg_fetchen_reg_t;
 
   typedef struct packed {
-    logic [3:0]  d;
+    logic [1:0]  d;
     logic        de;
   } safety_soc_ctrl_hw2reg_bootmode_reg_t;
 
   // Register -> HW type
   typedef struct packed {
-    safety_soc_ctrl_reg2hw_bootaddr_reg_t bootaddr; // [68:37]
-    safety_soc_ctrl_reg2hw_fetchen_reg_t fetchen; // [36:36]
-    safety_soc_ctrl_reg2hw_corestatus_reg_t corestatus; // [35:4]
-    safety_soc_ctrl_reg2hw_bootmode_reg_t bootmode; // [3:0]
+    safety_soc_ctrl_reg2hw_bootaddr_reg_t bootaddr; // [66:35]
+    safety_soc_ctrl_reg2hw_fetchen_reg_t fetchen; // [34:34]
+    safety_soc_ctrl_reg2hw_corestatus_reg_t corestatus; // [33:2]
+    safety_soc_ctrl_reg2hw_bootmode_reg_t bootmode; // [1:0]
   } safety_soc_ctrl_reg2hw_t;
 
   // HW -> register type
   typedef struct packed {
-    safety_soc_ctrl_hw2reg_fetchen_reg_t fetchen; // [6:5]
-    safety_soc_ctrl_hw2reg_bootmode_reg_t bootmode; // [4:0]
+    safety_soc_ctrl_hw2reg_fetchen_reg_t fetchen; // [4:3]
+    safety_soc_ctrl_hw2reg_bootmode_reg_t bootmode; // [2:0]
   } safety_soc_ctrl_hw2reg_t;
 
   // Register offsets

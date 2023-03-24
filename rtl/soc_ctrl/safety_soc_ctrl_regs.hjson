@@ -56,7 +56,7 @@
       swaccess: "rw",
       hwaccess: "hrw",
       fields: [
-        { bits: "3:0",
+        { bits: "1:0",
           name: "bootmode",
           desc: "Boot Mode",
           resval: 0x0

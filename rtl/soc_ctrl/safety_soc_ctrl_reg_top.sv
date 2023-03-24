@@ -78,8 +78,8 @@ module safety_soc_ctrl_reg_top #(
   logic [31:0] corestatus_qs;
   logic [31:0] corestatus_wd;
   logic corestatus_we;
-  logic [3:0] bootmode_qs;
-  logic [3:0] bootmode_wd;
+  logic [1:0] bootmode_qs;
+  logic [1:0] bootmode_wd;
   logic bootmode_we;
 
   // Register instances
@@ -167,9 +167,9 @@ module safety_soc_ctrl_reg_top #(
   // R[bootmode]: V(False)
 
   prim_subreg #(
-    .DW      (4),
+    .DW      (2),
     .SWACCESS("RW"),
-    .RESVAL  (4'h0)
+    .RESVAL  (2'h0)
   ) u_bootmode (
     .clk_i   (clk_i    ),
     .rst_ni  (rst_ni  ),
@@ -223,7 +223,7 @@ module safety_soc_ctrl_reg_top #(
   assign corestatus_wd = reg_wdata[31:0];
 
   assign bootmode_we = addr_hit[3] & reg_we & !reg_error;
-  assign bootmode_wd = reg_wdata[3:0];
+  assign bootmode_wd = reg_wdata[1:0];
 
   // Read data return
   always_comb begin
@@ -242,7 +242,7 @@ module safety_soc_ctrl_reg_top #(
       end
 
       addr_hit[3]: begin
-        reg_rdata_next[3:0] = bootmode_qs;
+        reg_rdata_next[1:0] = bootmode_qs;
       end
 
       default: begin
