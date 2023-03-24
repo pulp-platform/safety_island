@@ -15,9 +15,15 @@ module fixture_safety_island;
   import safety_island_pkg::*;
 
   // Safety Island Configs
-  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig;
+  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = SafetyIslandDefaultConfig;
 
-  localparam SocCtrlAddr    = BaseAddr + PeriphOffset;
+  localparam int unsigned              GlobalAddrWidth = 32;
+  localparam bit [GlobalAddrWidth-1:0] BaseAddr        = 32'h0000_0000;
+  localparam bit [31:0]                AddrRange       = 32'h0080_0000;
+  localparam bit [31:0]                MemOffset       = 32'h0000_0000;
+  localparam bit [31:0]                PeriphOffset    = 32'h0020_0000;
+
+  localparam SocCtrlAddr    = BaseAddr + PeriphOffset + SocCtrlAddrOffset;
   localparam BootAddrAddr   = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTADDR_OFFSET;
   localparam FetchEnAddr    = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_FETCHEN_OFFSET;
   localparam CoreStatusAddr = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_CORESTATUS_OFFSET;
@@ -67,6 +73,11 @@ module fixture_safety_island;
 
   safety_island_top #(
     .SafetyIslandCfg   ( SafetyIslandCfg   ),
+    .GlobalAddrWidth   ( GlobalAddrWidth   ),
+    .BaseAddr          ( BaseAddr          ),
+    .AddrRange         ( AddrRange         ),
+    .MemOffset         ( MemOffset         ),
+    .PeriphOffset      ( PeriphOffset      ),
     .AxiDataWidth      ( AxiDataWidth      ),
     .AxiAddrWidth      ( AxiAddrWidth      ),
     .AxiInputIdWidth   ( AxiInputIdWidth   ),

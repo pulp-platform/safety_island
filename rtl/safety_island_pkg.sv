@@ -11,21 +11,40 @@
 package safety_island_pkg;
 
   typedef enum logic [1:0] {
-    Jtag = 2'b0,
+    Jtag = 2'b00,
     Preloaded = 2'b01
   } bootmode_e;
 
-  parameter int unsigned GlobalAddrWidth       = 32;
-  parameter bit [GlobalAddrWidth-1:0] BaseAddr = 32'h0000_0000;
-  localparam bit [31:0] BaseAddr32             = BaseAddr[31:0]; // TODO check this
-  parameter bit [31:0] AddrRange               = 32'h0080_0000;
-  parameter bit [31:0] MemOffset               = 32'h0000_0000;
-  parameter bit [31:0] PeriphOffset            = 32'h0020_0000;
+`ifdef TARGET_SIMULATION
+  localparam int unsigned NumPeriphs     = 7;
+  localparam int unsigned NumPeriphRules = 7;
+`else
+  localparam int unsigned NumPeriphs     = 6;
+  localparam int unsigned NumPeriphRules = 6;
+`endif
 
-  // Base addresses
-  localparam bit[31:0] PeriphBaseAddr = BaseAddr32+PeriphOffset;
-  localparam bit [31:0] DmBaseAddr    = PeriphBaseAddr+32'h0000_3000;
-  localparam bit [31:0] ClicBaseAddr  = PeriphBaseAddr+32'h0001_0000;
+  localparam int unsigned PeriphErrorSlv      = 0;
+
+  localparam int unsigned PeriphSocCtrl       = 1;
+  localparam bit [31:0] SocCtrlAddrOffset = 32'h0000_0000;
+  localparam bit [31:0] SocCtrlAddrRange  = 32'h0000_1000;
+  localparam int unsigned PeriphBootROM       = 2;
+  localparam bit [31:0] BootROMAddrOffset = 32'h0000_1000;
+  localparam bit [31:0] BootROMAddrRange  = 32'h0000_1000;
+  localparam int unsigned PeriphGlobalPrepend = 3;
+  localparam bit [31:0] GlobalPrependAddrOffset = 32'h0000_2000;
+  localparam bit [31:0] GlobalPrependAddrRange  = 32'h0000_1000;
+  localparam int unsigned PeriphDebug         = 4;
+  localparam bit [31:0] DebugAddrOffset = 32'h0000_3000;
+  localparam bit [31:0] DebugAddrRange  = 32'h0000_1000;
+  localparam int unsigned PeriphCoreLocal     = 5;
+  localparam bit [31:0] ClicAddrOffset = 32'h0001_0000;
+  localparam bit [31:0] ClicAddrRange  = 32'h0001_0000;
+  localparam bit [31:0] TCLSAddrOffset = 32'h0000_5000;
+  localparam bit [31:0] TCLSAddrRange  = 32'h0000_1000;
+  localparam int unsigned PeriphTBPrintf      = 6;
+  localparam bit [31:0] TBPrintfAddrOffset = 32'h0000_6000;
+  localparam bit [31:0] TBPrintfAddrRange  = 32'h0000_1000;
 
   typedef struct packed {
     int unsigned              HartId;

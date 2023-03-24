@@ -8,8 +8,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-module safety_core_wrap #(
-  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
+module safety_core_wrap import safety_island_pkg::*; #(
+  parameter safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
+  parameter bit [31:0] PeriphBaseAddr = 32'h0020_0000,
   parameter type      reg_req_t        = logic,
   parameter type      reg_rsp_t        = logic
 ) (
@@ -87,7 +88,7 @@ module safety_core_wrap #(
     .NUM_MHPMCOUNTERS (SafetyIslandCfg.NumMhpmCounters),
     .NUM_INTERRUPTS   (SafetyIslandCfg.NumInterrupts),
     .CLIC             (SafetyIslandCfg.UseClic),
-    .MCLICBASE_ADDR   (safety_island_pkg::ClicBaseAddr)
+    .MCLICBASE_ADDR   (PeriphBaseAddr+ClicAddrOffset)
   ) i_cv32e40p (
     .clk_i,
     .rst_ni,
@@ -97,9 +98,9 @@ module safety_core_wrap #(
     .boot_addr_i,
     .mtvec_addr_i        ( 32'h0000_0000 ),
     .mtvt_addr_i         ( 32'h0000_0000 ),
-    .dm_halt_addr_i      ( safety_island_pkg::DmBaseAddr + dm::HaltAddress[31:0]      ),
+    .dm_halt_addr_i      ( PeriphBaseAddr + DebugAddrOffset + dm::HaltAddress[31:0]      ),
     .hart_id_i,
-    .dm_exception_addr_i ( safety_island_pkg::DmBaseAddr + dm::ExceptionAddress[31:0] ),
+    .dm_exception_addr_i ( PeriphBaseAddr + DebugAddrOffset + dm::ExceptionAddress[31:0] ),
 
     .instr_req_o,
     .instr_gnt_i,
