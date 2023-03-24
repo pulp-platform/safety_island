@@ -80,7 +80,7 @@ gen_soc_ctrl_regs:
 ## Clone pulp-runtime for bare-metal verification
 pulp-runtime: sw/pulp-runtime
 sw/pulp-runtime:
-	git clone https://github.com/pulp-platform/pulp-runtime.git -b safety-island $@
+	git clone git@github.com:pulp-platform/pulp-runtime.git -b safety-island $@
 
 .PHONY: pulp-freertos
 ## Clone freertos for real-time OS verification
