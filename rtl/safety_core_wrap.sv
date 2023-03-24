@@ -139,7 +139,8 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .debug_halted_o      (),
 
     .fetch_enable_i,
-    .core_sleep_o        ()
+    .core_sleep_o        (),
+    .external_perf_i     ('0)
   );
 
   localparam int unsigned NumCoreLocalPeriphs = 1;
