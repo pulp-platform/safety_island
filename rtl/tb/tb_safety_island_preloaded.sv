@@ -33,7 +33,7 @@ module tb_safety_island_preloaded;
     fixt_safety_island.axi_load_binary();
 
     // Select bootmode
-    fixt_safety_island.axi_select_bootmode(32'h0000_0002);
+    fixt_safety_island.axi_select_bootmode(32'h0000_0001);
 
     // Write entry point into boot address register
     fixt_safety_island.axi_write_entry_point(entry_point);

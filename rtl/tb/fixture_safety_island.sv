@@ -48,8 +48,10 @@ module fixture_safety_island;
   int stim_fd;
   int num_stim = 0;
 
-  logic s_clk, s_fetchenable, s_fetchenable_selector;
-  logic [1:0] s_bootmode;
+  logic s_clk;
+  logic s_fetchenable = 1'b0;
+  logic s_fetchenable_selector = 1'b0;
+  logic [1:0] s_bootmode = 2'b0;
   logic s_rst_n = 1'b0;
   logic s_test_enable = 1'b0;
 
@@ -252,11 +254,11 @@ module fixture_safety_island;
     debug_mode_if.load_L2(num_stim, stimuli, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
     //write bootaddress
-    #10us;
-    $display("[TB  ] %t - Write boot address into reset vector: 0x%h @ 0x%h",
-             $realtime, entrypoint, BootAddrAddr);
-    debug_mode_if.writeMem(BootAddrAddr, entrypoint, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-    #10us;
+    //#10us;
+    //$display("[TB  ] %t - Write boot address into reset vector: 0x%h @ 0x%h",
+    //         $realtime, entrypoint, BootAddrAddr);
+    //debug_mode_if.writeMem(BootAddrAddr, entrypoint, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+    //#10us;
 
   endtask // jtag_load_binary
 
@@ -375,7 +377,7 @@ module fixture_safety_island;
   task write_to_safed(input logic [AxiAddrWidth-1:0] addr, input logic [AxiDataWidth-1:0] data,
                      output axi_pkg::resp_t resp);
     if (addr[2:0] != 3'b0)
-      $fatal(1, "write_to_safed: unaligned 64-bit access");
+        $fatal(1, "write_to_safed: unaligned 64-bit access");
     from_ext_req.aw.id     = '0;
     from_ext_req.aw.addr   = addr;
     from_ext_req.aw.len    = '0;
@@ -389,6 +391,7 @@ module fixture_safety_island;
     from_ext_req.aw.atop   = '0;
     from_ext_req.aw.user   = '0;
     from_ext_req.aw_valid  = 1'b1;
+    #1ps
     `wait_for(from_ext_resp.aw_ready)
     from_ext_req.aw_valid = 1'b0;
     from_ext_req.w.data   = data;
@@ -557,13 +560,13 @@ module fixture_safety_island;
     automatic axi_pkg::resp_t resp;
     automatic logic[AxiDataWidth-1:0] data;
 
-    $display("[TB  ] %t - Write entry point into boot address register (reset vector): 0x%h @ %s",
-             $realtime, begin_l2_instr, "32'h1A104004");
-    write_to_safed32(BootAddrAddr, begin_l2_instr, resp);
+    $display("[TB  ] %t - Write entry point into boot address register (reset vector): 0x%h @ 0x%h",
+             $realtime, begin_l2_instr, BootAddrAddr);
+    write_to_safed32(BootAddrAddr, begin_l2_instr + 32'h80, resp);
     axi_assert("write", resp, exit_status);
 
-    $display("[TB  ] %t - Read entry point into boot address register (reset vector): 0x%h @ %s",
-             $realtime, begin_l2_instr, "32'h1A104004");
+    $display("[TB  ] %t - Read entry point into boot address register (reset vector): 0x%h @ 0x%h",
+             $realtime, begin_l2_instr + 32'h80, BootAddrAddr);
     read_from_safed32(BootAddrAddr, data, resp);
     axi_assert("read", resp, exit_status);
   endtask  // axi_write_entry_point
