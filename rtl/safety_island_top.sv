@@ -80,13 +80,13 @@ module safety_island_top import safety_island_pkg::*; #(
   `REG_BUS_TYPEDEF_ALL(safety_reg, logic[AddrWidth-1:0], logic[DataWidth-1:0], logic[(DataWidth/8)-1:0]);
 
   localparam int unsigned NumSlaves = 4;
-  localparam int unsigned NumRules = /*(MemOffset > 0) ? 4 :*/ 3;
-  localparam addr_map_rule_t [NumRules-1:0] main_addr_map = /*(MemOffset > 0) ? '{             // 0: below/above address space, so AXI out (default)
+  localparam int unsigned NumRules = (MemOffset > 0) ? 4 : 3;
+  localparam addr_map_rule_t [NumRules-1:0] main_addr_map = (MemOffset > 0) ? '{             // 0: below/above address space, so AXI out (default)
     '{ idx: 3, start_addr: BaseAddr32,                          end_addr: BaseAddr32+MemOffset},                // 3: Periphs
     '{ idx: 1, start_addr: BaseAddr32+MemOffset,                end_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes  }, // 1: Bank 0
     '{ idx: 2, start_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes,   end_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes}, // 2: Bank 1
     '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
-  } : */ '{             // 0: below/above address space, so AXI out (default)
+  } : '{             // 0: below/above address space, so AXI out (default)
     '{ idx: 1, start_addr: BaseAddr32+MemOffset,                                end_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes  }, // 1: Bank 0
     '{ idx: 2, start_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes,   end_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes}, // 2: Bank 1
     '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
