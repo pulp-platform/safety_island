@@ -33,13 +33,13 @@ module safety_island_top import safety_island_pkg::*; #(
   parameter int unsigned AxiOutputIdWidth  = 1,
   parameter type         axi_output_req_t  = logic,
   parameter type         axi_output_resp_t = logic
-
 ) (
   input  logic            clk_i,
+  input  logic            ref_clk_i,
   input  logic            rst_ni,
   input  logic            test_enable_i,
 
-  input logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
+  input logic [NumLocalInterrupts-1:0] irqs_i,
 
   /// JTAG
   input  logic            jtag_tck_i,
@@ -79,13 +79,6 @@ module safety_island_top import safety_island_pkg::*; #(
 
   `REG_BUS_TYPEDEF_ALL(safety_reg, logic[AddrWidth-1:0], logic[DataWidth-1:0], logic[(DataWidth/8)-1:0]);
 
-  // Address map of safety_island
-  typedef struct packed {
-      logic [31:0] idx;
-      logic [31:0] start_addr;
-      logic [31:0] end_addr;
-  } addr_map_rule_t;
-
   localparam int unsigned NumSlaves = 4;
   localparam int unsigned NumRules = /*(MemOffset > 0) ? 4 :*/ 3;
   localparam addr_map_rule_t [NumRules-1:0] main_addr_map = /*(MemOffset > 0) ? '{             // 0: below/above address space, so AXI out (default)
@@ -100,15 +93,14 @@ module safety_island_top import safety_island_pkg::*; #(
   };
 
   localparam addr_map_rule_t [NumPeriphRules-1:0] periph_addr_map = '{                                  // 0: Error slave (default)
-    '{ idx: PeriphSocCtrl,       start_addr: PeriphBaseAddr+SocCtrlAddrOffset,       end_addr: PeriphBaseAddr+SocCtrlAddrOffset+      SocCtrlAddrRange}, // 1: SoC control
-    '{ idx: PeriphBootROM,       start_addr: PeriphBaseAddr+BootROMAddrOffset,       end_addr: PeriphBaseAddr+BootROMAddrOffset+      BootROMAddrRange}, // 2: Boot ROM
+    '{ idx: PeriphSocCtrl,       start_addr: PeriphBaseAddr+SocCtrlAddrOffset,       end_addr: PeriphBaseAddr+SocCtrlAddrOffset+      SocCtrlAddrRange},       // 1: SoC control
+    '{ idx: PeriphBootROM,       start_addr: PeriphBaseAddr+BootROMAddrOffset,       end_addr: PeriphBaseAddr+BootROMAddrOffset+      BootROMAddrRange},       // 2: Boot ROM
     '{ idx: PeriphGlobalPrepend, start_addr: PeriphBaseAddr+GlobalPrependAddrOffset, end_addr: PeriphBaseAddr+GlobalPrependAddrOffset+GlobalPrependAddrRange}, // 3: Global prepend
-    '{ idx: PeriphDebug,         start_addr: PeriphBaseAddr+DebugAddrOffset,         end_addr: PeriphBaseAddr+DebugAddrOffset+        DebugAddrRange}, // 4: Debug
-    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+ClicAddrOffset,          end_addr: PeriphBaseAddr+ClicAddrOffset+         ClicAddrRange}, // 5: CLIC
-    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+TCLSAddrOffset,          end_addr: PeriphBaseAddr+TCLSAddrOffset+         TCLSAddrRange}  // 6: TCLS
+    '{ idx: PeriphDebug,         start_addr: PeriphBaseAddr+DebugAddrOffset,         end_addr: PeriphBaseAddr+DebugAddrOffset+        DebugAddrRange},         // 4: Debug
+    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+CoreLocalAddrOffset,     end_addr: PeriphBaseAddr+CoreLocalAddrOffset+    CoreLocalAddrRange}      // 5: Core-Local peripherals
 `ifdef TARGET_SIMULATION
     ,
-    '{ idx: PeriphTBPrintf,      start_addr: PeriphBaseAddr+TBPrintfAddrOffset,      end_addr: PeriphBaseAddr+TBPrintfAddrOffset+     TBPrintfAddrRange}  // 7: TBPrintf
+    '{ idx: PeriphTBPrintf,      start_addr: PeriphBaseAddr+TBPrintfAddrOffset,      end_addr: PeriphBaseAddr+TBPrintfAddrOffset+     TBPrintfAddrRange}       // 6: TBPrintf
 `endif
   };
 
@@ -273,7 +265,7 @@ module safety_island_top import safety_island_pkg::*; #(
   assign {dbg_mem_we, dbg_mem_be, dbg_mem_addr, dbg_mem_wdata} = dbg_mem_wdata_agg;
   assign dbg_mem_rdata_agg = {dbg_mem_rdata, dbg_mem_err};
 
-  // core local bus
+  // Core local bus
   logic        cl_periph_req, cl_periph_gnt, cl_periph_rvalid, cl_periph_we, cl_periph_err;
   logic [ 3:0] cl_periph_be;
   logic [31:0] cl_periph_addr, cl_periph_wdata, cl_periph_rdata;
@@ -337,11 +329,12 @@ module safety_island_top import safety_island_pkg::*; #(
 
   safety_core_wrap #(
     .SafetyIslandCfg (SafetyIslandCfg),
-    .PeriphBaseAddr ( BaseAddr32 + PeriphOffset ),
-    .reg_req_t     ( safety_reg_req_t ),
-    .reg_rsp_t     ( safety_reg_rsp_t )
+    .PeriphBaseAddr  ( BaseAddr32 + PeriphOffset ),
+    .reg_req_t       ( safety_reg_req_t ),
+    .reg_rsp_t       ( safety_reg_rsp_t )
   ) i_core_wrap (
     .clk_i,
+    .ref_clk_i,
     .rst_ni,
     .test_enable_i,
 

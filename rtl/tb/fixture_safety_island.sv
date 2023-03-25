@@ -48,7 +48,7 @@ module fixture_safety_island;
   int stim_fd;
   int num_stim = 0;
 
-  logic s_clk;
+  logic s_clk, s_ref_clk;
   logic s_fetchenable = 1'b0;
   logic s_fetchenable_selector = 1'b0;
   logic [1:0] s_bootmode = 2'b0;
@@ -73,6 +73,15 @@ module fixture_safety_island;
     .rst_no()
   );
 
+  // clock gen
+  clk_rst_gen #(
+    .ClkPeriod   ( 30517ns ),
+    .RstClkCycles(1)
+  ) i_ref_clk_gen (
+    .clk_o (s_ref_clk),
+    .rst_no()
+  );
+
   safety_island_top #(
     .SafetyIslandCfg   ( SafetyIslandCfg   ),
     .GlobalAddrWidth   ( GlobalAddrWidth   ),
@@ -91,6 +100,7 @@ module fixture_safety_island;
     .axi_output_resp_t ( axi_output_resp_t )
   ) i_dut (
     .clk_i             ( s_clk                   ),
+    .ref_clk_i         ( s_ref_clk               ),
     .rst_ni            ( s_rst_n                 ),
     .test_enable_i     ( s_test_enable           ),
 

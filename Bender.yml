@@ -18,6 +18,8 @@ dependencies:
   cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "8e1898f" }
   clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "6431785" }
   fpnew:                { git: "https://github.com/pulp-platform/fpnew.git",                version: 0.6.1 }
+  apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }
+  timer_unit:           { git: "git@github.com:pulp-platform/timer_unit.git",               version: 1.0.2 }
 
 sources:
   # Level 1

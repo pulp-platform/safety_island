@@ -8,6 +8,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+`include "apb/typedef.svh"
+
 module safety_core_wrap import safety_island_pkg::*; #(
   parameter safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
   parameter bit [31:0] PeriphBaseAddr = 32'h0020_0000,
@@ -15,10 +17,11 @@ module safety_core_wrap import safety_island_pkg::*; #(
   parameter type      reg_rsp_t        = logic
 ) (
   input  logic clk_i,
+  input  logic ref_clk_i,
   input  logic rst_ni,
   input  logic test_enable_i,
 
-  input logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
+  input logic [NumLocalInterrupts-1:0] irqs_i,
 
   // Core-local peripherals
   input  reg_req_t    cl_periph_req_i,
@@ -143,9 +146,33 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .external_perf_i     ('0)
   );
 
-  localparam int unsigned NumCoreLocalPeriphs = 1;
+  // Core-Local peripherals arbitration
+
+  localparam addr_map_rule_t [NumCoreLocalPeriphs-1:0] cl_regbus_addr_map_rule = '{
+   '{ idx: RegbusOutTCLS,  start_addr: PeriphBaseAddr+TCLSAddrOffset,  end_addr: PeriphBaseAddr+TCLSAddrOffset+TCLSAddrRange },   // 0: TCLS
+   '{ idx: RegbusOutTimer, start_addr: PeriphBaseAddr+TimerAddrOffset, end_addr: PeriphBaseAddr+TimerAddrOffset+TimerAddrRange }, // 1: Timer
+   '{ idx: RegbusOutCLIC,  start_addr: PeriphBaseAddr+ClicAddrOffset,  end_addr: PeriphBaseAddr+ClicAddrOffset+ClicAddrRange }    // 2: CLIC
+  };
+
   reg_req_t [NumCoreLocalPeriphs-1:0] cl_periph_req;
   reg_rsp_t [NumCoreLocalPeriphs-1:0] cl_periph_rsp;
+  logic [cf_math_pkg::idx_width(NumCoreLocalPeriphs)-1:0] regbus_idx;
+
+  addr_decode #(
+    .NoIndices        ( NumCoreLocalPeriphs ),
+    .NoRules          ( NumCoreLocalPeriphs ),
+    .addr_t           ( logic [31:0] ),
+    .rule_t           ( addr_map_rule_t ),
+    .Napot            ( 1'b0 )
+  ) i_addr_decode_regbus (
+    .addr_i           ( cl_periph_req_i.addr ),
+    .addr_map_i       ( cl_regbus_addr_map_rule ),
+    .idx_o            ( regbus_idx ),
+    .dec_valid_o      ( ),
+    .dec_error_o      ( ),
+    .en_default_idx_i ( '0 ),
+    .default_idx_i    ( '0 )
+  );
 
   reg_demux #(
     .NoPorts ( NumCoreLocalPeriphs ),
@@ -155,7 +182,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .clk_i,
     .rst_ni,
 
-    .in_select_i ( '0 ), // TODO
+    .in_select_i ( regbus_idx ),
 
     .in_req_i  ( cl_periph_req_i ),
     .in_rsp_o  ( cl_periph_rsp_o ),
@@ -164,15 +191,77 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .out_rsp_i ( cl_periph_rsp   )
   );
 
+  // TODO @michaero: TCLS
+  reg_err_slv #(
+    .DW      ( 32           ),
+    .ERR_VAL ( 32'hBADCAB1E ),
+    .req_t   ( reg_req_t    ),
+    .rsp_t   ( reg_rsp_t )
+  ) i_reg_err_slv_ddr_link (
+    .req_i   ( cl_periph_req[RegbusOutTCLS] ),
+    .rsp_o   ( cl_periph_rsp[RegbusOutTCLS] )
+  );
+
+  // Timer
+
+  // Timer bus (APB interface)
+  `APB_TYPEDEF_REQ_T(safety_apb_req_t, logic [31:0], logic [31:0], logic [3:0])
+  `APB_TYPEDEF_RESP_T(safety_apb_rsp_t, logic [31:0])
+  safety_apb_req_t timer_apb_req;
+  safety_apb_rsp_t timer_apb_rsp;
+
+  logic [NumTimerInterrupts-1:0] s_timer_irqs;
+
+  reg_to_apb #(
+    .reg_req_t(reg_req_t),
+    .reg_rsp_t(reg_rsp_t),
+    .apb_req_t(safety_apb_req_t),
+    .apb_rsp_t(safety_apb_rsp_t)
+  ) i_reg_to_apb_timer (
+    .clk_i,
+    .rst_ni,
+    // Register interface
+    .reg_req_i (cl_periph_req[RegbusOutTimer]),
+    .reg_rsp_o (cl_periph_rsp[RegbusOutTimer]),
+    // APB interface
+    .apb_req_o (timer_apb_req),
+    .apb_rsp_i (timer_apb_rsp)
+  );
+
+  apb_timer_unit #(.APB_ADDR_WIDTH(32)
+    ) i_apb_timer_unit (
+      .HCLK       ( clk_i                   ),
+      .HRESETn    ( rst_ni                  ),
+      .PADDR      ( timer_apb_req.paddr   ),
+      .PWDATA     ( timer_apb_req.pwdata  ),
+      .PWRITE     ( timer_apb_req.pwrite  ),
+      .PSEL       ( timer_apb_req.psel    ),
+      .PENABLE    ( timer_apb_req.penable ),
+      .PRDATA     ( timer_apb_rsp.prdata  ),
+      .PREADY     ( timer_apb_rsp.pready  ),
+      .PSLVERR    ( timer_apb_rsp.pslverr ),
+      .ref_clk_i,
+      .event_lo_i ( /*s_timer_in_lo_event*/     ),
+      .event_hi_i ( /*s_timer_in_hi_event*/     ),
+      .irq_lo_o   ( s_timer_irqs[0]         ),
+      .irq_hi_o   ( s_timer_irqs[1]         ),
+      .busy_o     (                         )
+  );
+
 
   // Interrupts
-
   always_comb begin : gen_core_irq_onehot
       core_irq_onehot = '0;
       if (core_irq_valid) begin
           core_irq_onehot[core_irq_id] = 1'b1;
       end
   end
+
+  logic [255:0] clic_irqs;
+  assign clic_irqs = {
+    irqs_i,             // NumInterrupts-2
+    s_timer_irqs        // 2 (timer interrupts)
+  };
 
   clic #(
     .reg_req_t ( reg_req_t ),
@@ -182,10 +271,10 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .clk_i,
     .rst_ni,
      // Bus Interface
-    .reg_req_i   ( cl_periph_req[0] ),
-    .reg_rsp_o   ( cl_periph_rsp[0] ),
+    .reg_req_i   ( cl_periph_req[RegbusOutCLIC] ),
+    .reg_rsp_o   ( cl_periph_rsp[RegbusOutCLIC] ),
     // Interrupt Sources
-    .intr_src_i  ( irqs_i         ),
+    .intr_src_i  ( clic_irqs      ),
     // Interrupt notification to core
     .irq_valid_o ( core_irq_valid ),
     .irq_ready_i ( core_irq_ready ),
