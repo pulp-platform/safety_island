@@ -17,13 +17,13 @@ package safety_island_pkg;
 
 `ifdef TARGET_SIMULATION
   localparam int unsigned NumPeriphs     = 7;
-  localparam int unsigned NumPeriphRules = 7;
+  localparam int unsigned NumPeriphRules = 6;
 
   localparam bit [31:0] TBPrintfAddrOffset = 32'h0000_6000;
   localparam bit [31:0] TBPrintfAddrRange  = 32'h0000_1000;
 `else
   localparam int unsigned NumPeriphs     = 6;
-  localparam int unsigned NumPeriphRules = 6;
+  localparam int unsigned NumPeriphRules = 5;
 `endif
   localparam int unsigned NumCoreLocalPeriphs = 3; // CLIC, TCLS, Timer
 
