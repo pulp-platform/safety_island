@@ -79,6 +79,17 @@ module safety_island_top import safety_island_pkg::*; #(
 
   `REG_BUS_TYPEDEF_ALL(safety_reg, logic[AddrWidth-1:0], logic[DataWidth-1:0], logic[(DataWidth/8)-1:0]);
 
+`ifdef TARGET_SIMULATION
+  localparam int unsigned NumPeriphs     = 7;
+  localparam int unsigned NumPeriphRules = 6;
+
+  localparam bit [31:0] TBPrintfAddrOffset = 32'h0000_6000;
+  localparam bit [31:0] TBPrintfAddrRange  = 32'h0000_1000;
+`else
+  localparam int unsigned NumPeriphs     = 6;
+  localparam int unsigned NumPeriphRules = 5;
+`endif
+
   localparam int unsigned NumSlaves = 4;
   localparam int unsigned NumRules = (MemOffset > 0) ? 4 : 3;
   localparam addr_map_rule_t [NumRules-1:0] main_addr_map = (MemOffset > 0) ? '{             // 0: below/above address space, so AXI out (default)

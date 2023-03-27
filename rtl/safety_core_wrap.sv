@@ -148,6 +148,8 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
   // Core-Local peripherals arbitration
 
+  localparam int unsigned NumCoreLocalPeriphs = 3; // CLIC, TCLS, Timer
+
   localparam addr_map_rule_t [NumCoreLocalPeriphs-1:0] cl_regbus_addr_map_rule = '{
    '{ idx: RegbusOutTCLS,  start_addr: PeriphBaseAddr+TCLSAddrOffset,  end_addr: PeriphBaseAddr+TCLSAddrOffset+TCLSAddrRange },   // 0: TCLS
    '{ idx: RegbusOutTimer, start_addr: PeriphBaseAddr+TimerAddrOffset, end_addr: PeriphBaseAddr+TimerAddrOffset+TimerAddrRange }, // 1: Timer
