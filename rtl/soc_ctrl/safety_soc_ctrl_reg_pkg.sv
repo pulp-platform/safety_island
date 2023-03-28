@@ -25,30 +25,54 @@ package safety_soc_ctrl_reg_pkg;
     logic [31:0] q;
   } safety_soc_ctrl_reg2hw_corestatus_reg_t;
 
+  typedef struct packed {
+    logic [1:0]  q;
+  } safety_soc_ctrl_reg2hw_bootmode_reg_t;
+
+  typedef struct packed {
+    logic        d;
+    logic        de;
+  } safety_soc_ctrl_hw2reg_fetchen_reg_t;
+
+  typedef struct packed {
+    logic [1:0]  d;
+    logic        de;
+  } safety_soc_ctrl_hw2reg_bootmode_reg_t;
+
   // Register -> HW type
   typedef struct packed {
-    safety_soc_ctrl_reg2hw_bootaddr_reg_t bootaddr; // [64:33]
-    safety_soc_ctrl_reg2hw_fetchen_reg_t fetchen; // [32:32]
-    safety_soc_ctrl_reg2hw_corestatus_reg_t corestatus; // [31:0]
+    safety_soc_ctrl_reg2hw_bootaddr_reg_t bootaddr; // [66:35]
+    safety_soc_ctrl_reg2hw_fetchen_reg_t fetchen; // [34:34]
+    safety_soc_ctrl_reg2hw_corestatus_reg_t corestatus; // [33:2]
+    safety_soc_ctrl_reg2hw_bootmode_reg_t bootmode; // [1:0]
   } safety_soc_ctrl_reg2hw_t;
+
+  // HW -> register type
+  typedef struct packed {
+    safety_soc_ctrl_hw2reg_fetchen_reg_t fetchen; // [4:3]
+    safety_soc_ctrl_hw2reg_bootmode_reg_t bootmode; // [2:0]
+  } safety_soc_ctrl_hw2reg_t;
 
   // Register offsets
   parameter logic [BlockAw-1:0] SAFETY_SOC_CTRL_BOOTADDR_OFFSET = 4'h 0;
   parameter logic [BlockAw-1:0] SAFETY_SOC_CTRL_FETCHEN_OFFSET = 4'h 4;
   parameter logic [BlockAw-1:0] SAFETY_SOC_CTRL_CORESTATUS_OFFSET = 4'h 8;
+  parameter logic [BlockAw-1:0] SAFETY_SOC_CTRL_BOOTMODE_OFFSET = 4'h c;
 
   // Register index
   typedef enum int {
     SAFETY_SOC_CTRL_BOOTADDR,
     SAFETY_SOC_CTRL_FETCHEN,
-    SAFETY_SOC_CTRL_CORESTATUS
+    SAFETY_SOC_CTRL_CORESTATUS,
+    SAFETY_SOC_CTRL_BOOTMODE
   } safety_soc_ctrl_id_e;
 
   // Register width information to check illegal writes
-  parameter logic [3:0] SAFETY_SOC_CTRL_PERMIT [3] = '{
+  parameter logic [3:0] SAFETY_SOC_CTRL_PERMIT [4] = '{
     4'b 1111, // index[0] SAFETY_SOC_CTRL_BOOTADDR
     4'b 0001, // index[1] SAFETY_SOC_CTRL_FETCHEN
-    4'b 1111  // index[2] SAFETY_SOC_CTRL_CORESTATUS
+    4'b 1111, // index[2] SAFETY_SOC_CTRL_CORESTATUS
+    4'b 0001  // index[3] SAFETY_SOC_CTRL_BOOTMODE
   };
 
 endpackage

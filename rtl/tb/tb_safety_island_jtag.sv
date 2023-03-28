@@ -8,14 +8,17 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-module tb_safety_island;
+module tb_safety_island_jtag;
 
   fixture_safety_island fixt_safety_island();
 
   logic [31:0] entry_point;
   int exit_status;
 
-  initial begin
+  initial begin : jtag_boot_process
+    fixt_safety_island.set_bootmode(safety_island_pkg::Jtag);
+    fixt_safety_island.init_axi_driver();
+
     fixt_safety_island.read_entry_point(entry_point);
 
     fixt_safety_island.apply_rstn();
@@ -31,6 +34,6 @@ module tb_safety_island;
     fixt_safety_island.jtag_wait_for_eoc(exit_status);
 
     $stop;
-  end
+  end // block: jtag_boot_process
 
 endmodule

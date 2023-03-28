@@ -26,6 +26,13 @@ extern "C" {
 // Core Return Status (return value, EOC)
 #define SAFETY_SOC_CTRL_CORESTATUS_REG_OFFSET 0x8
 
+// Core Boot Mode
+#define SAFETY_SOC_CTRL_BOOTMODE_REG_OFFSET 0xc
+#define SAFETY_SOC_CTRL_BOOTMODE_BOOTMODE_MASK 0x3
+#define SAFETY_SOC_CTRL_BOOTMODE_BOOTMODE_OFFSET 0
+#define SAFETY_SOC_CTRL_BOOTMODE_BOOTMODE_FIELD \
+  ((bitfield_field32_t) { .mask = SAFETY_SOC_CTRL_BOOTMODE_BOOTMODE_MASK, .index = SAFETY_SOC_CTRL_BOOTMODE_BOOTMODE_OFFSET })
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

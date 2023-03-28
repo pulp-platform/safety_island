@@ -12,21 +12,22 @@
 
 module fixture_safety_island;
   import srec_pkg::*;
+  import safety_island_pkg::*;
 
   // Safety Island Configs
-  localparam GlobalAddrWidth = 32;
-  localparam BaseAddr        = 32'h0000_0000;
+  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = SafetyIslandDefaultConfig;
 
-  localparam AddrRange       = 32'h0080_0000;
-  localparam MemOffset       = 32'h0000_0000;
-  localparam PeriphOffset    = 32'h0020_0000;
-  localparam BankNumBytes    = 32'h0001_0000;
-  localparam NumInterrupts   = 256;
+  localparam int unsigned              GlobalAddrWidth = 32;
+  localparam bit [GlobalAddrWidth-1:0] BaseAddr        = 32'h0000_0000;
+  localparam bit [31:0]                AddrRange       = 32'h0080_0000;
+  localparam bit [31:0]                MemOffset       = 32'h0000_0000;
+  localparam bit [31:0]                PeriphOffset    = 32'h0020_0000;
 
-  localparam SocCtrlAddr    = BaseAddr + PeriphOffset;
+  localparam SocCtrlAddr    = BaseAddr + PeriphOffset + SocCtrlAddrOffset;
   localparam BootAddrAddr   = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTADDR_OFFSET;
   localparam FetchEnAddr    = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_FETCHEN_OFFSET;
   localparam CoreStatusAddr = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_CORESTATUS_OFFSET;
+  localparam BootModeAddr   = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTMODE_OFFSET;
 
   // Global AXI Configs
   localparam int unsigned AxiDataWidth     = 64;
@@ -47,7 +48,9 @@ module fixture_safety_island;
   int stim_fd;
   int num_stim = 0;
 
-  logic s_clk;
+  logic s_clk, s_ref_clk;
+  logic s_fetchenable = 1'b0;
+  logic [1:0] s_bootmode = 2'b0;
   logic s_rst_n = 1'b0;
   logic s_test_enable = 1'b0;
 
@@ -56,6 +59,9 @@ module fixture_safety_island;
   logic s_tdo;
   logic s_tms = 1'b0;
   logic s_trstn = 1'b1;
+
+  axi_input_req_t from_ext_req;
+  axi_input_resp_t from_ext_resp;
 
   // clock gen
   clk_rst_gen #(
@@ -66,16 +72,22 @@ module fixture_safety_island;
     .rst_no()
   );
 
+  // clock gen
+  clk_rst_gen #(
+    .ClkPeriod   ( 30517ns ),
+    .RstClkCycles(1)
+  ) i_ref_clk_gen (
+    .clk_o (s_ref_clk),
+    .rst_no()
+  );
+
   safety_island_top #(
-    .HartId            ( 0                 ),
+    .SafetyIslandCfg   ( SafetyIslandCfg   ),
     .GlobalAddrWidth   ( GlobalAddrWidth   ),
     .BaseAddr          ( BaseAddr          ),
     .AddrRange         ( AddrRange         ),
     .MemOffset         ( MemOffset         ),
     .PeriphOffset      ( PeriphOffset      ),
-    .BankNumBytes      ( BankNumBytes      ),
-    .NumInterrupts     ( NumInterrupts     ),
-    .PulpJtagIdCode    ( 32'h1_0000_db3    ), // TODO!
     .AxiDataWidth      ( AxiDataWidth      ),
     .AxiAddrWidth      ( AxiAddrWidth      ),
     .AxiInputIdWidth   ( AxiInputIdWidth   ),
@@ -87,8 +99,11 @@ module fixture_safety_island;
     .axi_output_resp_t ( axi_output_resp_t )
   ) i_dut (
     .clk_i             ( s_clk                   ),
+    .ref_clk_i         ( s_ref_clk               ),
     .rst_ni            ( s_rst_n                 ),
     .test_enable_i     ( s_test_enable           ),
+
+    .irqs_i            ('0                       ),
 
     .jtag_tck_i        ( s_tck                   ),
     .jtag_tdi_i        ( s_tdi                   ),
@@ -96,10 +111,10 @@ module fixture_safety_island;
     .jtag_tms_i        ( s_tms                   ),
     .jtag_trst_i       ( s_trstn                 ),
 
-    .bootmode_i        ( safety_island_pkg::Jtag ),
+    .bootmode_i        ( s_bootmode              ),
 
-    .axi_input_req_i   ( '0 ),
-    .axi_input_resp_o  (  ),
+    .axi_input_req_i   ( from_ext_req ),
+    .axi_input_resp_o  ( from_ext_resp ),
     .axi_output_req_o  (  ),
     .axi_output_resp_i ( '0 )
   );
@@ -108,14 +123,19 @@ module fixture_safety_island;
   // Tasks
   // ----------------
 
+  `define wait_for(signal) \
+  do \
+    @(posedge s_clk); \
+  while (!signal);
+
   // Read entry point from commandline
   task read_entry_point(output logic [31:0] begin_l2_instr);
     int entry_point;
     if ($value$plusargs("ENTRY_POINT=%h", entry_point)) begin_l2_instr = entry_point - 32'h80;
-    else begin_l2_instr = BaseAddr[31:0]+MemOffset+BankNumBytes;
+    else begin_l2_instr = BaseAddr[31:0]+MemOffset+SafetyIslandCfg.BankNumBytes;
     $display("[TB  ] %t - Entry point is set to 0x%h", $realtime, begin_l2_instr);
   endtask  // read_entry_point
-  
+
 
   // Apply reset
   task apply_rstn;
@@ -125,6 +145,10 @@ module fixture_safety_island;
     // Release reset
     $display("[TB  ] %t - Releasing hard reset", $realtime);
     s_rst_n = 1'b1;
+  endtask
+
+  task set_bootmode(logic [1:0] bootmode_i);
+    s_bootmode = bootmode_i;
   endtask
 
   //
@@ -193,12 +217,21 @@ module fixture_safety_island;
     end
 
     // From here on starts the actual jtag booting
+    // We need our core the fetching and running from the bootrom. We can do
+    // that by either driving the bootsel and fetch_enable signals or by using
+    // the pulp/riscv tap to write to the corresponding memory mapped registers.
+    if (!$value$plusargs("jtag_boot_conf=%s", jtag_boot_conf))
+      jtag_boot_conf = "mm"; // default memory mapped
 
-    // We need our core the fetching and running from the bootrom.
-    debug_mode_if.init_dmi_access(s_tck, s_tms, s_trstn, s_tdi);
-    debug_mode_if.set_dmactive(1'b1,  s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-    debug_mode_if.writeMem(BootAddrAddr, entrypoint, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-    debug_mode_if.writeMem(FetchEnAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+    if (jtag_boot_conf == "mm") begin
+      $display("[TB  ] %t - Configuration boot through memory mapped registers", $realtime);
+      debug_mode_if.init_dmi_access(s_tck, s_tms, s_trstn, s_tdi);
+      debug_mode_if.set_dmactive(1'b1,  s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+      // debug_mode_if.writeMem(BootModeAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+      // debug_mode_if.writeMem(FetchEnAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+    end else begin
+      $fatal(1, "Unknown boot configuration +jtag_boot_conf=%s", jtag_boot_conf);
+    end
 
     // Setup debug module and hart, halt hart and set dpc (return point
     // for boot).
@@ -227,11 +260,11 @@ module fixture_safety_island;
     debug_mode_if.load_L2(num_stim, stimuli, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
     //write bootaddress
-    #10us;
-    $display("[TB  ] %t - Write boot address into reset vector: 0x%h @ 0x%h",
-             $realtime, entrypoint, BootAddrAddr);
-    debug_mode_if.writeMem(BootAddrAddr, entrypoint, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-    #10us;
+    //#10us;
+    //$display("[TB  ] %t - Write boot address into reset vector: 0x%h @ 0x%h",
+    //         $realtime, entrypoint, BootAddrAddr);
+    //debug_mode_if.writeMem(BootAddrAddr, entrypoint, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+    //#10us;
 
   endtask // jtag_load_binary
 
@@ -287,7 +320,7 @@ module fixture_safety_island;
     error   = 1'b0;
     num_err = 0;
 
-    // We need our core the fetching and running from the bootrom. 
+    // We need our core the fetching and running from the bootrom.
     debug_mode_if.init_dmi_access(s_tck, s_tms, s_trstn, s_tdi);
     debug_mode_if.set_dmactive(1'b1,  s_tck, s_tms, s_trstn, s_tdi, s_tdo);
     debug_mode_if.writeMem(BootAddrAddr, 32'h1A00_0000, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
@@ -346,5 +379,235 @@ module fixture_safety_island;
 
     $fclose(stim_fd);
   endtask  // load_stim
+
+  task write_to_safed(input logic [AxiAddrWidth-1:0] addr, input logic [AxiDataWidth-1:0] data,
+                     output axi_pkg::resp_t resp);
+    if (addr[2:0] != 3'b0)
+        $fatal(1, "write_to_safed: unaligned 64-bit access");
+    from_ext_req.aw.id     = '0;
+    from_ext_req.aw.addr   = addr;
+    from_ext_req.aw.len    = '0;
+    from_ext_req.aw.size   = $clog2(AxiDataWidth/8);
+    from_ext_req.aw.burst  = axi_pkg::BURST_INCR;
+    from_ext_req.aw.lock   = 1'b0;
+    from_ext_req.aw.cache  = '0;
+    from_ext_req.aw.prot   = '0;
+    from_ext_req.aw.qos    = '0;
+    from_ext_req.aw.region = '0;
+    from_ext_req.aw.atop   = '0;
+    from_ext_req.aw.user   = '0;
+    from_ext_req.aw_valid  = 1'b1;
+    #1ps
+    `wait_for(from_ext_resp.aw_ready)
+    from_ext_req.aw_valid = 1'b0;
+    from_ext_req.w.data   = data;
+    from_ext_req.w.strb   = '1;
+    from_ext_req.w.last   = 1'b1;
+    from_ext_req.w.user   = '0;
+    from_ext_req.w_valid  = 1'b1;
+    `wait_for(from_ext_resp.w_ready)
+    from_ext_req.w_valid = 1'b0;
+    from_ext_req.b_ready = 1'b1;
+    `wait_for(from_ext_resp.b_valid)
+    resp                 = from_ext_resp.b.resp;
+    from_ext_req.b_ready = 1'b0;
+  endtask  // write_to_safed
+
+  task write_to_safed32(input logic [AxiAddrWidth-1:0] addr, input logic [31:0] data,
+                       output axi_pkg::resp_t resp);
+    from_ext_req.aw.id     = '0;
+    from_ext_req.aw.addr   = addr;
+    from_ext_req.aw.len    = '0;
+    from_ext_req.aw.size   = $clog2($bits(data)/8);
+    from_ext_req.aw.burst  = axi_pkg::BURST_INCR;
+    from_ext_req.aw.lock   = 1'b0;
+    from_ext_req.aw.cache  = '0;
+    from_ext_req.aw.prot   = '0;
+    from_ext_req.aw.qos    = '0;
+    from_ext_req.aw.region = '0;
+    from_ext_req.aw.atop   = '0;
+    from_ext_req.aw.user   = '0;
+    from_ext_req.aw_valid  = 1'b1;
+    `wait_for(from_ext_resp.aw_ready)
+    from_ext_req.aw_valid = 1'b0;
+    from_ext_req.w.data   = (addr[2]) ? {data, 32'h0} : {32'h0, data};
+    from_ext_req.w.strb   = (addr[2]) ? 8'hf0 : 8'h0f;
+    from_ext_req.w.last   = 1'b1;
+    from_ext_req.w.user   = '0;
+    from_ext_req.w_valid  = 1'b1;
+    `wait_for(from_ext_resp.w_ready)
+    from_ext_req.w_valid = 1'b0;
+    from_ext_req.b_ready = 1'b1;
+    `wait_for(from_ext_resp.b_valid)
+    resp                 = from_ext_resp.b.resp;
+    from_ext_req.b_ready = 1'b0;
+  endtask  // write_to_safed32
+
+   task read_from_safed(input logic [AxiAddrWidth-1:0] addr, output logic [AxiDataWidth-1:0] data,
+                      output axi_pkg::resp_t resp);
+    if (addr[2:0] != 3'b0)
+      $fatal(1, "read_from_safed: unaligned 64-bit access");
+    from_ext_req.ar.id     = '0;
+    from_ext_req.ar.addr   = addr;
+    from_ext_req.ar.len    = '0;
+    from_ext_req.ar.size   = $clog2(AxiDataWidth/8);
+    from_ext_req.ar.burst  = axi_pkg::BURST_INCR;
+    from_ext_req.ar.lock   = 1'b0;
+    from_ext_req.ar.cache  = '0;
+    from_ext_req.ar.prot   = '0;
+    from_ext_req.ar.qos    = '0;
+    from_ext_req.ar.region = '0;
+    from_ext_req.ar.user   = '0;
+    from_ext_req.ar_valid  = 1'b1;
+    `wait_for(from_ext_resp.ar_ready)
+    from_ext_req.ar_valid = 1'b0;
+    from_ext_req.r_ready  = 1'b1;
+    `wait_for(from_ext_resp.r_valid)
+    data                 = from_ext_resp.r.data;
+    resp                 = from_ext_resp.r.resp;
+    from_ext_req.r_ready = 1'b0;
+  endtask  // read_from_safed
+
+  task read_from_safed32(input logic[AxiAddrWidth-1:0] addr, output logic [31:0] data,
+                        output axi_pkg::resp_t resp);
+    from_ext_req.ar.id     = '0;
+    from_ext_req.ar.addr   = addr;
+    from_ext_req.ar.len    = '0;
+    from_ext_req.ar.size   = $clog2($bits(data)/8);
+    from_ext_req.ar.burst  = axi_pkg::BURST_INCR;
+    from_ext_req.ar.lock   = 1'b0;
+    from_ext_req.ar.cache  = '0;
+    from_ext_req.ar.prot   = '0;
+    from_ext_req.ar.qos    = '0;
+    from_ext_req.ar.region = '0;
+    from_ext_req.ar.user   = '0;
+    from_ext_req.ar_valid  = 1'b1;
+    `wait_for(from_ext_resp.ar_ready)
+    from_ext_req.ar_valid = 1'b0;
+    from_ext_req.r_ready  = 1'b1;
+    `wait_for(from_ext_resp.r_valid)
+    data                 = from_ext_resp.r.data;
+    resp                 = from_ext_resp.r.resp;
+    from_ext_req.r_ready = 1'b0;
+  endtask  // read_from_safed32
+
+  task axi_assert(input string error_msg, input axi_pkg::resp_t resp, output int exit_status);
+    assert (resp == axi_pkg::RESP_OKAY)
+    else begin
+      $error(error_msg);
+      exit_status = EXIT_FAIL;
+    end
+  endtask  // axi_assert
+
+  // Init AXI driver
+  task init_axi_driver;
+    from_ext_req     = '{default: '0};
+  endtask  // init_axi_driver
+
+   // Select bootmode
+  task axi_select_bootmode(input logic [31:0] bootmode);
+    automatic axi_pkg::resp_t resp;
+    automatic logic[AxiDataWidth-1:0] data;
+
+    $display("[TB  ] %t - Write bootmode to bootsel register", $realtime);
+    write_to_safed32(BootModeAddr, bootmode, resp);
+    axi_assert("write", resp, exit_status);
+
+    $display("[TB  ] %t - Read bootmode from bootsel register", $realtime);
+    read_from_safed32(BootModeAddr, data, resp);
+    axi_assert("read", resp, exit_status);
+  endtask  // axi_select_bootmode
+
+  task axi_load_binary;
+    automatic axi_pkg::resp_t resp;
+    automatic string stim_path, srec_path;
+
+    automatic logic[AxiAddrWidth-1:0] axi_addr32;
+    automatic logic[AxiDataWidth-1:0] data, axi_data64;
+    automatic logic [95:0] stimuli[$];
+
+    automatic srec_record_t records[$];
+    automatic logic [31:0] entrypoint;
+
+    $display("[TB  ] %t - Load binary into L2 via AXI slave port", $realtime);
+
+    // Check if stimuli exist
+    if ($value$plusargs("stimuli=%s", stim_path)) begin
+      $display("[TB  ] %t - Loading custom stimuli from %s", $realtime, stim_path);
+      load_stim(stim_path, stimuli);
+    end else if ($value$plusargs("srec=%s", srec_path)) begin
+      $display("[TB  ] %t - Loading srec from %s", $realtime, srec_path);
+      srec_read(srec_path, records);
+      srec_records_to_stimuli(records, stimuli, entrypoint);
+      if (!$test$plusargs("srec_ignore_entry"))
+        axi_write_entry_point(entrypoint);
+    end else begin
+      $display("[TB  ] %t - Loading default stimuli from ./vectors/stim.txt", $realtime);
+      load_stim("./vectors/stim.txt", stimuli);
+    end
+
+    // Load binary
+    for (int num_stim = 0; num_stim < stimuli.size; num_stim++) begin
+      axi_addr32 = stimuli[num_stim][95:64]; // assign 32 bit address
+      axi_data64 = stimuli[num_stim][63:0];  // assign 64 bit data
+
+      if (num_stim % 128 == 0)
+        $display("[TB  ] %t - Write burst @%h for 1024 bytes", $realtime, axi_addr32);
+
+      write_to_safed(axi_addr32, axi_data64, resp);
+      axi_assert("write", resp, exit_status);
+
+      read_from_safed(axi_addr32, data, resp);
+      axi_assert("read", resp, exit_status);
+    end  // while (!$feof(stim_fd))
+  endtask  // axi_load_binary
+
+  task axi_write_entry_point(input logic [31:0] begin_l2_instr);
+    automatic axi_pkg::resp_t resp;
+    automatic logic[AxiDataWidth-1:0] data;
+
+    $display("[TB  ] %t - Write entry point into boot address register (reset vector): 0x%h @ 0x%h",
+             $realtime, begin_l2_instr, BootAddrAddr);
+    write_to_safed32(BootAddrAddr, begin_l2_instr + 32'h80, resp);
+    axi_assert("write", resp, exit_status);
+
+    $display("[TB  ] %t - Read entry point into boot address register (reset vector): 0x%h @ 0x%h",
+             $realtime, begin_l2_instr + 32'h80, BootAddrAddr);
+    read_from_safed32(BootAddrAddr, data, resp);
+    axi_assert("read", resp, exit_status);
+  endtask  // axi_write_entry_point
+
+  task axi_write_fetch_enable();
+    automatic axi_pkg::resp_t resp;
+    automatic logic[AxiDataWidth-1:0] data;
+
+    $display("[TB  ] %t - Write 1 to fetch enable register", $realtime);
+    write_to_safed32(FetchEnAddr, 32'h0000_0001, resp);
+    axi_assert("write", resp, exit_status);
+
+    $display("[TB  ] %t - Read 1 from fetch enable register", $realtime);
+    read_from_safed32(FetchEnAddr, data, resp);
+    axi_assert("read", resp, exit_status);
+  endtask  // axi_write_fetch_enable
+
+  task axi_wait_for_eoc(output int exit_status);
+    automatic axi_pkg::resp_t resp;
+    automatic logic [31:0] rdata;
+
+    // wait for end of computation signal
+    $display("[TB  ] %t - Waiting for end of computation", $realtime);
+
+    rdata = 0;
+    while (rdata[31] == 0) begin
+      read_from_safed32(CoreStatusAddr, rdata, resp);
+      axi_assert("read", resp, exit_status);
+      #50us;
+    end
+
+    if (rdata[30:0] == 0) exit_status = EXIT_SUCCESS;
+    else exit_status = EXIT_FAIL;
+    $display("[TB  ] %t - Exit status: %d, Received status core: 0x%h", $realtime, exit_status,
+             rdata[30:0]);
+  endtask  // axi_wait_for_eoc
 
 endmodule

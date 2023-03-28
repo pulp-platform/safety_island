@@ -17,6 +17,19 @@ Bender.lock:
 	bender checkout
 	touch Bender.lock
 
+######################
+# Nonfree components #
+######################
+
+NONFREE_REMOTE ?= git@iis-git.ee.ethz.ch:carfield/safety-island-nonfree.git
+NONFREE_COMMIT ?= 0742c2bb1162e858acdc8f58eb8ebd5a438db30a
+
+nonfree-init:
+	git clone $(NONFREE_REMOTE) nonfree
+	cd nonfree && git checkout $(NONFREE_COMMIT)
+
+-include nonfree/nonfree.mk
+
 .PHONY: scripts
 ## Generate scripts for all tools
 scripts: scripts-bender-vsim 
@@ -63,6 +76,32 @@ gen_soc_ctrl_regs:
 ##############
 ## SOFTWARE ##
 ##############
+.PHONY: pulp-runtime
+## Clone pulp-runtime for bare-metal verification
+pulp-runtime: sw/pulp-runtime
+sw/pulp-runtime:
+	git clone https://github.com/pulp-platform/pulp-runtime.git -b safety-island $@
 
-pulp-runtime:
-	git clone https://github.com/pulp-platform/pulp-runtime.git -b safety-island
+.PHONY: pulp-freertos
+## Clone freertos for real-time OS verification
+pulp-freertos: sw/pulp-freertos
+sw/pulp-freertos:
+	git clone https://github.com/pulp-platform/pulp-freertos.git $@
+	cd $@; \
+	git checkout carfield/safety-island; \
+	git submodule update --init --recursive
+
+.PHONY: help
+help: Makefile
+	@printf "Safety Island\n"
+	@printf "Available targets\n\n"
+	@awk '/^[a-zA-Z\-\_0-9]+:/ { \
+		helpMessage = match(lastLine, /^## (.*)/); \
+		if (helpMessage) { \
+			helpCommand = substr($$1, 0, index($$1, ":")-1); \
+			helpMessage = substr(lastLine, RSTART + 3, RLENGTH); \
+			printf "%-15s %s\n", helpCommand, helpMessage; \
+		} \
+	} \
+	{ lastLine = $$0 }' $(MAKEFILE_LIST)
+
