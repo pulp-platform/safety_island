@@ -38,6 +38,8 @@ int main(void)
     mult = op1 * op2;
     div = op2 / op1;
 
+    printf("Sum: %f\r\nSub: %f\r\nMult: %f\r\nDiv: %f\r\n", add, sub, mult, div);
+
     if ((add != add_exp) && (sub != sub_exp) && (mult != mult_exp) && (div != div_exp)) {
 	    return 1;
 	}
