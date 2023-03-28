@@ -28,10 +28,10 @@ int main(void)
     volatile float op2 = 5.0f;
     volatile float add, sub, mult, div;
 
-    volatile add_exp = 5.5f;
-    volatile sub_exp = 4.5f;
-    volatile mult_exp = 2.5f;
-    volatile div_exp = 10.0f;
+    volatile float add_exp = 5.5f;
+    volatile float sub_exp = 4.5f;
+    volatile float mult_exp = 2.5f;
+    volatile float div_exp = 10.0f;
 
     add = op1 + op2;
     sub = op2 - op1;
