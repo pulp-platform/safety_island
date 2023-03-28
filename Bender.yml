@@ -45,3 +45,8 @@ sources:
       - rtl/tb/fixture_safety_island.sv
       - rtl/tb/tb_safety_island_jtag.sv
       - rtl/tb/tb_safety_island_preloaded.sv
+
+  - target: synthesis
+    files:
+      - rtl/synth/safety_island_synth_pkg.sv
+      - rtl/synth/safety_island_synth_wrapper.sv
