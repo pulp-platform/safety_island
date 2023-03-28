@@ -527,6 +527,9 @@ module safety_island_top import safety_island_pkg::*; #(
   // -----------------
 
   tc_sram #(
+`ifdef TARGET_TECH_MEM
+    .MemType   ("Scratchpad"  ),
+`endif            
     .NumWords  ( BankNumWords ),
     .DataWidth ( 32           ),
     .ByteWidth ( 8            ),
@@ -556,6 +559,9 @@ module safety_island_top import safety_island_pkg::*; #(
   end
 
   tc_sram #(
+`ifdef TARGET_TECH_MEM
+    .MemType   ( "Scratchpad" ),
+`endif            
     .NumWords  ( BankNumWords ),
     .DataWidth ( 32           ),
     .ByteWidth ( 8            ),

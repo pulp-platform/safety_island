@@ -44,6 +44,13 @@ packages:
     source:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
+  tech_mem:
+    revision: ~
+    version: ~
+    source:
+      Path: intel16/tech_mem
+    dependencies:
+      - common_verification
   cv32e40p:
     revision: 8e1898f5b1b12696601f665d05de2e52e409eb3d
     version: null
