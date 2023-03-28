@@ -50,7 +50,6 @@ module fixture_safety_island;
 
   logic s_clk, s_ref_clk;
   logic s_fetchenable = 1'b0;
-  logic s_fetchenable_selector = 1'b0;
   logic [1:0] s_bootmode = 2'b0;
   logic s_rst_n = 1'b0;
   logic s_test_enable = 1'b0;
@@ -111,10 +110,6 @@ module fixture_safety_island;
     .jtag_tdo_o        ( s_tdo                   ),
     .jtag_tms_i        ( s_tms                   ),
     .jtag_trst_i       ( s_trstn                 ),
-
-    .fetch_enable_selector_i    ( s_fetchenable_selector   ),
-    .fetch_enable_i    ( s_fetchenable           ),
-    .bootmode_i        ( s_bootmode              ),
 
     .axi_input_req_i   ( from_ext_req ),
     .axi_input_resp_o  ( from_ext_resp ),
@@ -220,19 +215,14 @@ module fixture_safety_island;
     // that by either driving the bootsel and fetch_enable signals or by using
     // the pulp/riscv tap to write to the corresponding memory mapped registers.
     if (!$value$plusargs("jtag_boot_conf=%s", jtag_boot_conf))
-      jtag_boot_conf = "pads"; // default memory mapped
+      jtag_boot_conf = "mm"; // default memory mapped
 
     if (jtag_boot_conf == "mm") begin
       $display("[TB  ] %t - Configuration boot through memory mapped registers", $realtime);
       debug_mode_if.init_dmi_access(s_tck, s_tms, s_trstn, s_tdi);
       debug_mode_if.set_dmactive(1'b1,  s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-      debug_mode_if.writeMem(BootAddrAddr, entrypoint, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+      debug_mode_if.writeMem(BootModeAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
       debug_mode_if.writeMem(FetchEnAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-    end else if (jtag_boot_conf == "pads") begin
-      $display("[TB  ] %t - Configuration boot through pads", $realtime);
-      s_bootmode             = 2'b01;
-      s_fetchenable_selector = 1'b1;
-      s_fetchenable          = 1'b1;
     end else begin
       $fatal(1, "Unknown boot configuration +jtag_boot_conf=%s", jtag_boot_conf);
     end
