@@ -645,6 +645,17 @@ module safety_island_top import safety_island_pkg::*; #(
     end
   end
 
+  assign global_prepend_gnt = 1'b1;
+  assign global_prepend_err = 1'b1;
+  assign global_prepend_rdata = 32'hBADCAB1E;
+  always_ff @(posedge clk_i or negedge rst_ni) begin : proc_global_prepend_rvalid
+    if(!rst_ni) begin
+      global_prepend_rvalid <= '0;
+    end else begin
+      global_prepend_rvalid <= global_prepend_req;
+    end
+  end
+
   // SoC Control
   periph_to_reg #(
     .AW ( AddrWidth ),
@@ -765,7 +776,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   assign tbprintf_rdata = '0;
   assign tbprintf_gnt = 1'b1;
-  assign tbrpintf_err = 1'b0;
+  assign tbprintf_err = 1'b0;
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_tbprintf_rvalid
     if(!rst_ni) begin
       tbprintf_rvalid <= '0;
