@@ -48,6 +48,8 @@ module safety_island_top import safety_island_pkg::*; #(
   input  logic            jtag_tms_i,
   input  logic            jtag_trst_i,
 
+  input  bootmode_e       bootmode_i,
+
   /// AXI input
   input  axi_input_req_t  axi_input_req_i,
   output axi_input_resp_t axi_input_resp_o,
@@ -685,11 +687,25 @@ module safety_island_top import safety_island_pkg::*; #(
     .reg_rsp_i ( soc_ctrl_reg_rsp )
   );
 
+  logic first_cycle;
   safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t soc_ctrl_reg2hw;
   safety_soc_ctrl_reg_pkg::safety_soc_ctrl_hw2reg_t soc_ctrl_hw2reg;
   // allow control of fetch_enable from hardware
+  assign soc_ctrl_hw2reg.bootmode.d  = bootmode_i;
+  assign soc_ctrl_hw2reg.bootmode.de = first_cycle;
+  assign soc_ctrl_hw2reg.fetchen.d   = bootmode_i == Jtag;
+  assign soc_ctrl_hw2reg.fetchen.de  = first_cycle;
   assign fetch_enable = soc_ctrl_reg2hw.fetchen.q;
   assign boot_addr = soc_ctrl_reg2hw.bootaddr.q;
+
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin : proc_initial_ff
+    if(!rst_ni) begin
+      first_cycle <= 1'b1;
+    end else begin
+      first_cycle <= '0;
+    end
+  end
 
   safety_soc_ctrl_reg_top #(
     .reg_req_t( safety_reg_req_t ),

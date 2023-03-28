@@ -16,6 +16,9 @@ module tb_safety_island_jtag;
   int exit_status;
 
   initial begin : jtag_boot_process
+    fixt_safety_island.set_bootmode(safety_island_pkg::Jtag);
+    fixt_safety_island.init_axi_driver();
+
     fixt_safety_island.read_entry_point(entry_point);
 
     fixt_safety_island.apply_rstn();

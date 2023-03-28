@@ -111,6 +111,8 @@ module fixture_safety_island;
     .jtag_tms_i        ( s_tms                   ),
     .jtag_trst_i       ( s_trstn                 ),
 
+    .bootmode_i        ( s_bootmode              ),
+
     .axi_input_req_i   ( from_ext_req ),
     .axi_input_resp_o  ( from_ext_resp ),
     .axi_output_req_o  (  ),
@@ -143,6 +145,10 @@ module fixture_safety_island;
     // Release reset
     $display("[TB  ] %t - Releasing hard reset", $realtime);
     s_rst_n = 1'b1;
+  endtask
+
+  task set_bootmode(logic [1:0] bootmode_i);
+    s_bootmode = bootmode_i;
   endtask
 
   //
@@ -221,8 +227,8 @@ module fixture_safety_island;
       $display("[TB  ] %t - Configuration boot through memory mapped registers", $realtime);
       debug_mode_if.init_dmi_access(s_tck, s_tms, s_trstn, s_tdi);
       debug_mode_if.set_dmactive(1'b1,  s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-      debug_mode_if.writeMem(BootModeAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-      debug_mode_if.writeMem(FetchEnAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+      // debug_mode_if.writeMem(BootModeAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+      // debug_mode_if.writeMem(FetchEnAddr, 32'h0000_0001, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
     end else begin
       $fatal(1, "Unknown boot configuration +jtag_boot_conf=%s", jtag_boot_conf);
     end

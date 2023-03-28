@@ -17,6 +17,7 @@ module tb_safety_island_preloaded;
 
   // pms boot driver process (AXI)
   initial begin : axi_boot_process
+    fixt_safety_island.set_bootmode(safety_island_pkg::Preloaded);
 
     // Init AXI driver
     fixt_safety_island.init_axi_driver();
