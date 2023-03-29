@@ -832,12 +832,12 @@ module safety_island_top import safety_island_pkg::*; #(
 
   // Typedefs
   `AXI_TYPEDEF_AW_CHAN_T(axi_out_aw_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_AW_CHAN_T(axi_out_aw32_aw_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  // `AXI_TYPEDEF_AW_CHAN_T(axi_out_aw32_aw_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
   `AXI_TYPEDEF_W_CHAN_T(axi_out_w_chan_t,                                 logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0],                              logic[AxiUserWidth-1:0])
   `AXI_TYPEDEF_W_CHAN_T(axi_out_dw32_w_chan_t,                            logic[DataWidth-1:0],    logic[DataWidth/8-1:0],                                 logic[AxiUserWidth-1:0])
   `AXI_TYPEDEF_B_CHAN_T(axi_out_b_chan_t,                                                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
   `AXI_TYPEDEF_AR_CHAN_T(axi_out_ar_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_AR_CHAN_T(axi_out_aw32_ar_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
+  // `AXI_TYPEDEF_AR_CHAN_T(axi_out_aw32_ar_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
   `AXI_TYPEDEF_R_CHAN_T(axi_out_r_chan_t,                                 logic[AxiDataWidth-1:0],                            logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
   `AXI_TYPEDEF_R_CHAN_T(axi_out_dw32_r_chan_t,                            logic[DataWidth-1:0],                               logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
 
@@ -845,7 +845,7 @@ module safety_island_top import safety_island_pkg::*; #(
   `AXI_TYPEDEF_RESP_T(axi_out_alt_resp_t, axi_out_b_chan_t, axi_out_r_chan_t)
   `AXI_TYPEDEF_REQ_T(axi_out_dw32_req_t, axi_out_aw_chan_t, axi_out_dw32_w_chan_t, axi_out_ar_chan_t)
   `AXI_TYPEDEF_RESP_T(axi_out_dw32_resp_t, axi_out_b_chan_t, axi_out_dw32_r_chan_t)
-  `AXI_TYPEDEF_REQ_T(axi_out_dw32_aw32_req_t, axi_out_aw32_aw_chan_t, axi_out_dw32_w_chan_t, axi_out_aw32_ar_chan_t)
+  // `AXI_TYPEDEF_REQ_T(axi_out_dw32_aw32_req_t, axi_out_aw32_aw_chan_t, axi_out_dw32_w_chan_t, axi_out_aw32_ar_chan_t)
 
   // Consistency alternates for AXI output
   axi_out_alt_req_t  axi_out_alt_req;
@@ -855,15 +855,37 @@ module safety_island_top import safety_island_pkg::*; #(
   axi_out_dw32_req_t  axi_out_dw32_req;
   axi_out_dw32_resp_t axi_out_dw32_resp;
 
-  // AXI corrected address width
-  axi_out_dw32_aw32_req_t axi_out_dw32_aw32_req;
+  // // AXI corrected address width
+  // axi_out_dw32_aw32_req_t axi_out_dw32_aw32_req;
 
 
-  // TODO: mem to AXI
-  assign axi_output_obi_rsp.gnt = 1'b0;
-  assign axi_output_obi_rsp.rvalid = 1'b0;
+  axi_from_mem #(
+    .MemAddrWidth( AddrWidth           ),
+    .AxiAddrWidth( AxiAddrWidth        ),
+    .DataWidth   ( DataWidth           ),
+    .MaxRequests ( 2                   ),
+    .AxiProt     ( '0                  ),
+    .axi_req_t   ( axi_out_dw32_req_t  ),
+    .axi_rsp_t   ( axi_out_dw32_resp_t )
+  ) i_mem_to_axi (
+    .clk_i,
+    .rst_ni,
+    .mem_req_i      ( axi_output_obi_req.req     ),
+    .mem_addr_i     ( axi_output_obi_req.a.addr  ),
+    .mem_we_i       ( axi_output_obi_req.a.we    ),
+    .mem_wdata_i    ( axi_output_obi_req.a.wdata ),
+    .mem_be_i       ( axi_output_obi_req.a.be    ),
+    .mem_gnt_o      ( axi_output_obi_rsp.gnt     ),
+    .mem_rsp_valid_o( axi_output_obi_rsp.rvalid  ),
+    .mem_rsp_rdata_o( axi_output_obi_rsp.r.rdata ),
+    .mem_rsp_error_o(),
+    .slv_aw_cache_i ( axi_pkg::get_awcache(axi_pkg::NORMAL_NONCACHEABLE_NONBUFFERABLE) ),
+    .slv_ar_cache_i ( axi_pkg::get_arcache(axi_pkg::NORMAL_NONCACHEABLE_NONBUFFERABLE) ),
+    .axi_req_o      ( axi_out_dw32_req           ),
+    .axi_rsp_i      ( axi_out_dw32_resp          )
+  );
 
-  // TODO: AXI AddrWidth prepend
+  // TODO?: AXI AddrWidth prepend
 
   // AXI Data Width converter
   axi_dw_converter #(

@@ -63,6 +63,9 @@ module fixture_safety_island;
   axi_input_req_t from_ext_req;
   axi_input_resp_t from_ext_resp;
 
+  axi_output_req_t to_ext_req;
+  axi_output_resp_t to_ext_resp;
+
   // clock gen
   clk_rst_gen #(
     .ClkPeriod   ( 10ns ),
@@ -116,8 +119,40 @@ module fixture_safety_island;
 
     .axi_input_req_i   ( from_ext_req ),
     .axi_input_resp_o  ( from_ext_resp ),
-    .axi_output_req_o  (  ),
-    .axi_output_resp_i ( '0 )
+    .axi_output_req_o  ( to_ext_req ),
+    .axi_output_resp_i ( to_ext_resp )
+  );
+
+  axi_sim_mem #(
+    .AddrWidth         ( AxiAddrWidth      ),
+    .DataWidth         ( AxiDataWidth      ),
+    .IdWidth           ( AxiOutputIdWidth  ),
+    .UserWidth         ( AxiUserWidth      ),
+    .axi_req_t         ( axi_output_req_t  ),
+    .axi_rsp_t         ( axi_output_resp_t ),
+    .WarnUninitialized ( 1'b0              ),
+    .ClearErrOnAccess  ( 1'b0              ),
+    .ApplDelay         ( 2ns               ),
+    .AcqDelay          ( 8ns               )
+  ) i_ext_mem (
+    .clk_i              ( s_clk       ),
+    .rst_ni             ( s_rst_n     ),
+    .axi_req_i          ( to_ext_req  ),
+    .axi_rsp_o          ( to_ext_resp ),
+    .mon_w_valid_o      (),
+    .mon_w_addr_o       (),
+    .mon_w_data_o       (),
+    .mon_w_id_o         (),
+    .mon_w_user_o       (),
+    .mon_w_beat_count_o (),
+    .mon_w_last_o       (),
+    .mon_r_valid_o      (),
+    .mon_r_addr_o       (),
+    .mon_r_data_o       (),
+    .mon_r_id_o         (),
+    .mon_r_user_o       (),
+    .mon_r_beat_count_o (),
+    .mon_r_last_o       ()
   );
 
   // ----------------
