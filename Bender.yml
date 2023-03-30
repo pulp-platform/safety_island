@@ -14,12 +14,12 @@ dependencies:
   riscv-dbg:            { git: "https://github.com/pulp-platform/riscv-dbg.git",            version: 0.5.1 }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.3 }
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", version: 1.1.1 }
-  register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.3.1 }
+  register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.3.9 }
   cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "8e1898f" }
   clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "6431785" }
   fpnew:                { git: "https://github.com/pulp-platform/fpnew.git",                version: 0.6.1 }
   apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }
-  timer_unit:           { git: "git@github.com:pulp-platform/timer_unit.git",               version: 1.0.2 }
+  timer_unit:           { git: "https://github.com/pulp-platform/timer_unit.git",               version: 1.0.2 }
   tech_mem:             { path: intel16/tech_mem}
 
 sources:
