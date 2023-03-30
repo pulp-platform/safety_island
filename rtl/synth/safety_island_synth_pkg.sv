@@ -8,9 +8,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+`include "axi/typedef.svh"
+
 package safety_island_synth_pkg;
   import safety_island_pkg::*;
-
+   
   localparam AxiAddrWidth = 48;
   typedef logic [AxiAddrWidth-1:0] axi_addr_t;
   localparam AxiDataWidth = 64;

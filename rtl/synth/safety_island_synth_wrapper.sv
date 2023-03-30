@@ -15,7 +15,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; (
   input  logic ref_clk_i,
   input  logic rst_ni,
   input  logic test_enable_i,
-
+input logic [1:0] bootmode_i,
   input  logic [safety_island_pkg::NumLocalInterrupts-1:0] irqs_i,
 
   input  logic jtag_tck_i,
@@ -33,7 +33,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; (
   output logic [ AsyncAxiInBWidth-1:0] async_axi_in_b_data_o,
   output logic            [LogDepth:0] async_axi_in_b_wptr_o,
   input  logic            [LogDepth:0] async_axi_in_b_rptr_i,
-  input  logic [AsyncAxiInARWidth-1:0] async_axi_in_ar_data_i,
+  input  logic [AsyncAxiInArWidth-1:0] async_axi_in_ar_data_i,
   input  logic            [LogDepth:0] async_axi_in_ar_wptr_i,
   output logic            [LogDepth:0] async_axi_in_ar_rptr_o,
   output logic [ AsyncAxiInRWidth-1:0] async_axi_in_r_data_o,
@@ -119,7 +119,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; (
     .async_data_master_b_rptr_o ( async_axi_out_b_rptr_o  ),
     .async_data_master_ar_data_o( async_axi_out_ar_data_o ),
     .async_data_master_ar_wptr_o( async_axi_out_ar_wptr_o ),
-    .async_data_master_ar_rptr_i( async_axi_out_ar_rptr_o ),
+    .async_data_master_ar_rptr_i( async_axi_out_ar_rptr_i ),
     .async_data_master_r_data_i ( async_axi_out_r_data_i  ),
     .async_data_master_r_wptr_i ( async_axi_out_r_wptr_i  ),
     .async_data_master_r_rptr_o ( async_axi_out_r_rptr_o  )
@@ -139,7 +139,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; (
     .axi_input_resp_t  ( axi_in_resp_t            ),
     .AxiOutputIdWidth  ( AxiOutIdWidth            ),
     .axi_output_req_t  ( axi_out_req_t            ),
-    .axi_output_resp_t ( axi_out_resp_t           ),
+    .axi_output_resp_t ( axi_out_resp_t           )
   ) i_safety_island_top (
     .clk_i,
     .rst_ni,
@@ -147,7 +147,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; (
     .test_enable_i,
     .irqs_i,
     .jtag_tck_i,
-    .jtag_trst_i,
+    .jtag_trst_i (jtag_trst_ni),
     .jtag_tms_i,
     .jtag_tdi_i,
     .jtag_tdo_o,
