@@ -16,13 +16,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
 #include "pulp.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-int main(void)
-{
-	printf("hello world!\n");
-	return 0;
+int main(void) {
+    printf("hello world!\n");
+    return 0;
 }

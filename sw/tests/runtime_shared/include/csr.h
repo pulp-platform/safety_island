@@ -33,13 +33,14 @@
 #define CSR_MCAUSE     0x342
 #define CSR_MTVAL      0x343
 #define CSR_MIP	       0x344
-#define CSR_MNXTI	   0x345
+#define CSR_MNXTI      0x345
 #define CSR_PMPCFG0    0x3a0
 #define CSR_PMPADDR0   0x3b0
 #define CSR_MHARTID    0xf14
 #define CSR_MINTSTATUS 0x346
 #define CSR_MINTTHRESH 0x347
 #define CSR_MCLICBASE  0x350
+#define MIE 8
 
 #define __CSR_EXPAND(x) #x
 

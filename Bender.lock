@@ -16,7 +16,7 @@ packages:
     - common_verification
     - tech_cells_generic
   clic:
-    revision: 6431785a4375736a73f3df98f39a4fc5bffb80c9
+    revision: 8df9c5ae1f4a15b5b777c66cfdf41fd44451ffe3
     version: null
     source:
       Git: https://github.com/pulp-platform/clic.git
@@ -45,7 +45,7 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   cv32e40p:
-    revision: 9b7d500fbb90a34a09be4d269e72e4092b22e770
+    revision: 6c5c2d6bdfb9c5d743aad240ce6e1ae7a0baf1b8
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40p.git
@@ -102,6 +102,12 @@ packages:
       Git: https://github.com/pulp-platform/tech_cells_generic.git
     dependencies:
     - common_verification
+  tech_mem:
+    revision: null
+    version: null
+    source:
+      Path: /scratch2/scratch_from_maipo/carfield/safed/safety-island/intel16/tech_mem
+    dependencies: []
   timer_unit:
     revision: 3f4ee3e5b3875a473242de5d0c3ebb5a0fe4b8db
     version: 1.0.2

@@ -65,16 +65,31 @@ package safety_island_pkg;
     int unsigned              HartId;
     int unsigned              BankNumBytes;
     int unsigned              PulpJtagIdCode;
-    int unsigned              NumTimers;
-    // CV32RT configuration
-    int unsigned              UseClic;
-    int unsigned              UseFastIrq; // TODO
-    int unsigned              UseFpu;
-    int unsigned              UseIntegerCluster;
-    int unsigned              UseXPulp;
-    int unsigned              UseZfinx;
-    int unsigned              NumInterrupts;
-    int unsigned              NumMhpmCounters;
+    int unsigned              NumTimers;         // Number of Timers. Warning:
+                                                 // currently, we only support
+                                                 // one. TODO: Make the timer
+                                                 // instantiation configurable.
+                                                 // CV32RT configuration
+    int unsigned              UseClic;           // use CLIC or legacy CLINT
+    int unsigned              ClicIntCtlBits;    // Number of bits for
+                                                 // level-priority encoding in
+                                                 // the CLIC
+    int unsigned              UseSSClic;         // Enable Supervisor mode for
+                                                 // CLIC
+    int unsigned              UseUSClic;         // Enable USer mode for CLIC
+    int unsigned              UseFastIrq;        // Use CV32RT (CV32 with fast
+                                                 // interrupt extensions)
+    int unsigned              UseFpu;            // Use FPU
+    int unsigned              UseIntegerCluster; // Make CV32 aware of the integer cluster
+    int unsigned              UseXPulp;          // Use PULP extensions for CV32
+    int unsigned              UseZfinx;          // Use Zfinx extensions. If 1,
+                                                 // integer RF is used for the
+                                                 // FPU instead of a dedicated
+                                                 // FP RF
+    int unsigned              NumInterrupts;     // Number of input interrupts
+                                                 // to the safety island
+    int unsigned              NumMhpmCounters;   // Number of performance
+                                                 // counters implemented in CV32
   } safety_island_cfg_t;
 
   localparam safety_island_cfg_t SafetyIslandDefaultConfig = '{
@@ -88,7 +103,10 @@ package safety_island_pkg;
     PulpJtagIdCode:     32'h1_0000_db3,
     NumTimers:          1,
     UseClic:            1,
-    UseFastIrq:         0,
+    ClicIntCtlBits:     8,
+    UseSSClic:          0,
+    UseUSClic:          0,
+    UseFastIrq:         1,
     UseFpu:             1,
     UseIntegerCluster:  0,
     UseXPulp:           1,
