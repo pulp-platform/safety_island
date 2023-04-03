@@ -46,7 +46,7 @@ module safety_island_top import safety_island_pkg::*; #(
   input  logic            jtag_tdi_i,
   output logic            jtag_tdo_o,
   input  logic            jtag_tms_i,
-  input  logic            jtag_trst_i,
+  input  logic            jtag_trst_ni,
 
   input  bootmode_e       bootmode_i,
 
@@ -415,7 +415,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .tck_i            ( jtag_tck_i     ),
     .tms_i            ( jtag_tms_i     ),
-    .trst_ni          ( jtag_trst_i    ),
+    .trst_ni          ( jtag_trst_ni    ),
     .td_i             ( jtag_tdi_i     ),
     .td_o             ( jtag_tdo_o     ),
     .tdo_oe_o         ()

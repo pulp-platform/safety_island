@@ -109,7 +109,7 @@ module fixture_safety_island;
     .jtag_tdi_i        ( s_tdi                   ),
     .jtag_tdo_o        ( s_tdo                   ),
     .jtag_tms_i        ( s_tms                   ),
-    .jtag_trst_i       ( s_trstn                 ),
+    .jtag_trst_ni      ( s_trstn                 ),
 
     .bootmode_i        ( s_bootmode              ),
 
