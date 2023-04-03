@@ -844,6 +844,10 @@ module safety_island_top import safety_island_pkg::*; #(
   // AXI corrected address width
   axi_in_dw32_aw32_req_t axi_in_dw32_aw32_req;
 
+  // AXI cut
+  axi_in_dw32_aw32_req_t axi_in_dw32_aw32_cut_req;
+  axi_in_dw32_resp_t     axi_in_dw32_cut_resp;
+
   // AXI Data Width converter
   axi_dw_converter #(
     .AxiMaxReads         ( 1                    ),
@@ -877,6 +881,26 @@ module safety_island_top import safety_island_pkg::*; #(
   // TODO: check for correct behavior!
   `AXI_ASSIGN_REQ_STRUCT(axi_in_dw32_aw32_req, axi_in_dw32_req)
 
+  // AXI cut to fix https://github.com/pulp-platform/axi/issues/287
+  axi_cut #(
+    .Bypass     ( 1'b0                   ),
+    .aw_chan_t  ( axi_in_aw32_aw_chan_t  ),
+    .w_chan_t   ( axi_in_dw32_w_chan_t   ),
+    .b_chan_t   ( axi_in_b_chan_t        ),
+    .ar_chan_t  ( axi_in_aw32_ar_chan_t  ),
+    .r_chan_t   ( axi_in_dw32_r_chan_t   ),
+    .axi_req_t  ( axi_in_dw32_aw32_req_t ),
+    .axi_resp_t ( axi_in_dw32_resp_t     )
+  ) i_axi_input_cut (
+    .clk_i,
+    .rst_ni,
+
+    .slv_req_i  ( axi_in_dw32_aw32_req     ),
+    .slv_resp_o ( axi_in_dw32_resp         ),
+    .mst_req_o  ( axi_in_dw32_aw32_cut_req ),
+    .mst_resp_i ( axi_in_dw32_cut_resp     )
+  );
+
   // AXI to Mem
   axi_to_mem #(
     .axi_req_t    ( axi_in_dw32_aw32_req_t ),
@@ -894,18 +918,18 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .busy_o       (),
 
-    .axi_req_i    ( axi_in_dw32_aw32_req  ),
-    .axi_resp_o   ( axi_in_dw32_resp      ),
+    .axi_req_i    ( axi_in_dw32_aw32_cut_req ),
+    .axi_resp_o   ( axi_in_dw32_cut_resp     ),
 
-    .mem_req_o    ( axi_input_req         ),
-    .mem_gnt_i    ( axi_input_gnt         ),
-    .mem_addr_o   ( axi_input_addr        ),
-    .mem_wdata_o  ( axi_input_wdata       ),
-    .mem_strb_o   ( axi_input_be          ),
-    .mem_we_o     ( axi_input_we          ),
+    .mem_req_o    ( axi_input_req            ),
+    .mem_gnt_i    ( axi_input_gnt            ),
+    .mem_addr_o   ( axi_input_addr           ),
+    .mem_wdata_o  ( axi_input_wdata          ),
+    .mem_strb_o   ( axi_input_be             ),
+    .mem_we_o     ( axi_input_we             ),
     .mem_atop_o   (), // TODO?
-    .mem_rvalid_i ( axi_input_rvalid      ),
-    .mem_rdata_i  ( axi_input_rdata       )
+    .mem_rvalid_i ( axi_input_rvalid         ),
+    .mem_rdata_i  ( axi_input_rdata          )
   );
 
   // AXI output
