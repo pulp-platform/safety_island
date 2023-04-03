@@ -10,7 +10,47 @@
 
 `include "axi/typedef.svh"
 
-module safety_island_synth_wrapper import safety_island_synth_pkg::*; (
+module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
+  parameter int unsigned AxiAddrWidth  = SynthAxiAddrWidth,
+  parameter int unsigned AxiDataWidth  = SynthAxiDataWidth,
+  parameter int unsigned AxiUserWidth  = SynthAxiUserWidth,
+  parameter int unsigned AxiInIdWidth  = SynthAxiInIdWidth,
+  parameter int unsigned AxiOutIdWidth = SynthAxiOutIdWidth,
+  parameter int unsigned LogDepth      = SynthLogDepth,
+  
+  parameter bit [AxiAddrWidth-1:0] SafetyIslandBaseAddr     = SynthSafetyIslandBaseAddr,
+  parameter bit [31:0]             SafetyIslandAddrRange    = SynthSafetyIslandAddrRange,
+  parameter bit [31:0]             SafetyIslandMemOffset    = SynthSafetyIslandMemOffset,
+  parameter bit [31:0]             SafetyIslandPeriphOffset = SynthSafetyIslandPeriphOffset,
+
+  parameter type         axi_in_aw_chan_t   = synth_axi_in_aw_chan_t,
+  parameter type         axi_in_w_chan_t    = synth_axi_in_w_chan_t
+  parameter type         axi_in_b_chan_t    = synth_axi_in_b_chan_t,
+  parameter type         axi_in_ar_chan_t   = synth_axi_in_ar_chan_t,
+  parameter type         axi_in_r_chan_t    = synth_axi_in_r_chan_t,
+  parameter type         axi_in_req_t       = synth_axi_in_req_t,
+  parameter type         axi_in_resp_t      = synth_axi_in_resp_t,
+
+  parameter type         axi_out_aw_chan_t  = synth_axi_out_aw_chan_t,
+  parameter type         axi_out_w_chan_t   = synth_axi_out_w_chan_t
+  parameter type         axi_out_b_chan_t   = synth_axi_out_b_chan_t,
+  parameter type         axi_out_ar_chan_t  = synth_axi_out_ar_chan_t,
+  parameter type         axi_out_r_chan_t   = synth_axi_out_r_chan_t,
+  parameter type         axi_out_req_t      = synth_axi_out_req_t,
+  parameter type         axi_out_resp_t     = synth_axi_out_resp_t,
+
+  parameter int unsigned AsyncAxiInAwWidth  = SynthAsyncAxiInAwWidth,
+  parameter int unsigned AsyncAxiInWWidth   = SynthAsyncAxiInWWidth,
+  parameter int unsigned AsyncAxiInBWidth   = SynthAsyncAxiInBWidth,
+  parameter int unsigned AsyncAxiInArWidth  = SynthAsyncAxiInArWidth,
+  parameter int unsigned AsyncAxiInRWidth   = SynthAsyncAxiInRWidth,
+
+  parameter int unsigned AsyncAxiOutAwWidth = SynthAsyncAxiOutAwWidth,
+  parameter int unsigned AsyncAxiOutWWidth  = SynthAsyncAxiOutWWidth,
+  parameter int unsigned AsyncAxiOutBWidth  = SynthAsyncAxiOutBWidth,
+  parameter int unsigned AsyncAxiOutArWidth = SynthAsyncAxiOutArWidth,
+  parameter int unsigned AsyncAxiOutRWidth  = SynthAsyncAxiOutRWidth
+) (
   input  logic clk_i,
   input  logic ref_clk_i,
   input  logic rst_ni,
