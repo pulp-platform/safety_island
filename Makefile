@@ -50,7 +50,7 @@ scripts-bender-vsim-tech: | Bender.lock
 
 scripts-bender-synopsys: | Bender.lock
 	echo 'set ROOT [file normalize [file dirname [info script]]/../../../]' > $(BENDER_SYNTH_DIR)/synopsys/scripts/analyze_safety_island.tcl
-	bender script synopsys  -t asic -t top_level -t tech_mem -t tech_cells_generic_exclude_tc_sram --define="EXCLUDE_PADFRAME" | grep -v "set ROOT" >> $(BENDER_SYNTH_DIR)/synopsys/scripts/analyze_safety_island.tcl
+	bender script synopsys  -t asic -t top_level -t tech_mem -t tech_cells_generic_exclude_tc_sram -t cv32e40p_use_ff_regfile --define="EXCLUDE_PADFRAME" | grep -v "set ROOT" >> $(BENDER_SYNTH_DIR)/synopsys/scripts/analyze_safety_island.tcl
 
 .PHONY: build
 ## Build the RTL model for vsim
