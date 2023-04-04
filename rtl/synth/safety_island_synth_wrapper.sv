@@ -97,6 +97,16 @@ input logic [1:0] bootmode_i,
   output logic             [LogDepth:0] async_axi_out_r_rptr_o
 );
 
+
+  /* reset generator */
+  rstgen rstgen_i (
+    .clk_i      ( clk_i       ),
+    .rst_ni     ( rst_ni      ),
+    .test_mode_i( test_mode_i ),
+    .rst_no     ( s_rst_n     ),
+    .init_no    ( s_init_n    )
+  );
+   
   axi_in_req_t axi_in_req;
   axi_in_resp_t axi_in_resp;
 
@@ -129,7 +139,7 @@ input logic [1:0] bootmode_i,
     .async_data_slave_r_wptr_o ( async_axi_in_r_wptr_o  ),
     .async_data_slave_r_rptr_i ( async_axi_in_r_rptr_i  ),
     .dst_clk_i                 ( clk_i       ),
-    .dst_rst_ni                ( rst_ni      ),
+    .dst_rst_ni                ( s_rst_n      ),
     .dst_req_o                 ( axi_in_req  ),
     .dst_resp_i                ( axi_in_resp )
   );
@@ -145,7 +155,7 @@ input logic [1:0] bootmode_i,
     .axi_resp_t ( axi_out_resp_t    )
   ) i_cdc_out (
     .src_clk_i                  ( clk_i        ),
-    .src_rst_ni                 ( rst_ni       ),
+    .src_rst_ni                 ( s_rst_n       ),
     .src_req_i                  ( axi_out_req  ),
     .src_resp_o                 ( axi_out_resp ),
     .async_data_master_aw_data_o( async_axi_out_aw_data_o ),
@@ -182,7 +192,7 @@ input logic [1:0] bootmode_i,
     .axi_output_resp_t ( axi_out_resp_t           )
   ) i_safety_island_top (
     .clk_i,
-    .rst_ni,
+    .rst_ni (s_rst_n),
     .ref_clk_i,
     .test_enable_i,
     .irqs_i,
