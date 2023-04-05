@@ -111,7 +111,7 @@ package safety_island_pkg;
     UseIntegerCluster:  0,
     UseXPulp:           1,
     UseZfinx:           1,
-    NumInterrupts:      256,
+    NumInterrupts:      64,
     NumMhpmCounters:    1
   };
 
