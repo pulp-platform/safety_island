@@ -36,16 +36,16 @@ package safety_island_synth_pkg;
 
   localparam SynthLogDepth = 3;
 
-  localparam SynthAsyncAxiInAwWidth = (2**SynthLogDepth)*$bits(synth_axi_in_aw_chan_t);
-  localparam SynthAsyncAxiInWWidth  = (2**SynthLogDepth)*$bits(synth_axi_in_w_chan_t);
-  localparam SynthAsyncAxiInBWidth  = (2**SynthLogDepth)*$bits(synth_axi_in_b_chan_t);
-  localparam SynthAsyncAxiInArWidth = (2**SynthLogDepth)*$bits(synth_axi_in_ar_chan_t);
-  localparam SynthAsyncAxiInRWidth  = (2**SynthLogDepth)*$bits(synth_axi_in_r_chan_t);
+  localparam SynthAsyncAxiInAwWidth = (2**SynthLogDepth)*axi_pkg::aw_width(SynthAxiAddrWidth, SynthAxiInIdWidth, SynthAxiUserWidth);//$bits(synth_axi_in_aw_chan_t);
+  localparam SynthAsyncAxiInWWidth  = (2**SynthLogDepth)*axi_pkg::w_width(SynthAxiDataWidth, SynthAxiUserWidth);//$bits(synth_axi_in_w_chan_t);
+  localparam SynthAsyncAxiInBWidth  = (2**SynthLogDepth)*axi_pkg::b_width(SynthAxiInIdWidth, SynthAxiUserWidth);//$bits(synth_axi_in_b_chan_t);
+  localparam SynthAsyncAxiInArWidth = (2**SynthLogDepth)*axi_pkg::ar_width(SynthAxiAddrWidth, SynthAxiInIdWidth, SynthAxiUserWidth);//$bits(synth_axi_in_ar_chan_t);
+  localparam SynthAsyncAxiInRWidth  = (2**SynthLogDepth)*axi_pkg::r_width(SynthAxiDataWidth, SynthAxiInIdWidth, SynthAxiUserWidth);//$bits(synth_axi_in_r_chan_t);
 
-  localparam SynthAsyncAxiOutAwWidth = (2**SynthLogDepth)*$bits(synth_axi_out_aw_chan_t);
-  localparam SynthAsyncAxiOutWWidth  = (2**SynthLogDepth)*$bits(synth_axi_out_w_chan_t);
-  localparam SynthAsyncAxiOutBWidth  = (2**SynthLogDepth)*$bits(synth_axi_out_b_chan_t);
-  localparam SynthAsyncAxiOutArWidth = (2**SynthLogDepth)*$bits(synth_axi_out_ar_chan_t);
-  localparam SynthAsyncAxiOutRWidth  = (2**SynthLogDepth)*$bits(synth_axi_out_r_chan_t);
+  localparam SynthAsyncAxiOutAwWidth = (2**SynthLogDepth)*axi_pkg::aw_width(SynthAxiAddrWidth, SynthAxiOutIdWidth, SynthAxiUserWidth);//$bits(synth_axi_out_aw_chan_t);
+  localparam SynthAsyncAxiOutWWidth  = (2**SynthLogDepth)*axi_pkg::w_width(SynthAxiDataWidth, SynthAxiUserWidth);//$bits(synth_axi_out_w_chan_t);
+  localparam SynthAsyncAxiOutBWidth  = (2**SynthLogDepth)*axi_pkg::b_width(SynthAxiOutIdWidth, SynthAxiUserWidth);//$bits(synth_axi_out_b_chan_t);
+  localparam SynthAsyncAxiOutArWidth = (2**SynthLogDepth)*axi_pkg::ar_width(SynthAxiAddrWidth, SynthAxiOutIdWidth, SynthAxiUserWidth);//$bits(synth_axi_out_ar_chan_t);
+  localparam SynthAsyncAxiOutRWidth  = (2**SynthLogDepth)*axi_pkg::r_width(SynthAxiDataWidth, SynthAxiOutIdWidth, SynthAxiUserWidth);//$bits(synth_axi_out_r_chan_t);
 
 endpackage
