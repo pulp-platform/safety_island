@@ -37,7 +37,7 @@ scripts: scripts-bender-vsim
 
 scripts-bender-vsim: | Bender.lock
 	echo 'set ROOT [file normalize [file dirname [info script]]/..]' > $(BENDER_SIM_BUILD_DIR)/compile.tcl
-	bender script vsim -t test -t rtl \
+	bender script vsim -t test -t rtl -t cv32e40p_use_ff_regfile \
 		--vlog-arg="$(VLOG_ARGS)" --vcom-arg="" \
 		| grep -v "set ROOT" >> $(BENDER_SIM_BUILD_DIR)/compile.tcl
 
@@ -45,7 +45,7 @@ scripts-bender-vsim-tech: | Bender.lock
 	echo 'set ROOT [file normalize [file dirname [info script]]/..]' > $(BENDER_SIM_BUILD_DIR)/compile.tcl
 	bender script vsim \
 		--vlog-arg="$(VLOG_ARGS)" --vcom-arg="" \
-		-t rtl -t test -t tech_mem -t tech_cells_generic_exclude_tc_sram\
+		-t rtl -t test -t cv32e40p_use_ff_regfile -t tech_mem -t tech_cells_generic_exclude_tc_sram\
 		| grep -v "set ROOT" >> $(BENDER_SIM_BUILD_DIR)/compile.tcl
 
 scripts-bender-synopsys: | Bender.lock
