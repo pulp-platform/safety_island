@@ -46,7 +46,7 @@ module safety_island_top import safety_island_pkg::*; #(
   input  logic            jtag_tdi_i,
   output logic            jtag_tdo_o,
   input  logic            jtag_tms_i,
-  input  logic            jtag_trst_i,
+  input  logic            jtag_trst_ni,
 
   input  bootmode_e       bootmode_i,
 
@@ -86,17 +86,24 @@ module safety_island_top import safety_island_pkg::*; #(
 `endif
 
   localparam int unsigned NumSlaves = 4;
-  localparam int unsigned NumRules = (MemOffset > 0) ? 4 : 3;
-  localparam addr_map_rule_t [NumRules-1:0] main_addr_map = (MemOffset > 0) ? '{             // 0: below/above address space, so AXI out (default)
-    '{ idx: 3, start_addr: BaseAddr32,                          end_addr: BaseAddr32+MemOffset},                // 3: Periphs
-    '{ idx: 1, start_addr: BaseAddr32+MemOffset,                end_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes  }, // 1: Bank 0
-    '{ idx: 2, start_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes,   end_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes}, // 2: Bank 1
-    '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
-  } : '{             // 0: below/above address space, so AXI out (default)
+  localparam int unsigned NumRules = (MemOffset != 0) ? 4 : 3;
+
+  // MemOffset != 0
+  localparam addr_map_rule_t [3:0] large_addr_map = '{             // 0: below/above address space, so AXI out (default)
     '{ idx: 1, start_addr: BaseAddr32+MemOffset,                                end_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes  }, // 1: Bank 0
     '{ idx: 2, start_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes,   end_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes}, // 2: Bank 1
-    '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
+    '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange},                 // 3: Periphs
+    '{ idx: 3, start_addr: BaseAddr32,                                          end_addr: BaseAddr32+MemOffset}                  // 3: Periphs
   };
+
+  // MemOffest == 0
+  localparam addr_map_rule_t [2:0] small_addr_map = '{             // 0: below/above address space, so AXI out (default)
+    '{ idx: 1, start_addr: BaseAddr32,                                end_addr: BaseAddr32+SafetyIslandCfg.BankNumBytes  }, // 1: Bank 0
+    '{ idx: 2, start_addr: BaseAddr32+SafetyIslandCfg.BankNumBytes,   end_addr: BaseAddr32+2*SafetyIslandCfg.BankNumBytes}, // 2: Bank 1
+    '{ idx: 3, start_addr: BaseAddr32+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
+  };
+
+  localparam addr_map_rule_t [NumRules-1:0] main_addr_map = (MemOffset != 0) ? large_addr_map : small_addr_map;
 
   localparam addr_map_rule_t [NumPeriphRules-1:0] periph_addr_map = '{                                  // 0: Error slave (default)
     '{ idx: PeriphSocCtrl,       start_addr: PeriphBaseAddr+SocCtrlAddrOffset,       end_addr: PeriphBaseAddr+SocCtrlAddrOffset+      SocCtrlAddrRange},       // 1: SoC control
@@ -408,7 +415,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .tck_i            ( jtag_tck_i     ),
     .tms_i            ( jtag_tms_i     ),
-    .trst_ni          ( jtag_trst_i    ),
+    .trst_ni          ( jtag_trst_ni    ),
     .td_i             ( jtag_tdi_i     ),
     .td_o             ( jtag_tdo_o     ),
     .tdo_oe_o         ()
@@ -527,6 +534,9 @@ module safety_island_top import safety_island_pkg::*; #(
   // -----------------
 
   tc_sram #(
+`ifdef TARGET_TECH_MEM
+    .MemType   ("Scratchpad"  ),
+`endif            
     .NumWords  ( BankNumWords ),
     .DataWidth ( 32           ),
     .ByteWidth ( 8            ),
@@ -556,6 +566,9 @@ module safety_island_top import safety_island_pkg::*; #(
   end
 
   tc_sram #(
+`ifdef TARGET_TECH_MEM
+    .MemType   ( "Scratchpad" ),
+`endif            
     .NumWords  ( BankNumWords ),
     .DataWidth ( 32           ),
     .ByteWidth ( 8            ),
@@ -838,6 +851,10 @@ module safety_island_top import safety_island_pkg::*; #(
   // AXI corrected address width
   axi_in_dw32_aw32_req_t axi_in_dw32_aw32_req;
 
+  // AXI cut
+  axi_in_dw32_aw32_req_t axi_in_dw32_aw32_cut_req;
+  axi_in_dw32_resp_t     axi_in_dw32_cut_resp;
+
   // AXI Data Width converter
   axi_dw_converter #(
     .AxiMaxReads         ( 1                    ),
@@ -871,6 +888,26 @@ module safety_island_top import safety_island_pkg::*; #(
   // TODO: check for correct behavior!
   `AXI_ASSIGN_REQ_STRUCT(axi_in_dw32_aw32_req, axi_in_dw32_req)
 
+  // AXI cut to fix https://github.com/pulp-platform/axi/issues/287
+  axi_cut #(
+    .Bypass     ( 1'b0                   ),
+    .aw_chan_t  ( axi_in_aw32_aw_chan_t  ),
+    .w_chan_t   ( axi_in_dw32_w_chan_t   ),
+    .b_chan_t   ( axi_in_b_chan_t        ),
+    .ar_chan_t  ( axi_in_aw32_ar_chan_t  ),
+    .r_chan_t   ( axi_in_dw32_r_chan_t   ),
+    .axi_req_t  ( axi_in_dw32_aw32_req_t ),
+    .axi_resp_t ( axi_in_dw32_resp_t     )
+  ) i_axi_input_cut (
+    .clk_i,
+    .rst_ni,
+
+    .slv_req_i  ( axi_in_dw32_aw32_req     ),
+    .slv_resp_o ( axi_in_dw32_resp         ),
+    .mst_req_o  ( axi_in_dw32_aw32_cut_req ),
+    .mst_resp_i ( axi_in_dw32_cut_resp     )
+  );
+
   // AXI to Mem
   axi_to_mem #(
     .axi_req_t    ( axi_in_dw32_aw32_req_t ),
@@ -888,18 +925,18 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .busy_o       (),
 
-    .axi_req_i    ( axi_in_dw32_aw32_req  ),
-    .axi_resp_o   ( axi_in_dw32_resp      ),
+    .axi_req_i    ( axi_in_dw32_aw32_cut_req ),
+    .axi_resp_o   ( axi_in_dw32_cut_resp     ),
 
-    .mem_req_o    ( axi_input_req         ),
-    .mem_gnt_i    ( axi_input_gnt         ),
-    .mem_addr_o   ( axi_input_addr        ),
-    .mem_wdata_o  ( axi_input_wdata       ),
-    .mem_strb_o   ( axi_input_be          ),
-    .mem_we_o     ( axi_input_we          ),
+    .mem_req_o    ( axi_input_req            ),
+    .mem_gnt_i    ( axi_input_gnt            ),
+    .mem_addr_o   ( axi_input_addr           ),
+    .mem_wdata_o  ( axi_input_wdata          ),
+    .mem_strb_o   ( axi_input_be             ),
+    .mem_we_o     ( axi_input_we             ),
     .mem_atop_o   (), // TODO?
-    .mem_rvalid_i ( axi_input_rvalid      ),
-    .mem_rdata_i  ( axi_input_rdata       )
+    .mem_rvalid_i ( axi_input_rvalid         ),
+    .mem_rdata_i  ( axi_input_rdata          )
   );
 
   // AXI output

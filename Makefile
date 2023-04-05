@@ -5,6 +5,7 @@
 VLOG_ARGS += -suppress 2583 -suppress 13314 \"+incdir+\$$ROOT/rtl/includes\"
 
 BENDER_SIM_BUILD_DIR = sim
+BENDER_SYNTH_DIR = intel16
 
 .PHONY: checkout
 ## Checkout/update dependencies using Bender
@@ -36,10 +37,20 @@ scripts: scripts-bender-vsim
 
 scripts-bender-vsim: | Bender.lock
 	echo 'set ROOT [file normalize [file dirname [info script]]/..]' > $(BENDER_SIM_BUILD_DIR)/compile.tcl
-	bender script vsim -t test -t rtl \
+	bender script vsim -t test -t rtl -t cv32e40p_use_ff_regfile \
 		--vlog-arg="$(VLOG_ARGS)" --vcom-arg="" \
 		| grep -v "set ROOT" >> $(BENDER_SIM_BUILD_DIR)/compile.tcl
 
+scripts-bender-vsim-tech: | Bender.lock
+	echo 'set ROOT [file normalize [file dirname [info script]]/..]' > $(BENDER_SIM_BUILD_DIR)/compile.tcl
+	bender script vsim \
+		--vlog-arg="$(VLOG_ARGS)" --vcom-arg="" \
+		-t rtl -t test -t cv32e40p_use_ff_regfile -t tech_mem -t tech_cells_generic_exclude_tc_sram\
+		| grep -v "set ROOT" >> $(BENDER_SIM_BUILD_DIR)/compile.tcl
+
+scripts-bender-synopsys: | Bender.lock
+	echo 'set ROOT [file normalize [file dirname [info script]]/../../../]' > $(BENDER_SYNTH_DIR)/synopsys/scripts/analyze_safety_island.tcl
+	bender script synopsys  -t asic -t top_level -t tech_mem -t tech_cells_generic_exclude_tc_sram -t cv32e40p_use_ff_regfile --define="EXCLUDE_PADFRAME" | grep -v "set ROOT" >> $(BENDER_SYNTH_DIR)/synopsys/scripts/analyze_safety_island.tcl
 
 .PHONY: build
 ## Build the RTL model for vsim

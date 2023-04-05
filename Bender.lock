@@ -7,8 +7,8 @@ packages:
     dependencies:
     - common_cells
   axi:
-    revision: 2f395b176bee1c769c80f060a4345fda965bb04b
-    version: 0.38.0
+    revision: fd60be8b51a4fa7476856be162ce3334474592ba
+    version: 0.39.0-beta.4
     source:
       Git: https://github.com/pulp-platform/axi.git
     dependencies:
@@ -44,8 +44,15 @@ packages:
     source:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
+  tech_mem:
+    revision: ~
+    version: ~
+    source:
+      Path: intel16/tech_mem
+    dependencies:
+      - common_verification
   cv32e40p:
-    revision: 8e1898f5b1b12696601f665d05de2e52e409eb3d
+    revision: 9b7d500fbb90a34a09be4d269e72e4092b22e770
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40p.git
@@ -79,8 +86,8 @@ packages:
     - register_interface
     - tech_cells_generic
   register_interface:
-    revision: e3a4955071fcf554febd4b29a7c7a52c7f1e7fc6
-    version: 0.3.8
+    revision: 7786760a75fed8534c84f6e52e80089e2d491b76
+    version: null
     source:
       Git: https://github.com/pulp-platform/register_interface.git
     dependencies:
@@ -106,5 +113,5 @@ packages:
     revision: 3f4ee3e5b3875a473242de5d0c3ebb5a0fe4b8db
     version: 1.0.2
     source:
-      Git: git@github.com:pulp-platform/timer_unit.git
+      Git: https://github.com/pulp-platform/timer_unit.git
     dependencies: []
