@@ -52,7 +52,7 @@ packages:
     dependencies:
       - common_verification
   cv32e40p:
-    revision: 2d12e4403831da33d49e5569fcbf5be539148ba2
+    revision: 9b7d500fbb90a34a09be4d269e72e4092b22e770
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40p.git
@@ -86,8 +86,8 @@ packages:
     - register_interface
     - tech_cells_generic
   register_interface:
-    revision: 146501d80052b61475cdc333d3aab4cd769fd5dc
-    version: 0.3.9
+    revision: 7786760a75fed8534c84f6e52e80089e2d491b76
+    version: null
     source:
       Git: https://github.com/pulp-platform/register_interface.git
     dependencies:
