@@ -1838,7 +1838,7 @@ package jtag_pkg;
          logic [31:0]        dm_data;
          this.write_debug_reg(
             dm::ProgBuf0,
-            riscv::wfi(), //wfi
+            riscv_pkg::wfi(), //wfi
             s_tck,
             s_tms,
             s_trstn,
@@ -1848,7 +1848,7 @@ package jtag_pkg;
 
          this.write_debug_reg(
             dm::ProgBuf0 + 1, //progrbuff1
-            riscv::ebreak(), //ebreak
+            riscv_pkg::ebreak(), //ebreak
             s_tck,
             s_tms,
             s_trstn,
@@ -1949,7 +1949,7 @@ package jtag_pkg;
 
                this.write_debug_reg(
                   dm::ProgBuf0 + 1,
-                  riscv::store(3'b010, regno[4:0], 5'h1, 12'h0), // sw xi, 0(x1)
+                  riscv_pkg::store(3'b010, regno[4:0], 5'h1, 12'h0), // sw xi, 0(x1)
                   //{ 7'h0, regno[4:0], 5'h1, 1'b0, 2'b10, 5'h0, 7'h23 },
                   s_tck,
                   s_tms,
@@ -1970,7 +1970,7 @@ package jtag_pkg;
 
                this.write_debug_reg(
                   dm::ProgBuf0 + 3,
-                  riscv::ebreak(), //ebreak
+                  riscv_pkg::ebreak(), //ebreak
                   s_tck,
                   s_tms,
                   s_trstn,
@@ -2029,7 +2029,7 @@ package jtag_pkg;
          assert_rdy_for_abstract_cmd(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          this.read_reg_abstract_cmd(
-             riscv::CSR_DPC,
+             riscv_pkg::CSR_DPC,
              saved,
              s_tck,
              s_tms,
@@ -2039,7 +2039,7 @@ package jtag_pkg;
          );
 
          this.write_reg_abstract_cmd(
-             riscv::CSR_DPC,
+             riscv_pkg::CSR_DPC,
              key_word,
              s_tck,
              s_tms,
@@ -2049,7 +2049,7 @@ package jtag_pkg;
          );
 
          this.read_reg_abstract_cmd(
-             riscv::CSR_DPC,
+             riscv_pkg::CSR_DPC,
              dm_data,
              s_tck,
              s_tms,
@@ -2065,7 +2065,7 @@ package jtag_pkg;
              end;
 
          this.write_reg_abstract_cmd(
-             riscv::CSR_DPC,
+             riscv_pkg::CSR_DPC,
              saved,
              s_tck,
              s_tms,
@@ -2087,7 +2087,7 @@ package jtag_pkg;
       );
 
          logic [31:0]        dm_dpc;
-         riscv::dcsr_t       dcsr;
+         riscv_pkg::dcsr_t       dcsr;
          dm::dmstatus_t      dmstatus;
 
          error = 1'b0;
@@ -2102,7 +2102,7 @@ package jtag_pkg;
              end
 
          // write short program to single step through
-         this.writeMem(addr_i, riscv::wfi(),  // wfi
+         this.writeMem(addr_i, riscv_pkg::wfi(),  // wfi
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          this.writeMem(addr_i + 4, { 7'h0, 5'b1, 5'b1, 3'b000, 5'b1, 7'h13 },  // addi xi, xi, i
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
@@ -2116,7 +2116,7 @@ package jtag_pkg;
          assert_rdy_for_abstract_cmd(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          // write dpc to addr_i so that we know where we resume
-         this.write_reg_abstract_cmd(riscv::CSR_DPC, addr_i,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DPC, addr_i,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          // resume the core
@@ -2125,7 +2125,7 @@ package jtag_pkg;
          this.halt_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          // The core should be in the WFI
 
-         this.read_reg_abstract_cmd(riscv::CSR_DPC, dm_dpc,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DPC, dm_dpc,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          // check if dpc, dcause and flag bits are ok
@@ -2136,7 +2136,7 @@ package jtag_pkg;
                 end;
 
          // restore dpc to entry point
-         this.write_reg_abstract_cmd(riscv::CSR_DPC, addr_i,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DPC, addr_i,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
       endtask
@@ -2154,7 +2154,7 @@ package jtag_pkg;
 
          logic [1:0]         dm_op;
          logic [31:0]        dm_data;
-         riscv::dcsr_t       dcsr;
+         riscv_pkg::dcsr_t       dcsr;
          dm::dmstatus_t      dmstatus;
          logic [6:0]         dm_addr;
 
@@ -2184,12 +2184,12 @@ package jtag_pkg;
          assert_rdy_for_abstract_cmd(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          // set step flag in dcsr
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          dcsr.step = 1;
-         this.write_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          assert(dcsr.step == 1)
              else begin
@@ -2198,10 +2198,10 @@ package jtag_pkg;
              end;
 
          // write dpc to addr_i so that we know where we resume
-         this.write_reg_abstract_cmd(riscv::CSR_DPC, addr_i,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DPC, addr_i,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
-         this.read_reg_abstract_cmd(riscv::CSR_DPC, dm_data, s_tck, s_tms,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DPC, dm_data, s_tck, s_tms,
                                     s_trstn, s_tdi, s_tdo);
 
          for (int i = 1; i < 4; i++) begin
@@ -2211,7 +2211,7 @@ package jtag_pkg;
             this.halt_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
             // this.block_until_any_halt(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
-            this.read_reg_abstract_cmd(riscv::CSR_DPC, dm_data,
+            this.read_reg_abstract_cmd(riscv_pkg::CSR_DPC, dm_data,
                                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
             // check if dpc, dcause and flag bits are ok
             assert(addr_i + 4*i === dm_data) // did dpc increment?
@@ -2219,7 +2219,7 @@ package jtag_pkg;
                    $error("dpc is %x, expected %x", dm_data, addr_i + 4);
                    error = 1'b1;
                 end;
-            this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+            this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
             assert(3'h4 === dcsr.cause) // is cause properly given as "step"?
                 else begin
@@ -2229,10 +2229,10 @@ package jtag_pkg;
          end
 
          // clear step flag in dcsr
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          dcsr.step = 0;
-         this.write_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
 
@@ -2251,7 +2251,7 @@ package jtag_pkg;
 
          logic [1:0]         dm_op;
          logic [31:0]        dm_data;
-         riscv::dcsr_t       dcsr;
+         riscv_pkg::dcsr_t       dcsr;
          dm::dmstatus_t      dmstatus;
          logic [6:0]         dm_addr;
          // records the sequence of expected pc changes
@@ -2270,19 +2270,19 @@ package jtag_pkg;
 
          // write short program to single step through
          pc_offsets = {4, 8, 16, 20, 24, 28, 32};
-         this.writeMem(addr_i + 0, riscv::nop(),
+         this.writeMem(addr_i + 0, riscv_pkg::nop(),
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-         this.writeMem(addr_i + 4, riscv::nop(),
+         this.writeMem(addr_i + 4, riscv_pkg::nop(),
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-         this.writeMem(addr_i + 8, riscv::branch(5'h0, 5'h0, 3'b0, 12'h4), // branch to + 16
+         this.writeMem(addr_i + 8, riscv_pkg::branch(5'h0, 5'h0, 3'b0, 12'h4), // branch to + 16
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-         this.writeMem(addr_i + 12, riscv::nop(),
+         this.writeMem(addr_i + 12, riscv_pkg::nop(),
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          this.writeMem(addr_i + 16, { 7'h0, 5'b1, 5'b1, 3'b000, 5'b1, 7'h13 }, // addi xi, xi, i
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          this.writeMem(addr_i + 20, { 7'h0, 5'b1, 5'b1, 3'b000, 5'b1, 7'h13 }, // addi xi, xi, i
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-         this.writeMem(addr_i + 24, riscv::wfi(), // step over wfi
+         this.writeMem(addr_i + 24, riscv_pkg::wfi(), // step over wfi
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          this.writeMem(addr_i + 28, { 7'h0, 5'b1, 5'b1, 3'b000, 5'b1, 7'h13 }, // addi xi, xi, i
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
@@ -2293,12 +2293,12 @@ package jtag_pkg;
          assert_rdy_for_abstract_cmd(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          // set step flag in dcsr
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          dcsr.step = 1;
-         this.write_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          assert(dcsr.step == 1)
              else begin
@@ -2307,10 +2307,10 @@ package jtag_pkg;
              end;
 
          // write dpc to addr_i so that we know where we resume
-         this.write_reg_abstract_cmd(riscv::CSR_DPC, addr_i,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DPC, addr_i,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
-         this.read_reg_abstract_cmd(riscv::CSR_DPC, dm_data, s_tck, s_tms,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DPC, dm_data, s_tck, s_tms,
                                     s_trstn, s_tdi, s_tdo);
 
          for (int i = 0; i < $size(pc_offsets); i++) begin
@@ -2320,7 +2320,7 @@ package jtag_pkg;
             this.halt_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
             // this.block_until_any_halt(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
-            this.read_reg_abstract_cmd(riscv::CSR_DPC, dm_data,
+            this.read_reg_abstract_cmd(riscv_pkg::CSR_DPC, dm_data,
                                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
             // check if dpc, dcause and flag bits are ok
             assert(addr_i + pc_offsets[i] === dm_data) // did dpc increment?
@@ -2328,7 +2328,7 @@ package jtag_pkg;
                    $error("dpc is %x, expected %x", dm_data, addr_i + pc_offsets[i]);
                    error = 1'b1;
                 end;
-            this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+            this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
             assert(dm::CauseSingleStep === dcsr.cause) // is cause properly given as "step"?
                 else begin
@@ -2338,10 +2338,10 @@ package jtag_pkg;
          end
 
          // clear step flag in dcsr
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          dcsr.step = 0;
-         this.write_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
 
@@ -2401,7 +2401,7 @@ package jtag_pkg;
          ref logic s_tdo
       );
          dm::dmstatus_t dmstatus;
-         riscv::dcsr_t  dcsr;
+         riscv_pkg::dcsr_t  dcsr;
 
          error = 1'b0;
 
@@ -2422,7 +2422,7 @@ package jtag_pkg;
          // // check if debug cause is haltrequest
          this.resume_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          this.halt_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          assert(dm::CauseRequest === dcsr.cause)
              else begin
@@ -2431,17 +2431,17 @@ package jtag_pkg;
              end;
 
          // check if debug request is haltrequest
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          dcsr.step = 1;
-         this.write_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          this.resume_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          this.block_until_any_halt(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          //this.halt_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          assert(dm::CauseSingleStep === dcsr.cause)
              else begin
@@ -2449,10 +2449,10 @@ package jtag_pkg;
                 error = 1'b1;
              end;
 
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          dcsr.step = 0;
-         this.write_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          // check if debug request is breakpoint
@@ -2460,22 +2460,22 @@ package jtag_pkg;
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          this.writeMem(addr_i + 4, { 7'h0, 5'b1, 5'b1, 3'b000, 5'b1, 7'h13 }, // addi xi, xi, i
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-         this.writeMem(addr_i + 8, riscv::ebreak(),
+         this.writeMem(addr_i + 8, riscv_pkg::ebreak(),
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          this.writeMem(addr_i + 12, {20'b0, 5'b0, 7'b1101111}, // J zero offset
                        s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          // force ebreak in m-mode to enter debug mode
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          dcsr.ebreakm = 1;
-         this.write_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          this.resume_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          // TODO: delay here until entering park loop...
          // check halted?
 
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          assert(dm::CauseBreakpoint === dcsr.cause)
              else begin
@@ -2483,10 +2483,10 @@ package jtag_pkg;
                 error = 1'b1;
              end;
 
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
          dcsr.ebreakm = 0;
-         this.write_reg_abstract_cmd(riscv::CSR_DCSR, dcsr,
+         this.write_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr,
                                      s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
 
@@ -2504,7 +2504,7 @@ package jtag_pkg;
 
          logic [31:0]   dm_data;
          logic [31:0]   dpc_save, dpc;
-         riscv::dcsr_t  dcsr_save, dcsr;
+         riscv_pkg::dcsr_t  dcsr_save, dcsr;
          dm::dmstatus_t dmstatus;
 
          error = 1'b0;
@@ -2519,16 +2519,16 @@ package jtag_pkg;
              end
 
          // save dpc, dcsr.cause
-         this.read_reg_abstract_cmd(riscv::CSR_DPC, dpc_save, s_tck, s_tms,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DPC, dpc_save, s_tck, s_tms,
                                     s_trstn, s_tdi, s_tdo);
 
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr_save, s_tck, s_tms,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr_save, s_tck, s_tms,
                                     s_trstn, s_tdi, s_tdo);
 
          // write to program buffer
-         this.write_debug_reg(dm::ProgBuf0, riscv::nop(),
+         this.write_debug_reg(dm::ProgBuf0, riscv_pkg::nop(),
                               s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-         this.write_debug_reg(dm::ProgBuf0 + 1, riscv::ebreak(),
+         this.write_debug_reg(dm::ProgBuf0 + 1, riscv_pkg::ebreak(),
                               s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          //execute the program buffer
@@ -2536,10 +2536,10 @@ package jtag_pkg;
          this.set_command(dm_data, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
          // check that dpc and dcsr.cause didn't change
-         this.read_reg_abstract_cmd(riscv::CSR_DPC, dpc, s_tck, s_tms,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DPC, dpc, s_tck, s_tms,
                                     s_trstn, s_tdi, s_tdo);
 
-         this.read_reg_abstract_cmd(riscv::CSR_DCSR, dcsr, s_tck, s_tms,
+         this.read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dcsr, s_tck, s_tms,
                                     s_trstn, s_tdi, s_tdo);
          assert(dpc == dpc_save)
              else begin
@@ -2631,13 +2631,13 @@ package jtag_pkg;
          logic [31:0] contents;
 
 
-         regs = {riscv::CSR_DPC, riscv::CSR_MSTATUS, riscv::CSR_MISA};
+         regs = {riscv_pkg::CSR_DPC, riscv_pkg::CSR_MSTATUS, riscv_pkg::CSR_MISA};
 
          for (int i = 0; i < $size(regs); i++) begin
             this.read_reg_abstract_cmd(regs[i], contents, s_tck, s_tms,
                                        s_trstn, s_tdi, s_tdo);
 
-            this.read_reg_abstract_cmd(riscv::CSR_MISA, contents, s_tck, s_tms,
+            this.read_reg_abstract_cmd(riscv_pkg::CSR_MISA, contents, s_tck, s_tms,
                                        s_trstn, s_tdi, s_tdo);
 
          end
@@ -2723,16 +2723,16 @@ package jtag_pkg;
              $display("[TB  ] %t OK", $realtime);
 
          $display("[TB  ] %t - TEST dumping register values using abstract command", $realtime);
-         read_reg_abstract_cmd(riscv::CSR_DCSR, dm_data, s_tck, s_tms,
+         read_reg_abstract_cmd(riscv_pkg::CSR_DCSR, dm_data, s_tck, s_tms,
              s_trstn, s_tdi, s_tdo);
          $display("[TB  ] %t dcsr is %x", $realtime, dm_data);
-         read_reg_abstract_cmd(riscv::CSR_DPC, dm_data, s_tck, s_tms,
+         read_reg_abstract_cmd(riscv_pkg::CSR_DPC, dm_data, s_tck, s_tms,
              s_trstn, s_tdi, s_tdo);
          $display("[TB  ] %t dpc is %x", $realtime, dm_data);
-         read_reg_abstract_cmd(riscv::CSR_MTVEC, dm_data, s_tck, s_tms,
+         read_reg_abstract_cmd(riscv_pkg::CSR_MTVEC, dm_data, s_tck, s_tms,
              s_trstn, s_tdi, s_tdo);
          $display("[TB  ] %t mtvec is %x", $realtime, dm_data);
-         read_reg_abstract_cmd(riscv::CSR_MCAUSE, dm_data, s_tck, s_tms,
+         read_reg_abstract_cmd(riscv_pkg::CSR_MCAUSE, dm_data, s_tck, s_tms,
              s_trstn, s_tdi, s_tdo);
          $display("[TB  ] %t mcause is %x", $realtime, dm_data);
          read_reg_abstract_cmd('h1002, dm_data, s_tck, s_tms,
@@ -2820,7 +2820,7 @@ package jtag_pkg;
          // allows the jtag booting process to smoothly continue once we leave
          // this test
          $display("[TB  ] %t - Writing the boot address into dpc", $realtime);
-         write_reg_abstract_cmd(riscv::CSR_DPC, begin_l2_instr,
+         write_reg_abstract_cmd(riscv_pkg::CSR_DPC, begin_l2_instr,
              s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
      endtask

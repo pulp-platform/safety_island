@@ -14,7 +14,7 @@
  *
  * Description: Common RISC-V definitions.
  */
-package riscv;
+package riscv_pkg;
 
     // --------------------
     // Privilege Spec

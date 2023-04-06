@@ -251,7 +251,7 @@ module fixture_safety_island;
     debug_mode_if.halt_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
     $display("[TB  ] %t - Writing the boot address into dpc", $realtime);
-    debug_mode_if.write_reg_abstract_cmd(riscv::CSR_DPC, entrypoint + 32'h80, s_tck, s_tms, s_trstn,
+    debug_mode_if.write_reg_abstract_cmd(riscv_pkg::CSR_DPC, entrypoint + 32'h80, s_tck, s_tms, s_trstn,
                                          s_tdi, s_tdo);
 
     $display("[TB  ] %t - Loading L2", $realtime);
@@ -344,7 +344,7 @@ module fixture_safety_island;
     debug_mode_if.halt_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
     $display("[TB  ] %t - Writing the boot address into dpc", $realtime);
-    debug_mode_if.write_reg_abstract_cmd(riscv::CSR_DPC, entrypoint, s_tck, s_tms, s_trstn,
+    debug_mode_if.write_reg_abstract_cmd(riscv_pkg::CSR_DPC, entrypoint, s_tck, s_tms, s_trstn,
                                          s_tdi, s_tdo);
 
     debug_mode_if.run_dm_tests('0, entrypoint, error, num_err, s_tck, s_tms,
