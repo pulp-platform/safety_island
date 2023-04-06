@@ -6,13 +6,19 @@ rest of the SoC, it has both an AXI input and an AXI output port.
 
 ## Getting started
 
-Source the environment
+Download the software stack
+```
+make pulp-runtime
+make pulp-freertos
+```
+
+Set up environment variables
 
 ```
 source env/env.sh
 ```
 
-Make sure the pulp RISC-V toolchain is available. If not:
+Make sure the PULP RISC-V toolchain is in your `PATH`. If not:
 
 ```
 export PATH=/usr/pack/riscv-1.0-kgf/pulp-gcc-2.6.0:$PATH
@@ -27,7 +33,9 @@ make checkout
 Compile the top with `jtag` or `preloaded` testbenches using Questasim
 
 ```
-make build SIM_TOP=tb_safety_island_{jtag, preloaded}.sv
+make build SIM_TOP=tb_safety_island_jtag
+# or
+make build SIM_TOP=tb_safety_island_preloaded
 ```
 
 * JTAG bootmode: the debug module will handle the boot through the jtag interface
