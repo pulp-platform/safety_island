@@ -15,7 +15,7 @@ dependencies:
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.3 }
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", version: 1.1.1 }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   rev: "7786760" }
-  cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "9b7d500" }
+  cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "9b7d500" } # michaero/safety-island
   clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "6431785" }
   fpnew:                { git: "https://github.com/pulp-platform/fpnew.git",                version: 0.6.1 }
   apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }
@@ -38,14 +38,11 @@ sources:
   - rtl/soc_ctrl/safety_soc_ctrl_reg_top.sv
   # Level 3
   - rtl/safety_island_top.sv
+  - rtl/synth/safety_island_synth_pkg.sv
+  - rtl/synth/safety_island_synth_wrapper.sv
   # Level 4
   - target: simulation
     files:
       - rtl/tb/fixture_safety_island.sv
       - rtl/tb/tb_safety_island_jtag.sv
       - rtl/tb/tb_safety_island_preloaded.sv
-
-  - target: synthesis
-    files:
-      - rtl/synth/safety_island_synth_pkg.sv
-      - rtl/synth/safety_island_synth_wrapper.sv

@@ -24,7 +24,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter bit [31:0]             SafetyIslandPeriphOffset = SynthSafetyIslandPeriphOffset,
 
   parameter type         axi_in_aw_chan_t   = synth_axi_in_aw_chan_t,
-  parameter type         axi_in_w_chan_t    = synth_axi_in_w_chan_t
+  parameter type         axi_in_w_chan_t    = synth_axi_in_w_chan_t,
   parameter type         axi_in_b_chan_t    = synth_axi_in_b_chan_t,
   parameter type         axi_in_ar_chan_t   = synth_axi_in_ar_chan_t,
   parameter type         axi_in_r_chan_t    = synth_axi_in_r_chan_t,
@@ -32,7 +32,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter type         axi_in_resp_t      = synth_axi_in_resp_t,
 
   parameter type         axi_out_aw_chan_t  = synth_axi_out_aw_chan_t,
-  parameter type         axi_out_w_chan_t   = synth_axi_out_w_chan_t
+  parameter type         axi_out_w_chan_t   = synth_axi_out_w_chan_t,
   parameter type         axi_out_b_chan_t   = synth_axi_out_b_chan_t,
   parameter type         axi_out_ar_chan_t  = synth_axi_out_ar_chan_t,
   parameter type         axi_out_r_chan_t   = synth_axi_out_r_chan_t,
