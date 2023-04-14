@@ -45,7 +45,7 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   cv32e40p:
-    revision: 6c5c2d6bdfb9c5d743aad240ce6e1ae7a0baf1b8
+    revision: b26d1d6c5043bc6c535e23bf61b51313c802e44a
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40p.git
@@ -54,8 +54,8 @@ packages:
     - fpnew
     - tech_cells_generic
   fpnew:
-    revision: 8dc44406b1ccbc4487121710c1883e805f893965
-    version: 0.6.6
+    revision: 3116391bf66660f806b45e212b9949c528b4e270
+    version: 0.7.0
     source:
       Git: https://github.com/pulp-platform/fpnew.git
     dependencies:
@@ -69,8 +69,8 @@ packages:
     dependencies:
     - common_cells
   redundancy_cells:
-    revision: beddf8127619b08fbb24920466a88b6722a80c37
-    version: 0.5.0
+    revision: 4dadaa6af68f3818c900a32341754eb1c841ed3e
+    version: 0.5.1
     source:
       Git: https://github.com/pulp-platform/redundancy_cells.git
     dependencies:
@@ -88,8 +88,8 @@ packages:
     - axi
     - common_cells
   riscv-dbg:
-    revision: 69be5ddc03ea1688c0eab47d6ed9d0e8725beda1
-    version: 0.5.1
+    revision: 138d74bcaa90c70180c12215db3776813d2a95f2
+    version: 0.8.0
     source:
       Git: https://github.com/pulp-platform/riscv-dbg.git
     dependencies:
@@ -102,12 +102,6 @@ packages:
       Git: https://github.com/pulp-platform/tech_cells_generic.git
     dependencies:
     - common_verification
-  tech_mem:
-    revision: null
-    version: null
-    source:
-      Path: /scratch2/scratch_from_maipo/carfield/safed/safety-island/intel16/tech_mem
-    dependencies: []
   timer_unit:
     revision: 3f4ee3e5b3875a473242de5d0c3ebb5a0fe4b8db
     version: 1.0.2

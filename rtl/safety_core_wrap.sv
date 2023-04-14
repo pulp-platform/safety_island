@@ -291,12 +291,12 @@ module safety_core_wrap import safety_island_pkg::*; #(
   };
 
   clic #(
-    .reg_req_t ( reg_req_t ),
-    .reg_rsp_t ( reg_rsp_t ),
-    .N_SOURCE  ( SafetyIslandCfg.NumInterrupts ),
+    .reg_req_t  ( reg_req_t ),
+    .reg_rsp_t  ( reg_rsp_t ),
+    .N_SOURCE   ( SafetyIslandCfg.NumInterrupts  ),
     .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits ),
-    .SSCLIC ( SafetyIslandCfg.UseSSClic),
-    .USCLIC ( SafetyIslandCfg.UseUSClic )
+    .SSCLIC     ( SafetyIslandCfg.UseSSClic      ),
+    .USCLIC     ( SafetyIslandCfg.UseUSClic      )
   ) i_clic (
     .clk_i,
     .rst_ni,
