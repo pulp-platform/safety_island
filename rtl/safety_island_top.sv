@@ -148,6 +148,15 @@ module safety_island_top import safety_island_pkg::*; #(
   assign core_data_wdata_agg = {core_data_we, core_data_be, core_data_addr, core_data_wdata};
   assign {core_data_rdata, core_data_err} = core_data_rdata_agg;
 
+  // Core shadow bus
+  logic        core_shadow_req, core_shadow_gnt, core_shadow_rvalid, core_shadow_we, core_shadow_err;
+  logic [ 3:0] core_shadow_be;
+  logic [31:0] core_shadow_addr, core_shadow_wdata, core_shadow_rdata;
+  logic [WDataAggLen-1:0] core_shadow_wdata_agg;
+  logic [RDataAggLen-1:0] core_shadow_rdata_agg;
+  assign core_shadow_wdata_agg = {core_shadow_we, core_shadow_be, core_shadow_addr, core_shadow_wdata};
+  assign {core_shadow_rdata, core_shadow_err} = core_shadow_rdata_agg;
+
   // dbg req bus
   logic        dbg_req_req, dbg_req_gnt, dbg_req_rvalid, dbg_req_we, dbg_req_err;
   logic [ 3:0] dbg_req_be;
@@ -376,6 +385,16 @@ module safety_island_top import safety_island_pkg::*; #(
     .data_rdata_i     ( core_data_rdata   ),
     .data_err_i       ( core_data_err     ),
 
+    .shadow_req_o     ( core_shadow_req   ),
+    .shadow_gnt_i     ( core_shadow_gnt   ),
+    .shadow_rvalid_i  ( core_shadow_rvalid),
+    .shadow_we_o      ( core_shadow_we    ),
+    .shadow_be_o      ( core_shadow_be    ),
+    .shadow_addr_o    ( core_shadow_addr  ),
+    .shadow_wdata_o   ( core_shadow_wdata ),
+    .shadow_rdata_i   ( core_shadow_rdata ),
+    .shadow_err_i     ( core_shadow_err   ),
+
     .debug_req_i      ( debug_req         ),
     .fetch_enable_i   ( fetch_enable      )
   );
@@ -477,11 +496,15 @@ module safety_island_top import safety_island_pkg::*; #(
   // Main Interconnect
   // -----------------
 
-  typedef logic[cf_math_pkg::idx_width(NumSlaves)-1:0] main_idx_t;
-  main_idx_t [3:0] main_idx;
-  logic [3:0][31:0] main_addr;
+  localparam int unsigned NumMasters = 5;
 
-  for (genvar i = 0; i < 4; i++) begin : gen_main_addr_decode
+  typedef logic[cf_math_pkg::idx_width(NumSlaves)-1:0] main_idx_t;
+  main_idx_t [NumMasters-1:0] main_idx;
+  logic [NumMasters-1:0][31:0] main_addr;
+
+  assign main_addr = {axi_input_addr, core_instr_addr, core_data_addr, core_shadow_addr, dbg_req_addr};
+
+  for (genvar i = 0; i < NumMasters; i++) begin : gen_main_addr_decode
     addr_decode #(
       .NoIndices ( NumSlaves       ),
       .NoRules   ( NumRules        ),
@@ -499,9 +522,8 @@ module safety_island_top import safety_island_pkg::*; #(
     );
   end
 
-  assign main_addr = {axi_input_addr, core_instr_addr, core_data_addr, dbg_req_addr};
   xbar #(
-    .NumIn         ( 4           ),
+    .NumIn         ( NumMasters  ),
     .NumOut        ( NumSlaves   ),
     .ReqDataWidth  ( WDataAggLen ),
     .RespDataWidth ( RDataAggLen ),
@@ -515,13 +537,13 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .rr_i    ( '0 ),
 
-    .req_i   ( {axi_input_req,       core_instr_req,       core_data_req,       dbg_req_req      } ),
+    .req_i   ( {axi_input_req,       core_instr_req,       core_data_req,       core_shadow_req,       dbg_req_req      } ),
     .add_i   ( main_idx ),
     .wen_i   ( '0 ), // irrelevant for WriteRespOn
-    .wdata_i ( {axi_input_wdata_agg, core_instr_wdata_agg, core_data_wdata_agg, dbg_req_wdata_agg} ),
-    .gnt_o   ( {axi_input_gnt,       core_instr_gnt,       core_data_gnt,       dbg_req_gnt      } ),
-    .vld_o   ( {axi_input_rvalid,    core_instr_rvalid,    core_data_rvalid,    dbg_req_rvalid   } ),
-    .rdata_o ( {axi_input_rdata_agg, core_instr_rdata_agg, core_data_rdata_agg, dbg_req_rdata_agg} ),
+    .wdata_i ( {axi_input_wdata_agg, core_instr_wdata_agg, core_data_wdata_agg, core_shadow_wdata_agg, dbg_req_wdata_agg} ),
+    .gnt_o   ( {axi_input_gnt,       core_instr_gnt,       core_data_gnt,       core_shadow_gnt,       dbg_req_gnt      } ),
+    .vld_o   ( {axi_input_rvalid,    core_instr_rvalid,    core_data_rvalid,    core_shadow_rvalid,    dbg_req_rvalid   } ),
+    .rdata_o ( {axi_input_rdata_agg, core_instr_rdata_agg, core_data_rdata_agg, core_shadow_rdata_agg, dbg_req_rdata_agg} ),
 
     .gnt_i   ( xbar_slave_gnt   ),
     .req_o   ( xbar_slave_req   ),

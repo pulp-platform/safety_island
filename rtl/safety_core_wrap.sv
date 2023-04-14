@@ -49,6 +49,17 @@ module safety_core_wrap import safety_island_pkg::*; #(
   input  logic [31:0] data_rdata_i,
   input  logic        data_err_i,
 
+  // Shadow memory interface
+  output logic        shadow_req_o,
+  input  logic        shadow_gnt_i,
+  input  logic        shadow_rvalid_i,
+  output logic        shadow_we_o,
+  output logic [3:0]  shadow_be_o,
+  output logic [31:0] shadow_addr_o,
+  output logic [31:0] shadow_wdata_o,
+  input  logic [31:0] shadow_rdata_i,
+  input  logic        shadow_err_i,
+
   // Debug Interface
   input  logic        debug_req_i,
 
@@ -91,6 +102,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .NUM_MHPMCOUNTERS (SafetyIslandCfg.NumMhpmCounters),
     .NUM_INTERRUPTS   (SafetyIslandCfg.NumInterrupts),
     .CLIC             (SafetyIslandCfg.UseClic),
+    .SHADOW           (SafetyIslandCfg.UseFastIrq),
     .MCLICBASE_ADDR   (PeriphBaseAddr+ClicAddrOffset)
   ) i_cv32e40p (
     .clk_i,
@@ -119,12 +131,25 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .data_addr_o,
     .data_wdata_o,
     .data_rdata_i,
+    .data_atop_o ( ), // currently, safety_island does not support AMOs and
+                      // LR/SC
+
+    // Shadow memory interface
+    .shadow_req_o,
+    .shadow_gnt_i,
+    .shadow_rvalid_i,
+    .shadow_we_o,
+    .shadow_be_o,
+    .shadow_addr_o,
+    .shadow_wdata_o,
+    .shadow_rdata_i,
 
     .apu_req_o           (apu_req),
     .apu_gnt_i           (apu_gnt),
     .apu_operands_o      (apu_operands),
     .apu_op_o            (apu_op),
     .apu_flags_o         (apu_flags),
+    .apu_type_o          ( ),
     .apu_rvalid_i        (apu_rvalid),
     .apu_result_i        (apu_rdata),
     .apu_flags_i         (apu_rflags),
@@ -266,9 +291,12 @@ module safety_core_wrap import safety_island_pkg::*; #(
   };
 
   clic #(
-    .reg_req_t ( reg_req_t ),
-    .reg_rsp_t ( reg_rsp_t ),
-    .N_SOURCE  ( SafetyIslandCfg.NumInterrupts )
+    .reg_req_t  ( reg_req_t ),
+    .reg_rsp_t  ( reg_rsp_t ),
+    .N_SOURCE   ( SafetyIslandCfg.NumInterrupts  ),
+    .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits ),
+    .SSCLIC     ( SafetyIslandCfg.UseSSClic      ),
+    .USCLIC     ( SafetyIslandCfg.UseUSClic      )
   ) i_clic (
     .clk_i,
     .rst_ni,
@@ -282,7 +310,10 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .irq_ready_i ( core_irq_ready ),
     .irq_id_o    ( core_irq_id    ),
     .irq_level_o ( core_irq_level ),
-    .irq_shv_o   ( core_irq_shv   )
+    .irq_shv_o   ( core_irq_shv   ),
+    .irq_priv_o     (  ),
+    .irq_kill_req_o (  ),
+    .irq_kill_ack_i ('0)
   );
 
   // FPU

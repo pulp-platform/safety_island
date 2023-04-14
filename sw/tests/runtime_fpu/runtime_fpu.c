@@ -16,14 +16,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
 #include "pulp.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-int main(void)
-{
-    
+int main(void) {
+
     volatile float op1 = 0.5f;
     volatile float op2 = 5.0f;
     volatile float add, sub, mult, div;
@@ -41,8 +40,8 @@ int main(void)
     printf("Sum: %f\r\nSub: %f\r\nMult: %f\r\nDiv: %f\r\n", add, sub, mult, div);
 
     if ((add != add_exp) && (sub != sub_exp) && (mult != mult_exp) && (div != div_exp)) {
-	    return 1;
-	}
-    
+        return 1;
+    }
+
     return 0;
 }

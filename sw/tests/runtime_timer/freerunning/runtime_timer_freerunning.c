@@ -16,13 +16,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
 #include "pulp.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-int main(void)
-{
+int main(void) {
     volatile int unsigned timer_addr = timer_base_fc(0, 1);
     printf("Timer addr: %x\n\r", timer_addr);
 
@@ -32,8 +31,8 @@ int main(void)
     printf("Start timer \r\n");
     timer_start(timer_addr);
 
-    for (volatile int i=0; i< 500; i++)
-	;
+    for (volatile int i = 0; i < 500; i++)
+        ;
 
     timer_conf_set(timer_addr, 0);
     printf("Timer stopped \r\n");

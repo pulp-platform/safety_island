@@ -17,9 +17,9 @@
  * Author: Robert Balas (balasr@iis.ee.ethz.ch)
  */
 
-/* Test basic functionality of the clic (peripheral and core side). Especially
- * check if the interrupt thresholding works. */
+/* Test if mintstatus is correctly preserved accross an interrupt */
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,28 +42,11 @@
 void clic_setup_mtvec(void);
 void clic_setup_mtvt(void);
 
-void (*clic_isr_hook[1])(void);
+static bool interrupt_happened = false;
 
-/* need void functions for isr table entries */
-void exit_success(void) { exit(0); }
-
-void exit_fail(void) { exit(1); }
-
-/* some handlers we use to test */
-__attribute__((interrupt("machine"))) void inline_handler(void) {
-    for (volatile int i = 0; i < 10; i++)
-        ;
-}
-
-__attribute__((noinline)) void dummy_loop() {
-    for (volatile int i = 0; i < 10; i++)
-        ;
-}
-
-__attribute__((interrupt("machine"))) void c_handler(void) { dummy_loop(); }
-
-__attribute__((interrupt("machine"))) void check_status_handler(void) {
+static void print_clic_csr_state(void) {
     uint32_t mcause = csr_read(CSR_MCAUSE);
+    uint32_t mintstatus = csr_read(CSR_MINTSTATUS);
     printf("mcause:      %08lx\n", mcause);
     printf("  interrupt: %ld\n", mcause >> 31 & 1);
     printf("  minhv    : %ld\n", mcause >> 30 & 1);
@@ -72,10 +55,21 @@ __attribute__((interrupt("machine"))) void check_status_handler(void) {
     printf("  mpil     : %02lx\n", mcause >> 16 & 0xff);
     printf("  excode   : %03lx\n", mcause & 0xfff);
     printf("mintthresh:  %08lx\n", csr_read(CSR_MINTTHRESH));
-    printf("mintstatus:  %08lx\n", csr_read(CSR_MINTSTATUS));
+    printf("mintstatus:  %08lx\n", mintstatus);
+    printf("  mil      : %02lx\n", mintstatus >> 24 & 0xff);
 }
 
-/* TODO: recursive interrupt */
+__attribute__((interrupt("machine"))) void check_status_handler(void) {
+    printf("CLIC CSR STATE DURING INTERRUPT\n");
+    print_clic_csr_state();
+    interrupt_happened = true;
+    /* check that this is interrupt 31 */
+    assert((csr_read(CSR_MCAUSE) & 0x3ff) == 31);
+    /* maximize interrupt threshold to prevent further recursive interrupts
+     * since our interrupt line 31 is level sensitive and premanently
+     * asserted */
+    csr_write(CSR_MINTTHRESH, 0xff); /* 0xff > 0xaa */
+}
 
 int main(void) {
 
@@ -101,13 +95,8 @@ int main(void) {
 
     /* TODO: hook illegal insn handler to exit(1) */
 
-    printf("test csr accesses\n");
-    uint32_t thresh = 0xffaa;
-    uint32_t cmp = 0;
-    csr_write(CSR_MINTTHRESH, thresh);
-    cmp = csr_read(CSR_MINTTHRESH);
-    csr_write(CSR_MINTTHRESH, 0);   /* reset threshold */
-    assert(cmp == (thresh & 0xff)); /* only lower 8 bits are writable */
+    uint32_t mintstatus_before;
+    uint32_t mintstatus_after;
 
     /* redirect vector table to our custom one */
     printf("set up vector table\n");
@@ -136,6 +125,7 @@ int main(void) {
     /* set number of bits for level encoding:
      * nlbits
      */
+
     printf("set nlbits\n");
     writew((0x4 << MCLIC_MCLICCFG_MNLBITS_OFFSET), mclicbase + MCLIC_MCLICCFG_REG_OFFSET);
 
@@ -145,12 +135,12 @@ int main(void) {
                                                    ~(CLICINT_CLICINT_CTL_MASK << CLICINT_CLICINT_CTL_OFFSET)),
            mclicbase + CLICINT_CLICINT_REG_OFFSET(31));
 
-    /* raise interrupt threshold to max and check that the interrupt doesn't
-     * fire yet */
-    printf("raise interrupt threshold to max (no interrupt should happen)\n");
-    csr_write(CSR_MINTTHRESH, 0xff); /* 0xff > 0xaa */
-    clic_isr_hook[0] = exit_fail;    /* if we take an interrupt then we failed
-                                      */
+    printf("set interrupt threshold \n");
+    csr_write(CSR_MINTTHRESH, 0xb); /* 0xb < 0xaa */
+
+    printf("CLIC CSR STATE BEFORE INTERRUPT\n");
+    print_clic_csr_state();
+    mintstatus_before = csr_read(CSR_MINTSTATUS);
 
     printf("enable interrupt 31\n");
     /* enable interrupt 31 on clic */
@@ -158,21 +148,19 @@ int main(void) {
                (readw(mclicbase + CLICINT_CLICINT_REG_OFFSET(31)) & ~(0X1 << CLICINT_CLICINT_IE_BIT)),
            mclicbase + CLICINT_CLICINT_REG_OFFSET(31));
 
-    /* no interrupt should happen */
-    for (volatile int i = 0; i < 10000; i++)
+    /* give the interrupt some room to fire */
+    for (volatile int i = 0; i < 16; i++)
         ;
 
-    printf("lower interrupt threshold (interrupt should happen)\n");
-    clic_isr_hook[0] = exit_success;
-    csr_write(CSR_MINTTHRESH, 0); /* 0 < 0xaa */
+    /* check that handler toggled flag and that we are in a good state */
+    assert(interrupt_happened);
 
-    for (volatile int i = 0; i < 10000; i++)
-        ;
+    printf("CLIC CSR STATE AFTER INTERRUPT\n");
+    print_clic_csr_state();
 
-    printf("Interrupt took too long\n");
+    /* check that we preserved state */
+    mintstatus_after = csr_read(CSR_MINTSTATUS);
+    assert(mintstatus_before == mintstatus_after);
 
-    /* TODO: remove */
-    clic_isr_hook[0] = inline_handler;
-    clic_isr_hook[0] = c_handler;
-    return 1;
+    return 0;
 }
