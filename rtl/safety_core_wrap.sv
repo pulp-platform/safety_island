@@ -284,7 +284,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       end
   end
 
-  logic [255:0] clic_irqs;
+  logic [SafetyIslandDefaultConfig.NumInterrupts-1:0] clic_irqs;
   assign clic_irqs = {
     irqs_i,             // NumInterrupts-2
     s_timer_irqs        // 2 (timer interrupts)
