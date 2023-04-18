@@ -23,7 +23,7 @@ Bender.lock:
 ######################
 
 NONFREE_REMOTE ?= git@iis-git.ee.ethz.ch:carfield/safety-island-nonfree.git
-NONFREE_COMMIT ?= c5ddb89a6ca3262ebbc5dff0086b106e99fbf087
+NONFREE_COMMIT ?= 633078a5df85e5c97f884da56ce2711a6362f7eb
 
 nonfree-init:
 	git clone $(NONFREE_REMOTE) nonfree
