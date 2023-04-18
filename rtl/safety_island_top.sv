@@ -39,8 +39,6 @@ module safety_island_top import safety_island_pkg::*; #(
   input  logic            rst_ni,
   input  logic            test_enable_i,
 
-  input logic [NumLocalInterrupts-1:0] irqs_i,
-
   /// JTAG
   input  logic            jtag_tck_i,
   input  logic            jtag_tdi_i,
@@ -49,6 +47,8 @@ module safety_island_top import safety_island_pkg::*; #(
   input  logic            jtag_trst_ni,
 
   input  bootmode_e       bootmode_i,
+
+  input logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
 
   /// AXI input
   input  axi_input_req_t  axi_input_req_i,

@@ -11,6 +11,8 @@
 `include "axi/typedef.svh"
 
 module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
+  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
+
   parameter int unsigned AxiAddrWidth  = SynthAxiAddrWidth,
   parameter int unsigned AxiDataWidth  = SynthAxiDataWidth,
   parameter int unsigned AxiUserWidth  = SynthAxiUserWidth,
@@ -55,14 +57,15 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   input  logic ref_clk_i,
   input  logic rst_ni,
   input  logic test_enable_i,
-input logic [1:0] bootmode_i,
-  input  logic [safety_island_pkg::NumLocalInterrupts-1:0] irqs_i,
+  input  logic [1:0] bootmode_i,
 
   input  logic jtag_tck_i,
   input  logic jtag_trst_ni,
   input  logic jtag_tms_i,
   input  logic jtag_tdi_i,
   output logic jtag_tdo_o,
+
+  input  logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
 
   input  logic [AsyncAxiInAwWidth-1:0] async_axi_in_aw_data_i,
   input  logic            [LogDepth:0] async_axi_in_aw_wptr_i,
@@ -176,6 +179,7 @@ input logic [1:0] bootmode_i,
   );
 
   safety_island_top #(
+    .SafetyIslandCfg   ( SafetyIslandCfg          ),
     .GlobalAddrWidth   ( AxiAddrWidth             ),
     .BaseAddr          ( SafetyIslandBaseAddr     ),
     .AddrRange         ( SafetyIslandAddrRange    ),
@@ -197,7 +201,7 @@ input logic [1:0] bootmode_i,
     .test_enable_i,
     .irqs_i,
     .jtag_tck_i,
-    .jtag_trst_ni (jtag_trst_ni),
+    .jtag_trst_ni,
     .jtag_tms_i,
     .jtag_tdi_i,
     .jtag_tdo_o,
