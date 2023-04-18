@@ -58,6 +58,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   input  logic rst_ni,
   input  logic test_enable_i,
   input  logic [1:0] bootmode_i,
+  input  logic fetch_en_i,
 
   input  logic jtag_tck_i,
   input  logic jtag_trst_ni,
@@ -206,6 +207,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .jtag_tdi_i,
     .jtag_tdo_o,
     .bootmode_i,
+    .fetch_enable_i   ( fetch_en_i   ),
     .axi_input_req_i  ( axi_in_req   ),
     .axi_input_resp_o ( axi_in_resp  ),
     .axi_output_req_o ( axi_out_req  ),

@@ -48,6 +48,8 @@ module safety_island_top import safety_island_pkg::*; #(
 
   input  bootmode_e       bootmode_i,
 
+  input  logic            fetch_enable_i,
+
   input logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
 
   /// AXI input
@@ -724,7 +726,7 @@ module safety_island_top import safety_island_pkg::*; #(
   assign soc_ctrl_hw2reg.bootmode.de = first_cycle;
   assign soc_ctrl_hw2reg.fetchen.d   = bootmode_i == Jtag;
   assign soc_ctrl_hw2reg.fetchen.de  = first_cycle;
-  assign fetch_enable = soc_ctrl_reg2hw.fetchen.q;
+  assign fetch_enable = soc_ctrl_reg2hw.fetchen.q | fetch_enable_i;
   assign boot_addr = soc_ctrl_reg2hw.bootaddr.q;
 
 
