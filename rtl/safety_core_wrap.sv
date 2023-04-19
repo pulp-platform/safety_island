@@ -285,19 +285,34 @@ module safety_core_wrap import safety_island_pkg::*; #(
     end
   end
 
-  logic [SafetyIslandCfg.NumInterrupts-1:0] clic_irqs;
-  assign clic_irqs = {
-    irqs_i[SafetyIslandCfg.NumInterrupts-NumTimerInterrupts-1:0], // NumInterrupts-2
-    s_timer_irqs                                                  // 2 (timer interrupts)
+  logic [SafetyIslandCfg.NumInterrupts+32-1:0] clic_irqs;
+  logic seip, meip, msip;
+
+  assign seip = '0;
+  assign meip = '0;
+  assign ipi  = '0;
+  assign clic_irqs[SafetyIslandCfg.NumInterrupts+32-1:32] = irqs_i;
+  assign clic_irqs[31:18] = '0;
+  assign clic_irqs[17:16] = s_timer_irqs;
+  assign clic_irqs[15:0]  = {
+    {4{1'b0}},                  // reserved
+    seip,                       // seip
+    1'b0,                       // reserved
+    meip,                       // meip
+    1'b0,                       // reserved, seip, reserved, meip
+    s_timer_irqs[0],            // mtip
+    {3{1'b0}},                  // reserved, stip, reserved
+    msip,                       // msip
+    {3{1'b0}}                   // reserved, ssip, reserved
   };
 
   clic #(
     .reg_req_t  ( reg_req_t ),
     .reg_rsp_t  ( reg_rsp_t ),
-    .N_SOURCE   ( SafetyIslandCfg.NumInterrupts  ),
-    .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits ),
-    .SSCLIC     ( SafetyIslandCfg.UseSSClic      ),
-    .USCLIC     ( SafetyIslandCfg.UseUSClic      )
+    .N_SOURCE   ( SafetyIslandCfg.NumInterrupts+32 ),
+    .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits   ),
+    .SSCLIC     ( SafetyIslandCfg.UseSSClic        ),
+    .USCLIC     ( SafetyIslandCfg.UseUSClic        )
   ) i_clic (
     .clk_i,
     .rst_ni,
