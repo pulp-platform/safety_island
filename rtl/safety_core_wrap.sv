@@ -290,20 +290,20 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
   assign seip = '0;
   assign meip = '0;
-  assign ipi  = '0;
+  assign msip  = '0;
   assign clic_irqs[SafetyIslandCfg.NumInterrupts+32-1:32] = irqs_i;
   assign clic_irqs[31:18] = '0;
   assign clic_irqs[17:16] = s_timer_irqs;
   assign clic_irqs[15:0]  = {
-    {4{1'b0}},                  // reserved
-    seip,                       // seip
-    1'b0,                       // reserved
-    meip,                       // meip
-    1'b0,                       // reserved, seip, reserved, meip
-    s_timer_irqs[0],            // mtip
-    {3{1'b0}},                  // reserved, stip, reserved
-    msip,                       // msip
-    {3{1'b0}}                   // reserved, ssip, reserved
+    {4{1'b0}},       // reserved
+    meip,            // meip
+    1'b0,            // reserved
+    seip,            // seip
+    1'b0,            // reserved
+    s_timer_irqs[0], // mtip
+    {3{1'b0}},       // reserved, stip, reserved
+    msip,            // msip
+    {3{1'b0}}        // reserved, ssip, reserved
   };
 
   clic #(
