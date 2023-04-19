@@ -102,6 +102,7 @@ module fixture_safety_island;
     .ref_clk_i         ( s_ref_clk               ),
     .rst_ni            ( s_rst_n                 ),
     .test_enable_i     ( s_test_enable           ),
+    .fetch_enable_i    ( '0                      ), // Internal register used by default.
 
     .irqs_i            ('0                       ),
 

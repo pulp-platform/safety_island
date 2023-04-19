@@ -12,7 +12,7 @@
 
 package safety_island_synth_pkg;
   import safety_island_pkg::*;
-   
+
   localparam SynthAxiAddrWidth = 48;
   typedef logic [SynthAxiAddrWidth-1:0] synth_axi_addr_t;
   localparam SynthAxiDataWidth = 64;

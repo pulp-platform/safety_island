@@ -21,7 +21,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   input  logic rst_ni,
   input  logic test_enable_i,
 
-  input logic [NumLocalInterrupts-1:0] irqs_i,
+  input logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
 
   // Core-local peripherals
   input  reg_req_t    cl_periph_req_i,
@@ -255,48 +255,64 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .apb_rsp_i (timer_apb_rsp)
   );
 
-  apb_timer_unit #(.APB_ADDR_WIDTH(32)
-    ) i_apb_timer_unit (
-      .HCLK       ( clk_i                   ),
-      .HRESETn    ( rst_ni                  ),
-      .PADDR      ( timer_apb_req.paddr   ),
-      .PWDATA     ( timer_apb_req.pwdata  ),
-      .PWRITE     ( timer_apb_req.pwrite  ),
-      .PSEL       ( timer_apb_req.psel    ),
-      .PENABLE    ( timer_apb_req.penable ),
-      .PRDATA     ( timer_apb_rsp.prdata  ),
-      .PREADY     ( timer_apb_rsp.pready  ),
-      .PSLVERR    ( timer_apb_rsp.pslverr ),
-      .ref_clk_i,
-      .event_lo_i ( /*s_timer_in_lo_event*/     ),
-      .event_hi_i ( /*s_timer_in_hi_event*/     ),
-      .irq_lo_o   ( s_timer_irqs[0]         ),
-      .irq_hi_o   ( s_timer_irqs[1]         ),
-      .busy_o     (                         )
+  apb_timer_unit #(
+    .APB_ADDR_WIDTH(32)
+  ) i_apb_timer_unit (
+    .HCLK       ( clk_i                 ),
+    .HRESETn    ( rst_ni                ),
+    .PADDR      ( timer_apb_req.paddr   ),
+    .PWDATA     ( timer_apb_req.pwdata  ),
+    .PWRITE     ( timer_apb_req.pwrite  ),
+    .PSEL       ( timer_apb_req.psel    ),
+    .PENABLE    ( timer_apb_req.penable ),
+    .PRDATA     ( timer_apb_rsp.prdata  ),
+    .PREADY     ( timer_apb_rsp.pready  ),
+    .PSLVERR    ( timer_apb_rsp.pslverr ),
+    .ref_clk_i,
+    .event_lo_i (/*s_timer_in_lo_event*/),
+    .event_hi_i (/*s_timer_in_hi_event*/),
+    .irq_lo_o   ( s_timer_irqs[0]       ),
+    .irq_hi_o   ( s_timer_irqs[1]       ),
+    .busy_o     (                       )
   );
 
 
   // Interrupts
   always_comb begin : gen_core_irq_onehot
-      core_irq_onehot = '0;
-      if (core_irq_valid) begin
-          core_irq_onehot[core_irq_id] = 1'b1;
-      end
+    core_irq_onehot = '0;
+    if (core_irq_valid) begin
+        core_irq_onehot[core_irq_id] = 1'b1;
+    end
   end
 
-  logic [SafetyIslandDefaultConfig.NumInterrupts-1:0] clic_irqs;
-  assign clic_irqs = {
-    irqs_i,             // NumInterrupts-2
-    s_timer_irqs        // 2 (timer interrupts)
+  logic [SafetyIslandCfg.NumInterrupts+32-1:0] clic_irqs;
+  logic seip, meip, msip;
+
+  assign seip = '0;
+  assign meip = '0;
+  assign ipi  = '0;
+  assign clic_irqs[SafetyIslandCfg.NumInterrupts+32-1:32] = irqs_i;
+  assign clic_irqs[31:18] = '0;
+  assign clic_irqs[17:16] = s_timer_irqs;
+  assign clic_irqs[15:0]  = {
+    {4{1'b0}},                  // reserved
+    seip,                       // seip
+    1'b0,                       // reserved
+    meip,                       // meip
+    1'b0,                       // reserved, seip, reserved, meip
+    s_timer_irqs[0],            // mtip
+    {3{1'b0}},                  // reserved, stip, reserved
+    msip,                       // msip
+    {3{1'b0}}                   // reserved, ssip, reserved
   };
 
   clic #(
     .reg_req_t  ( reg_req_t ),
     .reg_rsp_t  ( reg_rsp_t ),
-    .N_SOURCE   ( SafetyIslandCfg.NumInterrupts  ),
-    .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits ),
-    .SSCLIC     ( SafetyIslandCfg.UseSSClic      ),
-    .USCLIC     ( SafetyIslandCfg.UseUSClic      )
+    .N_SOURCE   ( SafetyIslandCfg.NumInterrupts+32 ),
+    .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits   ),
+    .SSCLIC     ( SafetyIslandCfg.UseSSClic        ),
+    .USCLIC     ( SafetyIslandCfg.UseUSClic        )
   ) i_clic (
     .clk_i,
     .rst_ni,
@@ -318,29 +334,29 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
   // FPU
   if (SafetyIslandCfg.UseFpu) begin : gen_safety_island_fpu
-      cv32e40p_fpu_wrap #(
-          .FP_DIVSQRT (1)
-      ) i_fpu (
-          .clk_i,
-          .rst_ni,
-          .apu_req_i     (apu_req),
-          .apu_gnt_o     (apu_gnt),
-          .apu_operands_i(apu_operands),
-          .apu_op_i      (apu_op),
-          .apu_flags_i   (apu_flags),
-          .apu_rvalid_o  (apu_rvalid),
-          .apu_rdata_o   (apu_rdata),
-          .apu_rflags_o  (apu_rflags)
-      );
+    cv32e40p_fpu_wrap #(
+      .FP_DIVSQRT (1)
+    ) i_fpu (
+      .clk_i,
+      .rst_ni,
+      .apu_req_i     (apu_req),
+      .apu_gnt_o     (apu_gnt),
+      .apu_operands_i(apu_operands),
+      .apu_op_i      (apu_op),
+      .apu_flags_i   (apu_flags),
+      .apu_rvalid_o  (apu_rvalid),
+      .apu_rdata_o   (apu_rdata),
+      .apu_rflags_o  (apu_rflags)
+    );
   end else begin : gen_no_safety_island_fpu
-      //assign apu_req      = 1'b0;
-      assign apu_gnt      = 1'b0;
-      //assign apu_operands = 1'b0;
-      //assign apu_op       = 1'b0;
-      //assign apu_flags    = 1'b0;
-      assign apu_rvalid   = 1'b0;
-      assign apu_rdata    = 1'b0;
-      assign apu_rflags   = 1'b0;
+    //assign apu_req      = 1'b0;
+    assign apu_gnt      = 1'b0;
+    //assign apu_operands = 1'b0;
+    //assign apu_op       = 1'b0;
+    //assign apu_flags    = 1'b0;
+    assign apu_rvalid   = 1'b0;
+    assign apu_rdata    = 1'b0;
+    assign apu_rflags   = 1'b0;
   end
 
   // TODO: TCLS
