@@ -163,7 +163,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .axi_resp_t           ( axi_in_resp_t )
   ) i_axi_in_isolate      (
     .clk_i                ( clk_i               ),
-    .rst_ni               ( s_rst_n             ),
+    .rst_ni               ( rst_ni              ),
     .slv_req_i            ( axi_in_req          ),
     .slv_resp_o           ( axi_in_resp         ),
     .mst_req_o            ( axi_in_isolate_req  ),
@@ -215,7 +215,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .axi_resp_t           ( axi_out_resp_t )
   ) i_axi_out_isolate     (
     .clk_i                ( clk_i                ),
-    .rst_ni               ( s_rst_n              ),
+    .rst_ni               ( rst_ni               ),
     .slv_req_i            ( axi_out_isolate_req  ),
     .slv_resp_o           ( axi_out_isolate_resp ),
     .mst_req_o            ( axi_out_req          ),
