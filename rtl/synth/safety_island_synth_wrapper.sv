@@ -13,12 +13,14 @@
 module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
 
-  parameter int unsigned AxiAddrWidth  = SynthAxiAddrWidth,
-  parameter int unsigned AxiDataWidth  = SynthAxiDataWidth,
-  parameter int unsigned AxiUserWidth  = SynthAxiUserWidth,
-  parameter int unsigned AxiInIdWidth  = SynthAxiInIdWidth,
-  parameter int unsigned AxiOutIdWidth = SynthAxiOutIdWidth,
-  parameter int unsigned LogDepth      = SynthLogDepth,
+  parameter int unsigned AxiAddrWidth   = SynthAxiAddrWidth,
+  parameter int unsigned AxiDataWidth   = SynthAxiDataWidth,
+  parameter int unsigned AxiUserWidth   = SynthAxiUserWidth,
+  parameter int unsigned AxiInIdWidth   = SynthAxiInIdWidth,
+  parameter int unsigned AxiOutIdWidth  = SynthAxiOutIdWidth,
+  parameter int unsigned AxiMaxInTrans  = SynthAxiMaxInTrans,
+  parameter int unsigned AxiMaxOutTrans = SynthAxiMaxOutTrans,
+  parameter int unsigned LogDepth       = SynthLogDepth,
   
   parameter bit [AxiAddrWidth-1:0] SafetyIslandBaseAddr     = SynthSafetyIslandBaseAddr,
   parameter bit [31:0]             SafetyIslandAddrRange    = SynthSafetyIslandAddrRange,
@@ -63,6 +65,8 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   input  logic test_enable_i,
   input  logic [1:0] bootmode_i,
   input  logic fetch_en_i,
+  input  logic axi_isolate_i,
+  output logic axi_isolated_o,
 
   input  logic jtag_tck_i,
   input  logic jtag_trst_ni,
@@ -106,12 +110,15 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   input  logic             [LogDepth:0] async_axi_out_r_wptr_i,
   output logic             [LogDepth:0] async_axi_out_r_rptr_o
 );
- 
-  axi_in_req_t axi_in_req;
-  axi_in_resp_t axi_in_resp;
 
-  axi_out_req_t axi_out_req;
-  axi_out_resp_t axi_out_resp;
+  logic [1:0] axi_isolated;
+  assign axi_isolated_o = |axi_isolated;
+ 
+  axi_in_req_t axi_in_req, axi_in_isolate_req;
+  axi_in_resp_t axi_in_resp, axi_in_isolate_resp;
+
+  axi_out_req_t axi_out_req, axi_out_isolate_req;
+  axi_out_resp_t axi_out_resp, axi_out_isolate_resp;
 
   axi_cdc_dst #(
     .LogDepth   ( LogDepth         ),
@@ -142,6 +149,27 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .dst_rst_ni                ( rst_ni      ),
     .dst_req_o                 ( axi_in_req  ),
     .dst_resp_i                ( axi_in_resp )
+  );
+
+  axi_isolate            #(
+    .NumPending           ( AxiMaxInTrans ),
+    .TerminateTransaction ( 1             ),
+    .AtopSupport          ( 1             ),
+    .AxiAddrWidth         ( AxiAddrWidth  ),
+    .AxiDataWidth         ( AxiDataWidth  ),
+    .AxiIdWidth           ( AxiInIdWidth  ),
+    .AxiUserWidth         ( AxiUserWidth  ),
+    .axi_req_t            ( axi_in_req_t  ),
+    .axi_resp_t           ( axi_in_resp_t )
+  ) i_axi_in_isolate      (
+    .clk_i                ( clk_i               ),
+    .rst_ni               ( s_rst_n             ),
+    .slv_req_i            ( axi_in_req          ),
+    .slv_resp_o           ( axi_in_resp         ),
+    .mst_req_o            ( axi_in_isolate_req  ),
+    .mst_resp_i           ( axi_in_isolate_resp ),
+    .isolate_i            ( axi_isolate_i       ),
+    .isolated_o           ( axi_isolated[0]     )
   );
 
   axi_cdc_src #(
@@ -175,6 +203,27 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .async_data_master_r_rptr_o ( async_axi_out_r_rptr_o  )
   );
 
+  axi_isolate            #(
+    .NumPending           ( AxiMaxOutTrans ),
+    .TerminateTransaction ( 1              ),
+    .AtopSupport          ( 1              ),
+    .AxiAddrWidth         ( AxiAddrWidth   ),
+    .AxiDataWidth         ( AxiDataWidth   ),
+    .AxiIdWidth           ( AxiOutIdWidth  ),
+    .AxiUserWidth         ( AxiUserWidth   ),
+    .axi_req_t            ( axi_out_req_t  ),
+    .axi_resp_t           ( axi_out_resp_t )
+  ) i_axi_out_isolate     (
+    .clk_i                ( clk_i                ),
+    .rst_ni               ( s_rst_n              ),
+    .slv_req_i            ( axi_out_isolate_req  ),
+    .slv_resp_o           ( axi_out_isolate_resp ),
+    .mst_req_o            ( axi_out_req          ),
+    .mst_resp_i           ( axi_out_resp         ),
+    .isolate_i            ( axi_isolate_i        ),
+    .isolated_o           ( axi_isolated[1]      )
+  );
+
   safety_island_top #(
     .SafetyIslandCfg   ( SafetyIslandCfg          ),
     .GlobalAddrWidth   ( AxiAddrWidth             ),
@@ -205,13 +254,13 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .jtag_tdi_i,
     .jtag_tdo_o,
     .bootmode_i,
-    .fetch_enable_i   ( fetch_en_i   ),
+    .fetch_enable_i   ( fetch_en_i           ),
     .irqs_i,
-    .debug_req_o      ( debug_req_o  ),
-    .axi_input_req_i  ( axi_in_req   ),
-    .axi_input_resp_o ( axi_in_resp  ),
-    .axi_output_req_o ( axi_out_req  ),
-    .axi_output_resp_i( axi_out_resp )
+    .debug_req_o      ( debug_req_o          ),
+    .axi_input_req_i  ( axi_in_isolate_req   ),
+    .axi_input_resp_o ( axi_in_isolate_resp  ),
+    .axi_output_req_o ( axi_out_isolate_req  ),
+    .axi_output_resp_i( axi_out_isolate_resp )
   );
 
 endmodule

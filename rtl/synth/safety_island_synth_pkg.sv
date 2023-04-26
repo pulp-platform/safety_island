@@ -26,6 +26,9 @@ package safety_island_synth_pkg;
   localparam SynthAxiOutIdWidth = 2;
   typedef logic [SynthAxiOutIdWidth-1:0] synth_axi_out_id_t;
 
+  localparam SynthAxiMaxInTrans  = 8;
+  localparam SynthAxiMaxOutTrans = 8;
+
   `AXI_TYPEDEF_ALL(synth_axi_in,  synth_axi_addr_t, synth_axi_in_id_t,  synth_axi_data_t, synth_axi_strb_t, synth_axi_user_t)
   `AXI_TYPEDEF_ALL(synth_axi_out, synth_axi_addr_t, synth_axi_out_id_t, synth_axi_data_t, synth_axi_strb_t, synth_axi_user_t)
 
