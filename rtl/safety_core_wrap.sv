@@ -67,9 +67,11 @@ module safety_core_wrap import safety_island_pkg::*; #(
   input  logic        fetch_enable_i
 );
 
+  localparam int unsigned TotalNumInterrupts = SafetyIslandCfg.NumInterrupts + 32;
+
  // Interrupt signals
- logic [SafetyIslandCfg.NumInterrupts-1:0] core_irq_onehot;
- logic [$clog2(SafetyIslandCfg.NumInterrupts)-1:0]  core_irq_id;
+ logic [TotalNumInterrupts-1:0] core_irq_onehot;
+ logic [$clog2(TotalNumInterrupts)-1:0]  core_irq_id;
  logic [7:0]  core_irq_level;
  logic core_irq_valid, core_irq_ready, core_irq_shv;
 
@@ -100,7 +102,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .FPU          (SafetyIslandCfg.UseFpu),
     .PULP_ZFINX   (SafetyIslandCfg.UseZfinx),
     .NUM_MHPMCOUNTERS (SafetyIslandCfg.NumMhpmCounters),
-    .NUM_INTERRUPTS   (SafetyIslandCfg.NumInterrupts),
+    .NUM_INTERRUPTS   (TotalNumInterrupts),
     .CLIC             (SafetyIslandCfg.UseClic),
     .SHADOW           (SafetyIslandCfg.UseFastIrq),
     .MCLICBASE_ADDR   (PeriphBaseAddr+ClicAddrOffset)
@@ -285,13 +287,13 @@ module safety_core_wrap import safety_island_pkg::*; #(
     end
   end
 
-  logic [SafetyIslandCfg.NumInterrupts+32-1:0] clic_irqs;
+  logic [TotalNumInterrupts-1:0] clic_irqs;
   logic seip, meip, msip;
 
   assign seip = '0;
   assign meip = '0;
   assign msip  = '0;
-  assign clic_irqs[SafetyIslandCfg.NumInterrupts+32-1:32] = irqs_i;
+  assign clic_irqs[TotalNumInterrupts-1:32] = irqs_i;
   assign clic_irqs[31:18] = '0;
   assign clic_irqs[17:16] = s_timer_irqs;
   assign clic_irqs[15:0]  = {
@@ -309,10 +311,10 @@ module safety_core_wrap import safety_island_pkg::*; #(
   clic #(
     .reg_req_t  ( reg_req_t ),
     .reg_rsp_t  ( reg_rsp_t ),
-    .N_SOURCE   ( SafetyIslandCfg.NumInterrupts+32 ),
-    .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits   ),
-    .SSCLIC     ( SafetyIslandCfg.UseSSClic        ),
-    .USCLIC     ( SafetyIslandCfg.UseUSClic        )
+    .N_SOURCE   ( TotalNumInterrupts             ),
+    .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits ),
+    .SSCLIC     ( SafetyIslandCfg.UseSSClic      ),
+    .USCLIC     ( SafetyIslandCfg.UseUSClic      )
   ) i_clic (
     .clk_i,
     .rst_ni,
