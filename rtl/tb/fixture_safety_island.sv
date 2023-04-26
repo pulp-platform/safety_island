@@ -14,6 +14,12 @@ module fixture_safety_island;
   import srec_pkg::*;
   import safety_island_pkg::*;
 
+  localparam time ExtClkPeriod = 4ns;
+  localparam time ExtClkAppl   = 1ns;
+  localparam time ExtClkAcq    = 3ns;
+
+  localparam time LocalClkPeriod = 10ns;
+
   // Safety Island Configs
   parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = SafetyIslandDefaultConfig;
 
@@ -39,6 +45,20 @@ module fixture_safety_island;
   `AXI_TYPEDEF_ALL(axi_input,  logic[AxiAddrWidth-1:0], logic[AxiInputIdWidth-1:0],  logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0], logic[AxiUserWidth-1:0])
   `AXI_TYPEDEF_ALL(axi_output, logic[AxiAddrWidth-1:0], logic[AxiOutputIdWidth-1:0], logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0], logic[AxiUserWidth-1:0])
 
+  localparam int unsigned LogDepth = 3;
+
+  localparam int unsigned AsyncInAwWidth = (2**LogDepth)*axi_pkg::aw_width(AxiAddrWidth, AxiInputIdWidth, AxiUserWidth);
+  localparam int unsigned AsyncInWWidth  = (2**LogDepth)*axi_pkg::w_width(AxiDataWidth, AxiUserWidth);
+  localparam int unsigned AsyncInBWidth  = (2**LogDepth)*axi_pkg::b_width(AxiInputIdWidth, AxiUserWidth);
+  localparam int unsigned AsyncInArWidth = (2**LogDepth)*axi_pkg::ar_width(AxiAddrWidth, AxiInputIdWidth, AxiUserWidth);
+  localparam int unsigned AsyncInRWidth  = (2**LogDepth)*axi_pkg::r_width(AxiDataWidth, AxiInputIdWidth, AxiUserWidth);
+
+  localparam int unsigned AsyncOutAwWidth = (2**LogDepth)*axi_pkg::aw_width(AxiAddrWidth, AxiOutputIdWidth, AxiUserWidth);
+  localparam int unsigned AsyncOutWWidth  = (2**LogDepth)*axi_pkg::w_width(AxiDataWidth, AxiUserWidth);
+  localparam int unsigned AsyncOutBWidth  = (2**LogDepth)*axi_pkg::b_width(AxiOutputIdWidth, AxiUserWidth);
+  localparam int unsigned AsyncOutArWidth = (2**LogDepth)*axi_pkg::ar_width(AxiAddrWidth, AxiOutputIdWidth, AxiUserWidth);
+  localparam int unsigned AsyncOutRWidth  = (2**LogDepth)*axi_pkg::r_width(AxiDataWidth, AxiOutputIdWidth, AxiUserWidth);
+
   // exit
   localparam int EXIT_SUCCESS = 0;
   localparam int EXIT_FAIL = 1;
@@ -48,7 +68,7 @@ module fixture_safety_island;
   int stim_fd;
   int num_stim = 0;
 
-  logic s_clk, s_ref_clk;
+  logic s_clk, s_ext_clk, s_ref_clk;
   logic s_fetchenable = 1'b0;
   logic [1:0] s_bootmode = 2'b0;
   logic s_rst_n = 1'b0;
@@ -60,6 +80,23 @@ module fixture_safety_island;
   logic s_tms = 1'b0;
   logic s_trstn = 1'b1;
 
+  logic [AsyncInAwWidth-1:0] async_in_aw_data;
+  logic [AsyncInWWidth-1:0] async_in_w_data;
+  logic [AsyncInBWidth-1:0] async_in_b_data;
+  logic [AsyncInArWidth-1:0] async_in_ar_data;
+  logic [AsyncInRWidth-1:0] async_in_r_data;
+  logic [LogDepth:0] in_aw_wptr, in_w_wptr, in_b_wptr, in_ar_wptr, in_r_wptr;
+  logic [LogDepth:0] in_aw_rptr, in_w_rptr, in_b_rptr, in_ar_rptr, in_r_rptr;
+
+  logic [AsyncOutAwWidth-1:0] async_out_aw_data;
+  logic [AsyncOutWWidth-1:0] async_out_w_data;
+  logic [AsyncOutBWidth-1:0] async_out_b_data;
+  logic [AsyncOutArWidth-1:0] async_out_ar_data;
+  logic [AsyncOutRWidth-1:0] async_out_r_data;
+  logic [LogDepth:0] out_aw_wptr, out_w_wptr, out_b_wptr, out_ar_wptr, out_r_wptr;
+  logic [LogDepth:0] out_aw_rptr, out_w_rptr, out_b_rptr, out_ar_rptr, out_r_rptr;
+
+
   axi_input_req_t from_ext_req;
   axi_input_resp_t from_ext_resp;
 
@@ -68,10 +105,19 @@ module fixture_safety_island;
 
   // clock gen
   clk_rst_gen #(
-    .ClkPeriod   ( 10ns ),
+    .ClkPeriod   ( LocalClkPeriod ),
     .RstClkCycles(1)
   ) i_clk_gen (
     .clk_o (s_clk),
+    .rst_no()
+  );
+
+  // clock gen
+  clk_rst_gen #(
+    .ClkPeriod   (ExtClkPeriod),
+    .RstClkCycles(1)
+  ) i_ext_clk (
+    .clk_o ( s_ext_clk ),
     .rst_no()
   );
 
@@ -84,43 +130,157 @@ module fixture_safety_island;
     .rst_no()
   );
 
-  safety_island_top #(
-    .SafetyIslandCfg   ( SafetyIslandCfg   ),
-    .GlobalAddrWidth   ( GlobalAddrWidth   ),
-    .BaseAddr          ( BaseAddr          ),
-    .AddrRange         ( AddrRange         ),
-    .MemOffset         ( MemOffset         ),
-    .PeriphOffset      ( PeriphOffset      ),
-    .AxiDataWidth      ( AxiDataWidth      ),
-    .AxiAddrWidth      ( AxiAddrWidth      ),
-    .AxiInputIdWidth   ( AxiInputIdWidth   ),
-    .AxiUserWidth      ( AxiUserWidth      ),
-    .axi_input_req_t   ( axi_input_req_t   ),
-    .axi_input_resp_t  ( axi_input_resp_t  ),
-    .AxiOutputIdWidth  ( AxiOutputIdWidth  ),
-    .axi_output_req_t  ( axi_output_req_t  ),
-    .axi_output_resp_t ( axi_output_resp_t )
+  axi_cdc_src #(
+    .LogDepth  ( LogDepth            ),
+    .aw_chan_t ( axi_input_aw_chan_t ),
+    .w_chan_t  ( axi_input_w_chan_t  ),
+    .b_chan_t  ( axi_input_b_chan_t  ),
+    .ar_chan_t ( axi_input_ar_chan_t ),
+    .r_chan_t  ( axi_input_r_chan_t  ),
+    .axi_req_t ( axi_input_req_t     ),
+    .axi_resp_t( axi_input_resp_t    )
+  ) i_cdc_in (
+    .src_clk_i                   ( s_ext_clk     ),
+    .src_rst_ni                  ( s_rst_n       ),
+    .src_req_i                   ( from_ext_req  ),
+    .src_resp_o                  ( from_ext_resp ),
+
+    .async_data_master_aw_data_o ( async_in_aw_data ),
+    .async_data_master_aw_wptr_o ( in_aw_wptr       ),
+    .async_data_master_aw_rptr_i ( in_aw_rptr       ),
+    .async_data_master_w_data_o  ( async_in_w_data  ),
+    .async_data_master_w_wptr_o  ( in_w_wptr        ),
+    .async_data_master_w_rptr_i  ( in_w_rptr        ),
+    .async_data_master_b_data_i  ( async_in_b_data  ),
+    .async_data_master_b_wptr_i  ( in_b_wptr        ),
+    .async_data_master_b_rptr_o  ( in_b_rptr        ),
+    .async_data_master_ar_data_o ( async_in_ar_data ),
+    .async_data_master_ar_wptr_o ( in_ar_wptr       ),
+    .async_data_master_ar_rptr_i ( in_ar_rptr       ),
+    .async_data_master_r_data_i  ( async_in_r_data  ),
+    .async_data_master_r_wptr_i  ( in_r_wptr        ),
+    .async_data_master_r_rptr_o  ( in_r_rptr        )
+  );
+
+  axi_cdc_dst #(
+    .LogDepth   ( LogDepth ),
+    .aw_chan_t  ( axi_output_aw_chan_t ),
+    .w_chan_t   ( axi_output_w_chan_t  ),
+    .b_chan_t   ( axi_output_b_chan_t  ),
+    .ar_chan_t  ( axi_output_ar_chan_t ),
+    .r_chan_t   ( axi_output_r_chan_t  ),
+    .axi_req_t  ( axi_output_req_t     ),
+    .axi_resp_t ( axi_output_resp_t    )
+  ) i_cdc_out (
+    .async_data_slave_aw_data_i ( async_out_aw_data ),
+    .async_data_slave_aw_wptr_i ( out_aw_wptr       ),
+    .async_data_slave_aw_rptr_o ( out_aw_rptr       ),
+    .async_data_slave_w_data_i  ( async_out_w_data  ),
+    .async_data_slave_w_wptr_i  ( out_w_wptr        ),
+    .async_data_slave_w_rptr_o  ( out_w_rptr        ),
+    .async_data_slave_b_data_o  ( async_out_b_data  ),
+    .async_data_slave_b_wptr_o  ( out_b_wptr        ),
+    .async_data_slave_b_rptr_i  ( out_b_rptr        ),
+    .async_data_slave_ar_data_i ( async_out_ar_data ),
+    .async_data_slave_ar_wptr_i ( out_ar_wptr       ),
+    .async_data_slave_ar_rptr_o ( out_ar_rptr       ),
+    .async_data_slave_r_data_o  ( async_out_r_data  ),
+    .async_data_slave_r_wptr_o  ( out_r_wptr        ),
+    .async_data_slave_r_rptr_i  ( out_r_rptr        ),
+
+    .dst_clk_i                  ( s_ext_clk   ),
+    .dst_rst_ni                 ( s_rst_n     ),
+    .dst_req_o                  ( to_ext_req  ),
+    .dst_resp_i                 ( to_ext_resp )
+  );
+
+  safety_island_synth_wrapper #(
+    .SafetyIslandCfg         ( SafetyIslandCfg  ),
+    .AxiAddrWidth            ( AxiAddrWidth     ),
+    .AxiDataWidth            ( AxiDataWidth     ),
+    .AxiUserWidth            ( AxiUserWidth     ),
+    .AxiInIdWidth            ( AxiInputIdWidth  ),
+    .AxiOutIdWidth           ( AxiOutputIdWidth ),
+    .LogDepth                ( LogDepth         ),
+
+    .SafetyIslandBaseAddr    ( BaseAddr     ),
+    .SafetyIslandAddrRange   ( AddrRange    ),
+    .SafetyIslandMemOffset   ( MemOffset    ),
+    .SafetyIslandPeriphOffset( PeriphOffset ),
+
+    .axi_in_aw_chan_t        ( axi_input_aw_chan_t ),
+    .axi_in_w_chan_t         ( axi_input_w_chan_t  ),
+    .axi_in_b_chan_t         ( axi_input_b_chan_t  ),
+    .axi_in_ar_chan_t        ( axi_input_ar_chan_t ),
+    .axi_in_r_chan_t         ( axi_input_r_chan_t  ),
+    .axi_in_req_t            ( axi_input_req_t     ),
+    .axi_in_resp_t           ( axi_input_resp_t    ),
+
+    .axi_out_aw_chan_t       ( axi_output_aw_chan_t ),
+    .axi_out_w_chan_t        ( axi_output_w_chan_t  ),
+    .axi_out_b_chan_t        ( axi_output_b_chan_t  ),
+    .axi_out_ar_chan_t       ( axi_output_ar_chan_t ),
+    .axi_out_r_chan_t        ( axi_output_r_chan_t  ),
+    .axi_out_req_t           ( axi_output_req_t     ),
+    .axi_out_resp_t          ( axi_output_resp_t    ),
+
+    .AsyncAxiInAwWidth       ( AsyncInAwWidth  ),
+    .AsyncAxiInWWidth        ( AsyncInWWidth   ),
+    .AsyncAxiInBWidth        ( AsyncInBWidth   ),
+    .AsyncAxiInArWidth       ( AsyncInArWidth  ),
+    .AsyncAxiInRWidth        ( AsyncInRWidth   ),
+    .AsyncAxiOutAwWidth      ( AsyncOutAwWidth ),
+    .AsyncAxiOutWWidth       ( AsyncOutWWidth  ),
+    .AsyncAxiOutBWidth       ( AsyncOutBWidth  ),
+    .AsyncAxiOutArWidth      ( AsyncOutArWidth ),
+    .AsyncAxiOutRWidth       ( AsyncOutRWidth  )
   ) i_dut (
-    .clk_i             ( s_clk                   ),
-    .ref_clk_i         ( s_ref_clk               ),
-    .rst_ni            ( s_rst_n                 ),
-    .test_enable_i     ( s_test_enable           ),
-    .fetch_enable_i    ( '0                      ), // Internal register used by default.
+    .clk_i                   ( s_clk         ),
+    .ref_clk_i               ( s_ref_clk     ),
+    .rst_ni                  ( s_rst_n       ),
+    .test_enable_i           ( s_test_enable ),
+    .bootmode_i              ( s_bootmode    ),
+    .fetch_en_i              ( '0            ), // Internal register used by default.
 
-    .irqs_i            ('0                       ),
+    .jtag_tck_i              ( s_tck   ),
+    .jtag_trst_ni            ( s_trstn ),
+    .jtag_tms_i              ( s_tms   ),
+    .jtag_tdi_i              ( s_tdi   ),
+    .jtag_tdo_o              ( s_tdo   ),
 
-    .jtag_tck_i        ( s_tck                   ),
-    .jtag_tdi_i        ( s_tdi                   ),
-    .jtag_tdo_o        ( s_tdo                   ),
-    .jtag_tms_i        ( s_tms                   ),
-    .jtag_trst_ni      ( s_trstn                 ),
+    .irqs_i                  ( '0 ),
 
-    .bootmode_i        ( s_bootmode              ),
+    .async_axi_in_aw_data_i  ( async_in_aw_data ),
+    .async_axi_in_aw_wptr_i  ( in_aw_wptr       ),
+    .async_axi_in_aw_rptr_o  ( in_aw_rptr       ),
+    .async_axi_in_w_data_i   ( async_in_w_data  ),
+    .async_axi_in_w_wptr_i   ( in_w_wptr        ),
+    .async_axi_in_w_rptr_o   ( in_w_rptr        ),
+    .async_axi_in_b_data_o   ( async_in_b_data  ),
+    .async_axi_in_b_wptr_o   ( in_b_wptr        ),
+    .async_axi_in_b_rptr_i   ( in_b_rptr        ),
+    .async_axi_in_ar_data_i  ( async_in_ar_data ),
+    .async_axi_in_ar_wptr_i  ( in_ar_wptr       ),
+    .async_axi_in_ar_rptr_o  ( in_ar_rptr       ),
+    .async_axi_in_r_data_o   ( async_in_r_data  ),
+    .async_axi_in_r_wptr_o   ( in_r_wptr        ),
+    .async_axi_in_r_rptr_i   ( in_r_rptr        ),
 
-    .axi_input_req_i   ( from_ext_req ),
-    .axi_input_resp_o  ( from_ext_resp ),
-    .axi_output_req_o  ( to_ext_req ),
-    .axi_output_resp_i ( to_ext_resp )
+    .async_axi_out_aw_data_o ( async_out_aw_data ),
+    .async_axi_out_aw_wptr_o ( out_aw_wptr       ),
+    .async_axi_out_aw_rptr_i ( out_aw_rptr       ),
+    .async_axi_out_w_data_o  ( async_out_w_data  ),
+    .async_axi_out_w_wptr_o  ( out_w_wptr        ),
+    .async_axi_out_w_rptr_i  ( out_w_rptr        ),
+    .async_axi_out_b_data_i  ( async_out_b_data  ),
+    .async_axi_out_b_wptr_i  ( out_b_wptr        ),
+    .async_axi_out_b_rptr_o  ( out_b_rptr        ),
+    .async_axi_out_ar_data_o ( async_out_ar_data ),
+    .async_axi_out_ar_wptr_o ( out_ar_wptr       ),
+    .async_axi_out_ar_rptr_i ( out_ar_rptr       ),
+    .async_axi_out_r_data_i  ( async_out_r_data  ),
+    .async_axi_out_r_wptr_i  ( out_r_wptr        ),
+    .async_axi_out_r_rptr_o  ( out_r_rptr        )
   );
 
   axi_sim_mem #(
@@ -132,10 +292,10 @@ module fixture_safety_island;
     .axi_rsp_t         ( axi_output_resp_t ),
     .WarnUninitialized ( 1'b0              ),
     .ClearErrOnAccess  ( 1'b0              ),
-    .ApplDelay         ( 2ns               ),
-    .AcqDelay          ( 8ns               )
+    .ApplDelay         ( ExtClkAppl        ),
+    .AcqDelay          ( ExtClkAcq         )
   ) i_ext_mem (
-    .clk_i              ( s_clk       ),
+    .clk_i              ( s_ext_clk   ),
     .rst_ni             ( s_rst_n     ),
     .axi_req_i          ( to_ext_req  ),
     .axi_rsp_o          ( to_ext_resp ),
@@ -161,7 +321,7 @@ module fixture_safety_island;
 
   `define wait_for(signal) \
   do \
-    @(posedge s_clk); \
+    @(posedge s_ext_clk); \
   while (!signal);
 
   // Read entry point from commandline
@@ -433,7 +593,6 @@ module fixture_safety_island;
     from_ext_req.aw.atop   = '0;
     from_ext_req.aw.user   = '0;
     from_ext_req.aw_valid  = 1'b1;
-    #1ps
     `wait_for(from_ext_resp.aw_ready)
     from_ext_req.aw_valid = 1'b0;
     from_ext_req.w.data   = data;
