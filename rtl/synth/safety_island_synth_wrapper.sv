@@ -112,7 +112,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
 );
 
   logic [1:0] axi_isolated;
-  assign axi_isolated_o = |axi_isolated;
+  assign axi_isolated_o = &axi_isolated;
  
   axi_in_req_t axi_in_req, axi_in_isolate_req;
   axi_in_resp_t axi_in_resp, axi_in_isolate_resp;
