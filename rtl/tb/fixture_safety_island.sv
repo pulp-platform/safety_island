@@ -250,6 +250,8 @@ module fixture_safety_island;
 
     .irqs_i                  ( '0 ),
 
+    .debug_req_o             (),
+
     .async_axi_in_aw_data_i  ( async_in_aw_data ),
     .async_axi_in_aw_wptr_i  ( in_aw_wptr       ),
     .async_axi_in_aw_rptr_o  ( in_aw_rptr       ),

@@ -22,6 +22,10 @@ module safety_island_top import safety_island_pkg::*; #(
   parameter  bit [31:0]                MemOffset       = 32'h0000_0000,
   parameter  bit [31:0]                PeriphOffset    = 32'h0020_0000,
 
+  parameter  int unsigned              NumDebug        = 96,
+  parameter  bit [NumDebug-1:0]        SelectableHarts = {NumDebug{1'b0}},
+  parameter  dm::hartinfo_t [NumDebug-1:0] HartInfo    = {NumDebug{'0}},
+
   /// AXI slave port structs (input)
   parameter int unsigned AxiDataWidth      = 64,
   parameter int unsigned AxiAddrWidth      = GlobalAddrWidth,
@@ -51,7 +55,9 @@ module safety_island_top import safety_island_pkg::*; #(
 
   input  logic            fetch_enable_i,
 
-  input logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
+  input  logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
+
+  output logic [NumDebug-1:0]   debug_req_o,
 
   /// AXI input
   input  axi_input_req_t  axi_input_req_i,
@@ -262,13 +268,20 @@ module safety_island_top import safety_island_pkg::*; #(
   // Core
   // -----------------
 
-  logic debug_req;
+  localparam NumInternalDebug = NumDebug > SafetyIslandCfg.HartId ? NumDebug : SafetyIslandCfg.HartId;
+
+  logic [NumInternalDebug-1:0] debug_req;
+
+  always_comb begin
+    debug_req_o = debug_req;
+    debug_req_o[SafetyIslandCfg.HartId] = '0;
+  end
 
   safety_core_wrap #(
-    .SafetyIslandCfg (SafetyIslandCfg),
+    .SafetyIslandCfg ( SafetyIslandCfg           ),
     .PeriphBaseAddr  ( BaseAddr32 + PeriphOffset ),
-    .reg_req_t       ( safety_reg_req_t ),
-    .reg_rsp_t       ( safety_reg_rsp_t )
+    .reg_req_t       ( safety_reg_req_t          ),
+    .reg_rsp_t       ( safety_reg_rsp_t          )
   ) i_core_wrap (
     .clk_i,
     .ref_clk_i,
@@ -277,41 +290,41 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .irqs_i,
 
-    .cl_periph_req_i  ( cl_periph_reg_req ),
-    .cl_periph_rsp_o  ( cl_periph_reg_rsp ),
+    .cl_periph_req_i  ( cl_periph_reg_req                 ),
+    .cl_periph_rsp_o  ( cl_periph_reg_rsp                 ),
 
-    .hart_id_i        ( SafetyIslandCfg.HartId ),
-    .boot_addr_i      ( boot_addr         ),
+    .hart_id_i        ( SafetyIslandCfg.HartId            ),
+    .boot_addr_i      ( boot_addr                         ),
 
-    .instr_req_o      ( core_instr_obi_req.req    ),
-    .instr_gnt_i      ( core_instr_obi_rsp.gnt    ),
-    .instr_rvalid_i   ( core_instr_obi_rsp.rvalid ),
-    .instr_addr_o     ( core_instr_obi_req.a.addr   ),
-    .instr_rdata_i    ( core_instr_obi_rsp.r.rdata  ),
+    .instr_req_o      ( core_instr_obi_req.req            ),
+    .instr_gnt_i      ( core_instr_obi_rsp.gnt            ),
+    .instr_rvalid_i   ( core_instr_obi_rsp.rvalid         ),
+    .instr_addr_o     ( core_instr_obi_req.a.addr         ),
+    .instr_rdata_i    ( core_instr_obi_rsp.r.rdata        ),
     .instr_err_i      ( '0),//core_instr_obi_rsp.r.err    ),
 
-    .data_req_o       ( core_data_obi_req.req     ),
-    .data_gnt_i       ( core_data_obi_rsp.gnt     ),
-    .data_rvalid_i    ( core_data_obi_rsp.rvalid  ),
-    .data_we_o        ( core_data_obi_req.a.we      ),
-    .data_be_o        ( core_data_obi_req.a.be      ),
-    .data_addr_o      ( core_data_obi_req.a.addr    ),
-    .data_wdata_o     ( core_data_obi_req.a.wdata   ),
-    .data_rdata_i     ( core_data_obi_rsp.r.rdata   ),
+    .data_req_o       ( core_data_obi_req.req             ),
+    .data_gnt_i       ( core_data_obi_rsp.gnt             ),
+    .data_rvalid_i    ( core_data_obi_rsp.rvalid          ),
+    .data_we_o        ( core_data_obi_req.a.we            ),
+    .data_be_o        ( core_data_obi_req.a.be            ),
+    .data_addr_o      ( core_data_obi_req.a.addr          ),
+    .data_wdata_o     ( core_data_obi_req.a.wdata         ),
+    .data_rdata_i     ( core_data_obi_rsp.r.rdata         ),
     .data_err_i       ( '0),//core_data_obi_rsp.r.err     ),
 
-    .shadow_req_o     ( core_shadow_obi_req.req   ),
-    .shadow_gnt_i     ( core_shadow_obi_rsp.gnt   ),
-    .shadow_rvalid_i  ( core_shadow_obi_rsp.rvalid),
-    .shadow_we_o      ( core_shadow_obi_req.a.we    ),
-    .shadow_be_o      ( core_shadow_obi_req.a.be    ),
-    .shadow_addr_o    ( core_shadow_obi_req.a.addr  ),
-    .shadow_wdata_o   ( core_shadow_obi_req.a.wdata ),
-    .shadow_rdata_i   ( core_shadow_obi_rsp.r.rdata ),
+    .shadow_req_o     ( core_shadow_obi_req.req           ),
+    .shadow_gnt_i     ( core_shadow_obi_rsp.gnt           ),
+    .shadow_rvalid_i  ( core_shadow_obi_rsp.rvalid        ),
+    .shadow_we_o      ( core_shadow_obi_req.a.we          ),
+    .shadow_be_o      ( core_shadow_obi_req.a.be          ),
+    .shadow_addr_o    ( core_shadow_obi_req.a.addr        ),
+    .shadow_wdata_o   ( core_shadow_obi_req.a.wdata       ),
+    .shadow_rdata_i   ( core_shadow_obi_rsp.r.rdata       ),
     .shadow_err_i     ( '0),//core_shadow_obi_rsp.r.err   ),
 
-    .debug_req_i      ( debug_req         ),
-    .fetch_enable_i   ( fetch_enable      )
+    .debug_req_i      ( debug_req[SafetyIslandCfg.HartId] ),
+    .fetch_enable_i   ( fetch_enable                      )
   );
 
   // -----------------
@@ -326,6 +339,18 @@ module safety_island_top import safety_island_pkg::*; #(
     datasize: dm::DataCount,
     dataaddr: dm::DataAddr
   };
+  localparam bit [NumInternalDebug-1:0] ActuallySelectableHarts = SelectableHarts | 1<<SafetyIslandCfg.HartId;
+
+  dm::hartinfo_t [NumInternalDebug-1:0] hartinfo;
+  for (genvar i = 0; i < NumInternalDebug; i++) begin
+    if (i == SafetyIslandCfg.HartId) begin
+      assign hartinfo[i] = HARTINFO;
+    end else if (i <= NumDebug) begin
+      assign hartinfo[i] = HartInfo[i];
+    end else begin
+      assign hartinfo[i] = '0;
+    end
+  end
 
   logic dmi_rst_n, dmi_req_valid, dmi_req_ready, dmi_resp_valid, dmi_resp_ready;
   dm::dmi_req_t dmi_req;
@@ -356,18 +381,19 @@ module safety_island_top import safety_island_pkg::*; #(
   );
 
   dm_top #(
-    .NrHarts        ( 1  ),
-    .BusWidth       ( 32 ),
-    .ReadByteEnable ( 0  )
+    .NrHarts        ( NumInternalDebug        ),
+    .BusWidth       ( 32                      ),
+    .SelectableHarts( ActuallySelectableHarts ),
+    .ReadByteEnable ( 0                       )
   ) i_dm_top (
     .clk_i,
     .rst_ni,
     .testmode_i           ( test_enable_i  ),
     .ndmreset_o           (),
     .dmactive_o           (),
-    .debug_req_o          ( debug_req      ),
-    .unavailable_i        ( 1'b0           ),
-    .hartinfo_i           ( HARTINFO  ),
+    .debug_req_o          ( debug_req                ),
+    .unavailable_i        ( ~ActuallySelectableHarts ),
+    .hartinfo_i           ( hartinfo                 ),
 
     .slave_req_i          ( dbg_mem_obi_req.req    ),
     .slave_we_i           ( dbg_mem_obi_req.a.we     ),
