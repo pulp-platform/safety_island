@@ -96,6 +96,9 @@ module fixture_safety_island;
   logic [LogDepth:0] out_aw_wptr, out_w_wptr, out_b_wptr, out_ar_wptr, out_r_wptr;
   logic [LogDepth:0] out_aw_rptr, out_w_rptr, out_b_rptr, out_ar_rptr, out_r_rptr;
 
+  logic axi_isolate, axi_isolated;
+
+  assign axi_isolate = 1'b0; // Hardcoded for now, eventually connect to control register
 
   axi_input_req_t from_ext_req;
   axi_input_resp_t from_ext_resp;
@@ -241,6 +244,8 @@ module fixture_safety_island;
     .test_enable_i           ( s_test_enable ),
     .bootmode_i              ( s_bootmode    ),
     .fetch_en_i              ( '0            ), // Internal register used by default.
+    .axi_isolate_i           ( axi_isolate   ),
+    .axi_isolated_o          ( axi_isolated  ),
 
     .jtag_tck_i              ( s_tck   ),
     .jtag_trst_ni            ( s_trstn ),
