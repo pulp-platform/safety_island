@@ -443,7 +443,7 @@ module fixture_safety_island;
 
     debug_mode_if.set_dmactive(1'b1, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
-    debug_mode_if.set_hartsel('0, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+    debug_mode_if.set_hartsel(SafetyIslandCfg.HartId[19:0], s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
     $display("[TB  ] %t - Halting the Core", $realtime);
     debug_mode_if.halt_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
@@ -536,7 +536,7 @@ module fixture_safety_island;
 
     debug_mode_if.set_dmactive(1'b1, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
-    debug_mode_if.set_hartsel('0, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+    debug_mode_if.set_hartsel(SafetyIslandCfg.HartId[19:0], s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
     $display("[TB  ] %t - Halting the Core", $realtime);
     debug_mode_if.halt_harts(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
