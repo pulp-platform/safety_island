@@ -25,6 +25,10 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter bit [31:0]             SafetyIslandMemOffset    = SynthSafetyIslandMemOffset,
   parameter bit [31:0]             SafetyIslandPeriphOffset = SynthSafetyIslandPeriphOffset,
 
+  parameter  int unsigned              NumDebug        = SynthNumDebug,
+  parameter  bit [NumDebug-1:0]        SelectableHarts = SynthSelectableHarts,
+  parameter  dm::hartinfo_t [NumDebug-1:0] HartInfo    = SynthHartInfo,
+
   parameter type         axi_in_aw_chan_t   = synth_axi_in_aw_chan_t,
   parameter type         axi_in_w_chan_t    = synth_axi_in_w_chan_t,
   parameter type         axi_in_b_chan_t    = synth_axi_in_b_chan_t,
@@ -68,6 +72,8 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
 
   input  logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_i,
 
+  output logic [NumDebug-1:0]                      debug_req_o,
+
   input  logic [AsyncAxiInAwWidth-1:0] async_axi_in_aw_data_i,
   input  logic            [LogDepth:0] async_axi_in_aw_wptr_i,
   output logic            [LogDepth:0] async_axi_in_aw_rptr_o,
@@ -100,7 +106,6 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   input  logic             [LogDepth:0] async_axi_out_r_wptr_i,
   output logic             [LogDepth:0] async_axi_out_r_rptr_o
 );
-
  
   axi_in_req_t axi_in_req;
   axi_in_resp_t axi_in_resp;
@@ -177,6 +182,9 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .AddrRange         ( SafetyIslandAddrRange    ),
     .MemOffset         ( SafetyIslandMemOffset    ),
     .PeriphOffset      ( SafetyIslandPeriphOffset ),
+    .NumDebug          ( NumDebug                 ),
+    .SelectableHarts   ( SelectableHarts          ),
+    .HartInfo          ( HartInfo                 ),
     .AxiDataWidth      ( AxiDataWidth             ),
     .AxiAddrWidth      ( AxiAddrWidth             ),
     .AxiInputIdWidth   ( AxiInIdWidth             ),
@@ -191,7 +199,6 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .rst_ni,
     .ref_clk_i,
     .test_enable_i,
-    .irqs_i,
     .jtag_tck_i,
     .jtag_trst_ni,
     .jtag_tms_i,
@@ -199,6 +206,8 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .jtag_tdo_o,
     .bootmode_i,
     .fetch_enable_i   ( fetch_en_i   ),
+    .irqs_i,
+    .debug_req_o      ( debug_req_o  ),
     .axi_input_req_i  ( axi_in_req   ),
     .axi_input_resp_o ( axi_in_resp  ),
     .axi_output_req_o ( axi_out_req  ),

@@ -93,7 +93,7 @@ package safety_island_pkg;
   } safety_island_cfg_t;
 
   localparam safety_island_cfg_t SafetyIslandDefaultConfig = '{
-    HartId:             32'd0,
+    HartId:             32'd8,
     BankNumBytes:       32'h0001_0000,
     // JTAG ID code:
     // LSB                        [0]:     1'h1

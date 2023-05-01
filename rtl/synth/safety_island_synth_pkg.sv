@@ -48,4 +48,16 @@ package safety_island_synth_pkg;
   localparam SynthAsyncAxiOutArWidth = (2**SynthLogDepth)*axi_pkg::ar_width(SynthAxiAddrWidth, SynthAxiOutIdWidth, SynthAxiUserWidth);//$bits(synth_axi_out_ar_chan_t);
   localparam SynthAsyncAxiOutRWidth  = (2**SynthLogDepth)*axi_pkg::r_width(SynthAxiDataWidth, SynthAxiOutIdWidth, SynthAxiUserWidth);//$bits(synth_axi_out_r_chan_t);
 
+  localparam SynthNumDebug           = 96;
+  localparam SynthSelectableHarts    = 96'h0000_0003_0000_0FFF_0000_0000;
+  localparam dm::hartinfo_t SynthDefaultHartInfo    = '{
+    zero1: '0,
+    nscratch: 2,
+    zero0: '0,
+    dataaccess: 1'b1,
+    datasize: dm::DataCount,
+    dataaddr: dm::DataAddr
+  };
+  localparam SynthHartInfo           = {SynthNumDebug{SynthDefaultHartInfo}};
+
 endpackage
