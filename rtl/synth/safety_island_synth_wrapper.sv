@@ -13,14 +13,12 @@
 module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
 
-  parameter int unsigned AxiAddrWidth   = SynthAxiAddrWidth,
-  parameter int unsigned AxiDataWidth   = SynthAxiDataWidth,
-  parameter int unsigned AxiUserWidth   = SynthAxiUserWidth,
-  parameter int unsigned AxiInIdWidth   = SynthAxiInIdWidth,
-  parameter int unsigned AxiOutIdWidth  = SynthAxiOutIdWidth,
-  parameter int unsigned AxiMaxInTrans  = SynthAxiMaxInTrans,
-  parameter int unsigned AxiMaxOutTrans = SynthAxiMaxOutTrans,
-  parameter int unsigned LogDepth       = SynthLogDepth,
+  parameter int unsigned AxiAddrWidth  = SynthAxiAddrWidth,
+  parameter int unsigned AxiDataWidth  = SynthAxiDataWidth,
+  parameter int unsigned AxiUserWidth  = SynthAxiUserWidth,
+  parameter int unsigned AxiInIdWidth  = SynthAxiInIdWidth,
+  parameter int unsigned AxiOutIdWidth = SynthAxiOutIdWidth,
+  parameter int unsigned LogDepth      = SynthLogDepth,
   
   parameter bit [AxiAddrWidth-1:0] SafetyIslandBaseAddr     = SynthSafetyIslandBaseAddr,
   parameter bit [31:0]             SafetyIslandAddrRange    = SynthSafetyIslandAddrRange,
@@ -180,7 +178,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   );
 
   axi_isolate            #(
-    .NumPending           ( AxiMaxOutTrans ),
+    .NumPending           ( safety_island_pkg::AxiMaxOutTrans ),
     .TerminateTransaction ( 1              ),
     .AtopSupport          ( 1              ),
     .AxiAddrWidth         ( AxiAddrWidth   ),
