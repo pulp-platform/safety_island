@@ -118,4 +118,7 @@ package safety_island_pkg;
   localparam int unsigned NumTimerInterrupts = 2*SafetyIslandDefaultConfig.NumTimers;
   // localparam int unsigned NumLocalInterrupts = SafetyIslandDefaultConfig.NumInterrupts - NumTimerInterrupts;
 
+  localparam AxiMaxInTrans = 3;  // 1 AXI cut, 1-cycle response
+  localparam AxiMaxOutTrans = 2; // Cores do not support more than 2 outstanding transactions
+
 endpackage

@@ -772,7 +772,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   // AXI Data Width converter
   axi_dw_converter #(
-    .AxiMaxReads         ( 1                    ),
+    .AxiMaxReads         ( safety_island_pkg::AxiMaxInTrans ),
     .AxiSlvPortDataWidth ( AxiDataWidth         ),
     .AxiMstPortDataWidth ( DataWidth            ),
     .AxiAddrWidth        ( AxiAddrWidth         ),
@@ -889,7 +889,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .MemAddrWidth( AddrWidth           ),
     .AxiAddrWidth( AxiAddrWidth        ),
     .DataWidth   ( DataWidth           ),
-    .MaxRequests ( 2                   ),
+    .MaxRequests ( safety_island_pkg::AxiMaxOutTrans ),
     .AxiProt     ( '0                  ),
     .axi_req_t   ( axi_out_dw32_req_t  ),
     .axi_rsp_t   ( axi_out_dw32_resp_t )
@@ -915,7 +915,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   // AXI Data Width converter
   axi_dw_converter #(
-    .AxiMaxReads         ( 1                     ),
+    .AxiMaxReads         ( safety_island_pkg::AxiMaxOutTrans ),
     .AxiSlvPortDataWidth ( DataWidth             ),
     .AxiMstPortDataWidth ( AxiDataWidth          ),
     .AxiAddrWidth        ( AxiAddrWidth          ),
