@@ -11,6 +11,7 @@
 module safety_core_wrap import safety_island_pkg::*; #(
   parameter safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
   parameter bit [31:0] PeriphBaseAddr = 32'h0020_0000,
+  parameter int unsigned NumBusErrBits = 2,
   parameter type      reg_req_t        = logic,
   parameter type      reg_rsp_t        = logic
 ) (
@@ -35,7 +36,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   input  logic        instr_rvalid_i,
   output logic [31:0] instr_addr_o,
   input  logic [31:0] instr_rdata_i,
-  input  logic        instr_err_i,
+  input  logic [NumBusErrBits-1:0] instr_err_i,
 
   // Data memory interface
   output logic        data_req_o,
@@ -46,7 +47,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   output logic [31:0] data_addr_o,
   output logic [31:0] data_wdata_o,
   input  logic [31:0] data_rdata_i,
-  input  logic        data_err_i,
+  input  logic [NumBusErrBits-1:0] data_err_i,
 
   // Shadow memory interface
   output logic        shadow_req_o,
@@ -57,7 +58,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   output logic [31:0] shadow_addr_o,
   output logic [31:0] shadow_wdata_o,
   input  logic [31:0] shadow_rdata_i,
-  input  logic        shadow_err_i,
+  input  logic [NumBusErrBits-1:0] shadow_err_i,
 
   // Debug Interface
   input  logic        debug_req_i,
@@ -73,6 +74,8 @@ module safety_core_wrap import safety_island_pkg::*; #(
  logic [$clog2(TotalNumInterrupts)-1:0]  core_irq_id;
  logic [7:0]  core_irq_level;
  logic core_irq_valid, core_irq_ready, core_irq_shv;
+
+ logic [2:0] bus_err_irq;
 
  // APU signals
  logic                           apu_req;
@@ -174,11 +177,14 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
   // Core-Local peripherals arbitration
 
-  localparam int unsigned NumCoreLocalPeriphs = 2; // CLIC, TCLS
+  localparam int unsigned NumCoreLocalPeriphs = 5; // CLIC, TCLS, 3xBus_err
 
   localparam addr_map_rule_t [NumCoreLocalPeriphs-1:0] cl_regbus_addr_map_rule = '{
-   '{ idx: RegbusOutTCLS,  start_addr: PeriphBaseAddr+TCLSAddrOffset,  end_addr: PeriphBaseAddr+TCLSAddrOffset+TCLSAddrRange },   // 0: TCLS
-   '{ idx: RegbusOutCLIC,  start_addr: PeriphBaseAddr+ClicAddrOffset,  end_addr: PeriphBaseAddr+ClicAddrOffset+ClicAddrRange }    // 1: CLIC
+   '{ idx: RegbusOutTCLS,     start_addr: PeriphBaseAddr+TCLSAddrOffset,  end_addr: PeriphBaseAddr+TCLSAddrOffset+TCLSAddrRange },   // 0: TCLS
+   '{ idx: RegbusOutCLIC,     start_addr: PeriphBaseAddr+ClicAddrOffset,  end_addr: PeriphBaseAddr+ClicAddrOffset+ClicAddrRange },   // 1: CLIC
+   '{ idx: RegbusOutInstrErr, start_addr: PeriphBaseAddr+InstrErrOffset,  end_addr: PeriphBaseAddr+InstrErrOffset+InstrErrRange },
+   '{ idx: RegbusOutDataErr,  start_addr: PeriphBaseAddr+DataErrOffset,   end_addr: PeriphBaseAddr+DataErrOffset+DataErrRange   },
+   '{ idx: RegbusOutShadowErr,start_addr: PeriphBaseAddr+ShadowErrOffset, end_addr: PeriphBaseAddr+ShadowErrOffset+ShadowErrRange }
   };
 
   reg_req_t [NumCoreLocalPeriphs-1:0] cl_periph_req;
@@ -229,7 +235,84 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .rsp_o   ( cl_periph_rsp[RegbusOutTCLS] )
   );
 
-  // Timer
+  // Instr Bus Err Unit
+  obi_err_unit_wrap #(
+    .AddrWidth       ( 32   ),
+    .ErrBits         ( NumBusErrBits ),
+    .NumOutstanding  ( 2    ),
+    .NumStoredErrors ( 8    ),
+    .DropOldest      ( 1'b0 ),
+    .reg_req_t      ( reg_req_t ),
+    .reg_rsp_t      ( reg_rsp_t )
+  ) i_instr_bus_err (
+    .clk_i,
+    .rst_ni,
+    .testmode_i ( test_enable_i ),
+
+    .obi_req_i   ( instr_req_o ),
+    .obi_gnt_i   ( instr_gnt_i ),
+    .obi_rvalid_i( instr_rvalid_i ),
+    .obi_addr_i  ( instr_addr_o ),
+    .obi_err_i   ( instr_err_i ),
+
+    .err_irq_o   ( bus_err_irq[0] ),
+
+    .reg_req_i   (cl_periph_req[RegbusOutInstrErr]),
+    .reg_rsp_o   (cl_periph_rsp[RegbusOutInstrErr])
+  );
+
+  // Instr Bus Err Unit
+  obi_err_unit_wrap #(
+    .AddrWidth       ( 32   ),
+    .ErrBits         ( NumBusErrBits ),
+    .NumOutstanding  ( 2    ),
+    .NumStoredErrors ( 8    ),
+    .DropOldest      ( 1'b0 ),
+    .reg_req_t      ( reg_req_t ),
+    .reg_rsp_t      ( reg_rsp_t )
+  ) i_data_bus_err (
+    .clk_i,
+    .rst_ni,
+    .testmode_i ( test_enable_i ),
+
+    .obi_req_i   ( data_req_o ),
+    .obi_gnt_i   ( data_gnt_i ),
+    .obi_rvalid_i( data_rvalid_i ),
+    .obi_addr_i  ( data_addr_o ),
+    .obi_err_i   ( data_err_i ),
+
+    .err_irq_o   ( bus_err_irq[1] ),
+
+    .reg_req_i   (cl_periph_req[RegbusOutDataErr]),
+    .reg_rsp_o   (cl_periph_rsp[RegbusOutDataErr])
+  );
+
+  // Instr Bus Err Unit
+  obi_err_unit_wrap #(
+    .AddrWidth       ( 32   ),
+    .ErrBits         ( NumBusErrBits ),
+    .NumOutstanding  ( 2    ),
+    .NumStoredErrors ( 8    ),
+    .DropOldest      ( 1'b0 ),
+    .reg_req_t      ( reg_req_t ),
+    .reg_rsp_t      ( reg_rsp_t )
+  ) i_shadow_bus_err (
+    .clk_i,
+    .rst_ni,
+    .testmode_i ( test_enable_i ),
+
+    .obi_req_i   ( shadow_req_o ),
+    .obi_gnt_i   ( shadow_gnt_i ),
+    .obi_rvalid_i( shadow_rvalid_i ),
+    .obi_addr_i  ( shadow_addr_o ),
+    .obi_err_i   ( shadow_err_i ),
+
+    .err_irq_o   ( bus_err_irq[2] ),
+
+    .reg_req_i   (cl_periph_req[RegbusOutShadowErr]),
+    .reg_rsp_o   (cl_periph_rsp[RegbusOutShadowErr])
+  );
+
 
   // Interrupts
   always_comb begin : gen_core_irq_onehot
@@ -246,7 +329,8 @@ module safety_core_wrap import safety_island_pkg::*; #(
   assign meip = '0;
   assign msip  = '0;
   assign clic_irqs[TotalNumInterrupts-1:32] = irqs_i;
-  assign clic_irqs[31:18] = '0;
+  assign clic_irqs[31:21] = '0;
+  assign clic_irqs[20:18] = bus_err_irq[2:0];
   assign clic_irqs[17:16] = timer_irqs_i;
   assign clic_irqs[15:0]  = {
     {4{1'b0}},       // reserved

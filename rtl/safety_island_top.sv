@@ -80,14 +80,28 @@ module safety_island_top import safety_island_pkg::*; #(
   localparam int unsigned NumManagers = 5; // AXI, DBG, Core Instr, Core Data, Core Shadow
 
   // typedef obi for default config
-  localparam obi_pkg::obi_cfg_t MgrObiCfg = obi_pkg::ObiDefaultConfig;
+  localparam obi_pkg::obi_optional_cfg_t ObiSiOptionalCfg= '{
+    UseAtop:    1'b0,
+    UseMemtype: 1'b0,
+    UseProt:    1'b0,
+    UseDbg:     1'b0,
+    AUserWidth:    0,
+    WUserWidth:    0,
+    RUserWidth:    1,
+    MidWidth:      0,
+    AChkWidth:     0,
+    RChkWidth:     0
+  };
+  localparam obi_pkg::obi_cfg_t MgrObiCfg = obi_pkg::obi_default_cfg(32, 32, 1, ObiSiOptionalCfg);
   localparam obi_pkg::obi_cfg_t SbrObiCfg = obi_pkg::mux_grow_cfg(MgrObiCfg, NumManagers);
   `OBI_TYPEDEF_MINIMAL_A_OPTIONAL(obi_a_optional_t)
   `OBI_TYPEDEF_A_CHAN_T(mgr_obi_a_chan_t, MgrObiCfg.AddrWidth, MgrObiCfg.DataWidth, MgrObiCfg.IdWidth, obi_a_optional_t)
   `OBI_TYPEDEF_A_CHAN_T(sbr_obi_a_chan_t, SbrObiCfg.AddrWidth, SbrObiCfg.DataWidth, SbrObiCfg.IdWidth, obi_a_optional_t)
   `OBI_TYPEDEF_DEFAULT_REQ_T(mgr_obi_req_t, mgr_obi_a_chan_t)
   `OBI_TYPEDEF_DEFAULT_REQ_T(sbr_obi_req_t, sbr_obi_a_chan_t)
-  `OBI_TYPEDEF_MINIMAL_R_OPTIONAL(obi_r_optional_t)
+  typedef struct packed {
+    logic [0:0] ruser;
+  } obi_r_optional_t;
   `OBI_TYPEDEF_R_CHAN_T(mgr_obi_r_chan_t, MgrObiCfg.DataWidth, MgrObiCfg.IdWidth, obi_r_optional_t)
   `OBI_TYPEDEF_R_CHAN_T(sbr_obi_r_chan_t, SbrObiCfg.DataWidth, SbrObiCfg.IdWidth, obi_r_optional_t)
   `OBI_TYPEDEF_RSP_T(mgr_obi_rsp_t, mgr_obi_r_chan_t)
@@ -292,7 +306,8 @@ module safety_island_top import safety_island_pkg::*; #(
     .SafetyIslandCfg ( SafetyIslandCfg           ),
     .PeriphBaseAddr  ( BaseAddr32 + PeriphOffset ),
     .reg_req_t       ( safety_reg_req_t          ),
-    .reg_rsp_t       ( safety_reg_rsp_t          )
+    .reg_rsp_t       ( safety_reg_rsp_t          ),
+    .NumBusErrBits   ( 2 )
   ) i_core_wrap (
     .clk_i,
     .ref_clk_i,
@@ -313,7 +328,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .instr_rvalid_i   ( core_instr_obi_rsp.rvalid         ),
     .instr_addr_o     ( core_instr_obi_req.a.addr         ),
     .instr_rdata_i    ( core_instr_obi_rsp.r.rdata        ),
-    .instr_err_i      ( '0),//core_instr_obi_rsp.r.err    ),
+    .instr_err_i      ( {core_instr_obi_rsp.r.r_optional.ruser[0] ,core_instr_obi_rsp.r.err} ),
 
     .data_req_o       ( core_data_obi_req.req             ),
     .data_gnt_i       ( core_data_obi_rsp.gnt             ),
@@ -323,7 +338,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .data_addr_o      ( core_data_obi_req.a.addr          ),
     .data_wdata_o     ( core_data_obi_req.a.wdata         ),
     .data_rdata_i     ( core_data_obi_rsp.r.rdata         ),
-    .data_err_i       ( '0),//core_data_obi_rsp.r.err     ),
+    .data_err_i       ( {core_data_obi_rsp.r.r_optional.ruser[0], core_data_obi_rsp.r.err} ),
 
     .shadow_req_o     ( core_shadow_obi_req.req           ),
     .shadow_gnt_i     ( core_shadow_obi_rsp.gnt           ),
@@ -333,7 +348,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .shadow_addr_o    ( core_shadow_obi_req.a.addr        ),
     .shadow_wdata_o   ( core_shadow_obi_req.a.wdata       ),
     .shadow_rdata_i   ( core_shadow_obi_rsp.r.rdata       ),
-    .shadow_err_i     ( '0),//core_shadow_obi_rsp.r.err   ),
+    .shadow_err_i     ( {core_shadow_obi_rsp.r.r_optional.ruser[0], core_shadow_obi_rsp.r.err} ),
 
     .debug_req_i      ( debug_req[SafetyIslandCfg.HartId] ),
     .fetch_enable_i   ( fetch_enable                      )
@@ -495,7 +510,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   always_comb begin
     mem_bank0_obi_rsp = tmp_bank0_obi_rsp;
-    mem_bank0_obi_rsp.r.err = bank0_single_err;
+    mem_bank0_obi_rsp.r.r_optional.ruser = bank0_single_err;
   end
 
   obi_sram_shim #(
@@ -553,7 +568,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   always_comb begin
     mem_bank1_obi_rsp = tmp_bank1_obi_rsp;
-    mem_bank1_obi_rsp.r.err = bank1_single_err;
+    mem_bank1_obi_rsp.r.r_optional.ruser = bank1_single_err;
   end
 
   obi_sram_shim #(

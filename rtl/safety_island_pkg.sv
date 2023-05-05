@@ -31,7 +31,10 @@ package safety_island_pkg;
 
   typedef enum int {
     RegbusOutTCLS,
-    RegbusOutCLIC
+    RegbusOutCLIC,
+    RegbusOutInstrErr,
+    RegbusOutDataErr,
+    RegbusOutShadowErr
   } cl_regbus_outputs_e;
 
   // Address map of safety_island
@@ -62,6 +65,12 @@ package safety_island_pkg;
   localparam bit [31:0] TCLSAddrRange  = 32'h0000_1000;
   localparam bit [31:0] ClicAddrOffset = 32'h0001_0000;
   localparam bit [31:0] ClicAddrRange  = 32'h0001_0000;
+  localparam bit [31:0] InstrErrOffset = 32'h0002_0000;
+  localparam bit [31:0] InstrErrRange  = 32'h0000_0010;
+  localparam bit [31:0] DataErrOffset  = 32'h0002_0010;
+  localparam bit [31:0] DataErrRange   = 32'h0000_0020;
+  localparam bit [31:0] ShadowErrOffset= 32'h0002_0020;
+  localparam bit [31:0] ShadowErrRange = 32'h0000_0030;
 
   typedef struct packed {
     int unsigned              HartId;
