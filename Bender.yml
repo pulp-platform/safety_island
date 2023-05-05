@@ -20,7 +20,7 @@ dependencies:
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev: pulp-v0.1.1 }
   apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }
   timer_unit:           { git: "https://github.com/pulp-platform/timer_unit.git",           version: 1.0.2 }
-  obi:                  { git: "git@iis-git.ee.ethz.ch:carfield/obi.git",                   rev: "fed3f7f" }
+  obi:                  { git: "https://github.com/pulp-platform/obi.git",                  rev: "1285848" } # `main` branch
 
 sources:
   # Level 1
