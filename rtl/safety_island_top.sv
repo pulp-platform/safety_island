@@ -427,12 +427,15 @@ module safety_island_top import safety_island_pkg::*; #(
   );
 
   assign dbg_mem_obi_rsp.gnt = dbg_mem_obi_req.req;
-  // assign dbg_mem_obi_rsp.r.err = '0;
+  assign dbg_mem_obi_rsp.r.err = '0;
+  assign dbg_mem_obi_rsp.r.r_optional = '0;
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_dbg_mem
     if(!rst_ni) begin
       dbg_mem_obi_rsp.rvalid <= '0;
+      dbg_mem_obi_rsp.r.rid <= '0;
     end else begin
       dbg_mem_obi_rsp.rvalid <= dbg_mem_obi_rsp.gnt;
+      dbg_mem_obi_rsp.r.rid <= dbg_req_obi_req.a.aid;
     end
   end
 
@@ -599,7 +602,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .clk_i,
     .rst_ni,
 
-    .sbr_port_select_i ( periph_idx ),
+    .sbr_port_select_i ( periph_idx     ),
     .sbr_port_req_i    ( periph_obi_req ),
     .sbr_port_rsp_o    ( periph_obi_rsp ),
 
@@ -622,45 +625,49 @@ module safety_island_top import safety_island_pkg::*; #(
     .obi_rsp_o  ( error_obi_rsp )
   );
 
-  assign global_prepend_obi_rsp.gnt = 1'b1;
-  assign global_prepend_obi_rsp.r.err = 1'b1;
-  assign global_prepend_obi_rsp.r.rdata = 32'hBADCAB1E;
-  always_ff @(posedge clk_i or negedge rst_ni) begin : proc_global_prepend_rvalid
-    if(!rst_ni) begin
-      global_prepend_obi_rsp.rvalid <= '0;
-    end else begin
-      global_prepend_obi_rsp.rvalid <= global_prepend_obi_req.req;
-    end
-  end
+  obi_err_sbr #(
+    .ObiCfg      ( SbrObiCfg     ),
+    .obi_req_t   ( sbr_obi_req_t ),
+    .obi_rsp_t   ( sbr_obi_rsp_t ),
+    .NumMaxTrans ( 1             ),
+    .RspData     ( 32'hBADCAB1E  )
+  ) i_global_prepend_err (
+    .clk_i,
+    .rst_ni,
+    .testmode_i ( test_enable_i          ),
+    .obi_req_i  ( global_prepend_obi_req ),
+    .obi_rsp_o  ( global_prepend_obi_rsp )
+  );
 
   // SoC Control
   periph_to_reg #(
-    .AW ( AddrWidth ),
-    .DW ( DataWidth ),
-    .BW ( 8 ),
-    .IW ( 1 ),
-    .req_t ( safety_reg_req_t ),
-    .rsp_t ( safety_reg_rsp_t )
+    .AW    ( AddrWidth         ),
+    .DW    ( DataWidth         ),
+    .BW    ( 8                 ),
+    .IW    ( SbrObiCfg.IdWidth ),
+    .req_t ( safety_reg_req_t  ),
+    .rsp_t ( safety_reg_rsp_t  )
   ) i_soc_ctrl_translate (
     .clk_i,
     .rst_ni,
 
     .req_i     ( soc_ctrl_obi_req.req     ),
-    .add_i     ( soc_ctrl_obi_req.a.addr    ),
-    .wen_i     ( ~soc_ctrl_obi_req.a.we     ),
-    .wdata_i   ( soc_ctrl_obi_req.a.wdata   ),
-    .be_i      ( soc_ctrl_obi_req.a.be      ),
-    .id_i      ( '0 ),
+    .add_i     ( soc_ctrl_obi_req.a.addr  ),
+    .wen_i     ( ~soc_ctrl_obi_req.a.we   ),
+    .wdata_i   ( soc_ctrl_obi_req.a.wdata ),
+    .be_i      ( soc_ctrl_obi_req.a.be    ),
+    .id_i      ( soc_ctrl_obi_req.a.aid   ),
 
     .gnt_o     ( soc_ctrl_obi_rsp.gnt     ),
-    .r_rdata_o ( soc_ctrl_obi_rsp.r.rdata   ),
-    .r_opc_o   ( ),//soc_ctrl_err     ),
-    .r_id_o    (),
+    .r_rdata_o ( soc_ctrl_obi_rsp.r.rdata ),
+    .r_opc_o   ( soc_ctrl_obi_rsp.r.err   ),
+    .r_id_o    ( soc_ctrl_obi_rsp.r.rid   ),
     .r_valid_o ( soc_ctrl_obi_rsp.rvalid  ),
 
     .reg_req_o ( soc_ctrl_reg_req ),
     .reg_rsp_i ( soc_ctrl_reg_rsp )
   );
+  assign soc_ctrl_obi_rsp.r.r_optional = '0;
 
   logic first_cycle;
   safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t soc_ctrl_reg2hw;
@@ -689,11 +696,11 @@ module safety_island_top import safety_island_pkg::*; #(
   ) i_soc_ctrl (
     .clk_i,
     .rst_ni,
-    .reg_req_i ( soc_ctrl_reg_req    ),
-    .reg_rsp_o ( soc_ctrl_reg_rsp    ),
-    .reg2hw    ( soc_ctrl_reg2hw ),
-    .hw2reg    ( soc_ctrl_hw2reg ),
-    .devmode_i ( 1'b0            )
+    .reg_req_i ( soc_ctrl_reg_req ),
+    .reg_rsp_o ( soc_ctrl_reg_rsp ),
+    .reg2hw    ( soc_ctrl_reg2hw  ),
+    .hw2reg    ( soc_ctrl_hw2reg  ),
+    .devmode_i ( 1'b0             )
   );
 
   // Boot ROM
@@ -707,43 +714,47 @@ module safety_island_top import safety_island_pkg::*; #(
     .Q   ( boot_rom_obi_rsp.r.rdata )
   );
   assign boot_rom_obi_rsp.gnt = 1'b1;
-  // assign boot_rom_obi_rsp.r.err = 1'b0;
+  assign boot_rom_obi_rsp.r.err = 1'b0;
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_boot_rom_rvalid
     if(!rst_ni) begin
       boot_rom_obi_rsp.rvalid <= '0;
+      boot_rom_obi_rsp.r.rid <= '0;
     end else begin
       boot_rom_obi_rsp.rvalid <= boot_rom_obi_req.req;
+      boot_rom_obi_rsp.r.rid <= boot_rom_obi_req.a.aid;
     end
   end
+  assign boot_rom_obi_rsp.r.r_optional = '0;
 
   // Core-local Peripherals
   periph_to_reg #(
-    .AW ( AddrWidth ),
-    .DW ( DataWidth ),
-    .BW ( 8 ),
-    .IW ( 1 ),
-    .req_t ( safety_reg_req_t ),
-    .rsp_t ( safety_reg_rsp_t )
+    .AW    ( AddrWidth         ),
+    .DW    ( DataWidth         ),
+    .BW    ( 8                 ),
+    .IW    ( SbrObiCfg.IdWidth ),
+    .req_t ( safety_reg_req_t  ),
+    .rsp_t ( safety_reg_rsp_t  )
   ) i_core_local_translate (
     .clk_i,
     .rst_ni,
 
-    .req_i     ( cl_periph_obi_req.req    ),
-    .add_i     ( cl_periph_obi_req.a.addr   ),
-    .wen_i     ( ~cl_periph_obi_req.a.we    ),
-    .wdata_i   ( cl_periph_obi_req.a.wdata  ),
-    .be_i      ( cl_periph_obi_req.a.be     ),
-    .id_i      ( '0 ),
+    .req_i     ( cl_periph_obi_req.req     ),
+    .add_i     ( cl_periph_obi_req.a.addr  ),
+    .wen_i     ( ~cl_periph_obi_req.a.we   ),
+    .wdata_i   ( cl_periph_obi_req.a.wdata ),
+    .be_i      ( cl_periph_obi_req.a.be    ),
+    .id_i      ( cl_periph_obi_req.a.aid   ),
 
-    .gnt_o     ( cl_periph_obi_rsp.gnt    ),
-    .r_rdata_o ( cl_periph_obi_rsp.r.rdata  ),
-    .r_opc_o   ( ),//cl_periph_err    ),
-    .r_id_o    (),
-    .r_valid_o ( cl_periph_obi_rsp.rvalid ),
+    .gnt_o     ( cl_periph_obi_rsp.gnt     ),
+    .r_rdata_o ( cl_periph_obi_rsp.r.rdata ),
+    .r_opc_o   ( cl_periph_obi_rsp.r.err   ),
+    .r_id_o    ( cl_periph_obi_rsp.r.rid   ),
+    .r_valid_o ( cl_periph_obi_rsp.rvalid  ),
 
     .reg_req_o ( cl_periph_reg_req ),
     .reg_rsp_i ( cl_periph_reg_rsp )
   );
+  assign cl_periph_obi_rsp.r.r_optional = '0;
 
 `ifdef TARGET_SIMULATION
   // TB Printf
@@ -951,12 +962,14 @@ module safety_island_top import safety_island_pkg::*; #(
     .mem_gnt_o      ( axi_output_obi_rsp.gnt     ),
     .mem_rsp_valid_o( axi_output_obi_rsp.rvalid  ),
     .mem_rsp_rdata_o( axi_output_obi_rsp.r.rdata ),
-    .mem_rsp_error_o(),
+    .mem_rsp_error_o( axi_output_obi_rsp.r.err   ),
     .slv_aw_cache_i ( axi_pkg::get_awcache(axi_pkg::NORMAL_NONCACHEABLE_NONBUFFERABLE) ),
     .slv_ar_cache_i ( axi_pkg::get_arcache(axi_pkg::NORMAL_NONCACHEABLE_NONBUFFERABLE) ),
     .axi_req_o      ( axi_out_dw32_req           ),
     .axi_rsp_i      ( axi_out_dw32_resp          )
   );
+  assign axi_output_obi_rsp.r.r_optional = '0;
+  assign axi_output_obi_rsp.r.rid = '0; // TODO: fix appropriately
 
   // TODO?: AXI AddrWidth prepend
 

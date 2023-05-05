@@ -271,8 +271,8 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .PREADY     ( timer_apb_rsp.pready  ),
     .PSLVERR    ( timer_apb_rsp.pslverr ),
     .ref_clk_i,
-    .event_lo_i (/*s_timer_in_lo_event*/),
-    .event_hi_i (/*s_timer_in_hi_event*/),
+    .event_lo_i ('0/*s_timer_in_lo_event*/),
+    .event_hi_i ('0/*s_timer_in_hi_event*/),
     .irq_lo_o   ( s_timer_irqs[0]       ),
     .irq_hi_o   ( s_timer_irqs[1]       ),
     .busy_o     (                       )
