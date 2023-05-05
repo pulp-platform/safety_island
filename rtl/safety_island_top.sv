@@ -478,10 +478,17 @@ module safety_island_top import safety_island_pkg::*; #(
   // Memories
   // -----------------
 
-  logic bank0_req, bank0_we, bank0_gnt;
+  sbr_obi_rsp_t tmp_bank0_obi_rsp;
+  logic bank0_req, bank0_we, bank0_gnt, bank0_single_err;
   logic [AddrWidth-1:0] bank0_addr;
   logic [DataWidth-1:0] bank0_wdata, bank0_rdata;
   logic [DataWidth/8-1:0] bank0_be;
+
+  always_comb begin
+    mem_bank0_obi_rsp = tmp_bank0_obi_rsp;
+    mem_bank0_obi_rsp.r.err = bank0_single_err;
+  end
+
   obi_sram_shim #(
     .ObiCfg    ( SbrObiCfg     ),
     .obi_req_t ( sbr_obi_req_t ),
@@ -491,7 +498,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .rst_ni,
 
     .obi_req_i ( mem_bank0_obi_req ),
-    .obi_rsp_o ( mem_bank0_obi_rsp ),
+    .obi_rsp_o ( tmp_bank0_obi_rsp ),
 
     .req_o   ( bank0_req   ),
     .we_o    ( bank0_we    ),
@@ -503,31 +510,43 @@ module safety_island_top import safety_island_pkg::*; #(
     .rdata_i ( bank0_rdata )
   );
 
-  tc_sram #(
-    .NumWords  ( BankNumWords ),
-    .DataWidth ( 32           ),
-    .ByteWidth ( 8            ),
-    .NumPorts  ( 1            ),
-    .Latency   ( 1            ),
-    .SimInit   ( "none"       )
+  ecc_sram_wrap #(
+    .BankSize        (BankNumWords),
+    .InputECC        (0),
+    .EnableTestMask  (0)
   ) i_mem_bank0 (
     .clk_i,
     .rst_ni,
+    .test_enable_i         ( test_enable_i ),
 
-    .req_i   ( bank0_req   ),
-    .we_i    ( bank0_we    ),
-    .addr_i  ( bank0_addr [$clog2(SafetyIslandCfg.BankNumBytes)-1:2] ),
-    .wdata_i ( bank0_wdata ),
-    .be_i    ( bank0_be    ),
+    .scrub_trigger_i       ( '0 ),
+    .scrubber_fix_o        (),
+    .scrub_uncorrectable_o (),
 
-    .rdata_o ( bank0_rdata )
+    .tcdm_wdata_i          ( bank0_wdata ),
+    .tcdm_add_i            ( bank0_addr  ),
+    .tcdm_req_i            ( bank0_req   ),
+    .tcdm_wen_i            ( ~bank0_we   ),
+    .tcdm_be_i             ( bank0_be    ),
+    .tcdm_rdata_o          ( bank0_rdata ),
+    .tcdm_gnt_o            ( bank0_gnt   ),
+    .single_error_o        (),
+    .multi_error_o         ( bank0_single_err ),
+
+    .test_write_mask_ni    ( '0 )
   );
-  assign bank0_gnt = bank0_req;
 
-  logic bank1_req, bank1_we, bank1_gnt;
+  sbr_obi_rsp_t tmp_bank1_obi_rsp;
+  logic bank1_req, bank1_we, bank1_gnt, bank1_single_err;
   logic [AddrWidth-1:0] bank1_addr;
   logic [DataWidth-1:0] bank1_wdata, bank1_rdata;
   logic [DataWidth/8-1:0] bank1_be;
+
+  always_comb begin
+    mem_bank1_obi_rsp = tmp_bank1_obi_rsp;
+    mem_bank1_obi_rsp.r.err = bank1_single_err;
+  end
+
   obi_sram_shim #(
     .ObiCfg    ( SbrObiCfg     ),
     .obi_req_t ( sbr_obi_req_t ),
@@ -537,7 +556,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .rst_ni,
 
     .obi_req_i ( mem_bank1_obi_req ),
-    .obi_rsp_o ( mem_bank1_obi_rsp ),
+    .obi_rsp_o ( tmp_bank1_obi_rsp ),
 
     .req_o   ( bank1_req   ),
     .we_o    ( bank1_we    ),
@@ -549,26 +568,31 @@ module safety_island_top import safety_island_pkg::*; #(
     .rdata_i ( bank1_rdata )
   );
 
-  tc_sram #(
-    .NumWords  ( BankNumWords ),
-    .DataWidth ( 32           ),
-    .ByteWidth ( 8            ),
-    .NumPorts  ( 1            ),
-    .Latency   ( 1            ),
-    .SimInit   ( "none"       )
+  ecc_sram_wrap #(
+    .BankSize        (BankNumWords),
+    .InputECC        (0),
+    .EnableTestMask  (0)
   ) i_mem_bank1 (
     .clk_i,
     .rst_ni,
+    .test_enable_i         ( test_enable_i ),
 
-    .req_i   ( bank1_req   ),
-    .we_i    ( bank1_we    ),
-    .addr_i  ( bank1_addr[$clog2(SafetyIslandCfg.BankNumBytes)-1:2]  ),
-    .wdata_i ( bank1_wdata ),
-    .be_i    ( bank1_be    ),
+    .scrub_trigger_i       ( '0 ),
+    .scrubber_fix_o        (),
+    .scrub_uncorrectable_o (),
 
-    .rdata_o ( bank1_rdata )
+    .tcdm_wdata_i          ( bank1_wdata ),
+    .tcdm_add_i            ( bank1_addr  ),
+    .tcdm_req_i            ( bank1_req   ),
+    .tcdm_wen_i            ( ~bank1_we   ),
+    .tcdm_be_i             ( bank1_be    ),
+    .tcdm_rdata_o          ( bank1_rdata ),
+    .tcdm_gnt_o            ( bank1_gnt   ),
+    .single_error_o        (),
+    .multi_error_o         ( bank1_single_err ),
+
+    .test_write_mask_ni    ( '0 )
   );
-  assign bank1_gnt = bank1_req;
 
   // -----------------
   // Periphs
