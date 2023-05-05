@@ -21,6 +21,7 @@ package safety_island_pkg;
     PeriphBootROM,
     PeriphGlobalPrepend,
     PeriphDebug,
+    PeriphTimer,
     PeriphCoreLocal
 `ifdef TARGET_SIMULATION
     ,
@@ -30,7 +31,6 @@ package safety_island_pkg;
 
   typedef enum int {
     RegbusOutTCLS,
-    RegbusOutTimer,
     RegbusOutCLIC
   } cl_regbus_outputs_e;
 
@@ -50,14 +50,16 @@ package safety_island_pkg;
   localparam bit [31:0] GlobalPrependAddrRange  = 32'h0000_1000;
   localparam bit [31:0] DebugAddrOffset = 32'h0000_3000;
   localparam bit [31:0] DebugAddrRange  = 32'h0000_1000;
-  localparam bit [31:0] CoreLocalAddrOffset = 32'h0000_7000;
-  localparam bit [31:0] CoreLocalAddrRange  = 32'h0003_0000;
+  localparam bit [31:0] TBPrintfAddrOffset = 32'h0000_6000;
+  localparam bit [31:0] TBPrintfAddrRange  = 32'h0000_1000;
+  localparam bit [31:0] TimerAddrOffset = 32'h0000_8000;
+  localparam bit [31:0] TimerAddrRange = 32'h0000_5000;
+  localparam bit [31:0] CoreLocalAddrOffset = 32'h0000_D000;
+  localparam bit [31:0] CoreLocalAddrRange  = 32'h0002_3000;
 
   // Core-Local offsets and ranges
   localparam bit [31:0] TCLSAddrOffset = CoreLocalAddrOffset;
   localparam bit [31:0] TCLSAddrRange  = 32'h0000_1000;
-  localparam bit [31:0] TimerAddrOffset = 32'h0000_8000;
-  localparam bit [31:0] TimerAddrRange = 32'h0000_5000;
   localparam bit [31:0] ClicAddrOffset = 32'h0001_0000;
   localparam bit [31:0] ClicAddrRange  = 32'h0001_0000;
 

@@ -12,6 +12,7 @@
 `include "axi/typedef.svh"
 `include "axi/assign.svh"
 `include "obi/typedef.svh"
+`include "apb/typedef.svh"
 
 module safety_island_top import safety_island_pkg::*; #(
   parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
@@ -94,14 +95,11 @@ module safety_island_top import safety_island_pkg::*; #(
   `REG_BUS_TYPEDEF_ALL(safety_reg, logic[AddrWidth-1:0], logic[DataWidth-1:0], logic[(DataWidth/8)-1:0]);
 
 `ifdef TARGET_SIMULATION
+  localparam int unsigned NumPeriphs     = 8;
+  localparam int unsigned NumPeriphRules = 7;
+`else
   localparam int unsigned NumPeriphs     = 7;
   localparam int unsigned NumPeriphRules = 6;
-
-  localparam bit [31:0] TBPrintfAddrOffset = 32'h0000_6000;
-  localparam bit [31:0] TBPrintfAddrRange  = 32'h0000_1000;
-`else
-  localparam int unsigned NumPeriphs     = 6;
-  localparam int unsigned NumPeriphRules = 5;
 `endif
 
   localparam int unsigned NumSubordinates = 4;
@@ -129,7 +127,8 @@ module safety_island_top import safety_island_pkg::*; #(
     '{ idx: PeriphBootROM,       start_addr: PeriphBaseAddr+BootROMAddrOffset,       end_addr: PeriphBaseAddr+BootROMAddrOffset+      BootROMAddrRange},       // 2: Boot ROM
     '{ idx: PeriphGlobalPrepend, start_addr: PeriphBaseAddr+GlobalPrependAddrOffset, end_addr: PeriphBaseAddr+GlobalPrependAddrOffset+GlobalPrependAddrRange}, // 3: Global prepend
     '{ idx: PeriphDebug,         start_addr: PeriphBaseAddr+DebugAddrOffset,         end_addr: PeriphBaseAddr+DebugAddrOffset+        DebugAddrRange},         // 4: Debug
-    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+CoreLocalAddrOffset,     end_addr: PeriphBaseAddr+CoreLocalAddrOffset+    CoreLocalAddrRange}      // 5: Core-Local peripherals
+    '{ idx: PeriphTimer,         start_addr: PeriphBaseAddr+TimerAddrOffset,         end_addr: PeriphBaseAddr+TimerAddrOffset+        TimerAddrRange},         // 5: Timer
+    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+CoreLocalAddrOffset,     end_addr: PeriphBaseAddr+CoreLocalAddrOffset+    CoreLocalAddrRange}      // 4: Core-Local peripherals
 `ifdef TARGET_SIMULATION
     ,
     '{ idx: PeriphTBPrintf,      start_addr: PeriphBaseAddr+TBPrintfAddrOffset,      end_addr: PeriphBaseAddr+TBPrintfAddrOffset+     TBPrintfAddrRange}       // 6: TBPrintf
@@ -141,6 +140,7 @@ module safety_island_top import safety_island_pkg::*; #(
   // -----------------
   logic fetch_enable;
   logic [31:0] boot_addr;
+  logic [NumTimerInterrupts-1:0] s_timer_irqs;
 
   // -----------------
   // Manager buses
@@ -237,6 +237,12 @@ module safety_island_top import safety_island_pkg::*; #(
   sbr_obi_rsp_t dbg_mem_obi_rsp;
 
   // Core local bus
+  sbr_obi_req_t timer_obi_req;
+  sbr_obi_rsp_t timer_obi_rsp;
+  safety_reg_req_t timer_reg_req;
+  safety_reg_rsp_t timer_reg_rsp;
+
+  // Core local bus
   sbr_obi_req_t cl_periph_obi_req;
   sbr_obi_rsp_t cl_periph_obi_rsp;
   safety_reg_req_t cl_periph_reg_req;
@@ -262,6 +268,8 @@ module safety_island_top import safety_island_pkg::*; #(
   assign all_periph_obi_rsp[PeriphDebug]      = dbg_mem_obi_rsp;
   assign cl_periph_obi_req                    = all_periph_obi_req[PeriphCoreLocal];
   assign all_periph_obi_rsp[PeriphCoreLocal]  = cl_periph_obi_rsp;
+  assign timer_obi_req                        = all_periph_obi_req[PeriphTimer];
+  assign all_periph_obi_rsp[PeriphTimer]      = timer_obi_rsp;
 `ifdef TARGET_SIMULATION
   assign tbprintf_obi_req                     = all_periph_obi_req[PeriphTBPrintf];
   assign all_periph_obi_rsp[PeriphTBPrintf]   = tbprintf_obi_rsp;
@@ -292,6 +300,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .test_enable_i,
 
     .irqs_i,
+    .timer_irqs_i     ( s_timer_irqs                      ),
 
     .cl_periph_req_i  ( cl_periph_reg_req                 ),
     .cl_periph_rsp_o  ( cl_periph_reg_rsp                 ),
@@ -779,6 +788,80 @@ module safety_island_top import safety_island_pkg::*; #(
     .reg_rsp_i ( cl_periph_reg_rsp )
   );
   assign cl_periph_obi_rsp.r.r_optional = '0;
+
+
+  // Core-local Peripherals
+  periph_to_reg #(
+    .AW    ( AddrWidth         ),
+    .DW    ( DataWidth         ),
+    .BW    ( 8                 ),
+    .IW    ( SbrObiCfg.IdWidth ),
+    .req_t ( safety_reg_req_t  ),
+    .rsp_t ( safety_reg_rsp_t  )
+  ) i_timer_translate (
+    .clk_i,
+    .rst_ni,
+
+    .req_i     ( timer_obi_req.req     ),
+    .add_i     ( timer_obi_req.a.addr  ),
+    .wen_i     ( ~timer_obi_req.a.we   ),
+    .wdata_i   ( timer_obi_req.a.wdata ),
+    .be_i      ( timer_obi_req.a.be    ),
+    .id_i      ( timer_obi_req.a.aid   ),
+
+    .gnt_o     ( timer_obi_rsp.gnt     ),
+    .r_rdata_o ( timer_obi_rsp.r.rdata ),
+    .r_opc_o   ( timer_obi_rsp.r.err   ),
+    .r_id_o    ( timer_obi_rsp.r.rid   ),
+    .r_valid_o ( timer_obi_rsp.rvalid  ),
+
+    .reg_req_o ( timer_reg_req ),
+    .reg_rsp_i ( timer_reg_rsp )
+  );
+  assign timer_obi_rsp.r.r_optional = '0;
+
+  // Timer bus (APB interface)
+  `APB_TYPEDEF_REQ_T(safety_apb_req_t, logic [31:0], logic [31:0], logic [3:0])
+  `APB_TYPEDEF_RESP_T(safety_apb_rsp_t, logic [31:0])
+  safety_apb_req_t timer_apb_req;
+  safety_apb_rsp_t timer_apb_rsp;
+
+  reg_to_apb #(
+    .reg_req_t(safety_reg_req_t),
+    .reg_rsp_t(safety_reg_rsp_t),
+    .apb_req_t(safety_apb_req_t),
+    .apb_rsp_t(safety_apb_rsp_t)
+  ) i_reg_to_apb_timer (
+    .clk_i,
+    .rst_ni,
+    // Register interface
+    .reg_req_i (timer_reg_req),
+    .reg_rsp_o (timer_reg_rsp),
+    // APB interface
+    .apb_req_o (timer_apb_req),
+    .apb_rsp_i (timer_apb_rsp)
+  );
+
+  apb_timer_unit #(
+    .APB_ADDR_WIDTH(32)
+  ) i_apb_timer_unit (
+    .HCLK       ( clk_i                 ),
+    .HRESETn    ( rst_ni                ),
+    .PADDR      ( timer_apb_req.paddr   ),
+    .PWDATA     ( timer_apb_req.pwdata  ),
+    .PWRITE     ( timer_apb_req.pwrite  ),
+    .PSEL       ( timer_apb_req.psel    ),
+    .PENABLE    ( timer_apb_req.penable ),
+    .PRDATA     ( timer_apb_rsp.prdata  ),
+    .PREADY     ( timer_apb_rsp.pready  ),
+    .PSLVERR    ( timer_apb_rsp.pslverr ),
+    .ref_clk_i,
+    .event_lo_i ('0/*s_timer_in_lo_event*/),
+    .event_hi_i ('0/*s_timer_in_hi_event*/),
+    .irq_lo_o   ( s_timer_irqs[0]       ),
+    .irq_hi_o   ( s_timer_irqs[1]       ),
+    .busy_o     (                       )
+  );
 
 `ifdef TARGET_SIMULATION
   // TB Printf
