@@ -16,7 +16,7 @@ dependencies:
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", version: 1.1.1 }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   rev: "7786760" }
   cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "b26d1d6" } # `michaero/safety-island-clic` branch
-  clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "8df9c5a" } # `mnxti` branch
+  clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "ce0d748" } # `mnxti` branch
   fpnew:                { git: "https://github.com/pulp-platform/fpnew.git",                version: 0.7.0 }
   apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }
   timer_unit:           { git: "https://github.com/pulp-platform/timer_unit.git",           version: 1.0.2 }

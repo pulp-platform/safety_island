@@ -16,7 +16,7 @@ packages:
     - common_verification
     - tech_cells_generic
   clic:
-    revision: 8df9c5ae1f4a15b5b777c66cfdf41fd44451ffe3
+    revision: ce0d748f28246c0635b225d9c8beb7b76eac8708
     version: null
     source:
       Git: https://github.com/pulp-platform/clic.git
@@ -110,8 +110,8 @@ packages:
     dependencies:
     - common_verification
   timer_unit:
-    revision: 3f4ee3e5b3875a473242de5d0c3ebb5a0fe4b8db
-    version: 1.0.2
+    revision: 4c69615c89db9397a9747d6f6d6a36727854f0bc
+    version: 1.0.3
     source:
       Git: https://github.com/pulp-platform/timer_unit.git
     dependencies: []
