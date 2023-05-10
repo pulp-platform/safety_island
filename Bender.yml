@@ -10,12 +10,12 @@ package:
 dependencies:
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",         version: 1.29.0 }
   axi:                  { git: "https://github.com/pulp-platform/axi.git",                  version: 0.39.0-beta.4 }
-  redundancy_cells:     { git: "https://github.com/pulp-platform/redundancy_cells.git",     version: 0.5.1 }
+  redundancy_cells:     { git: "https://github.com/pulp-platform/redundancy_cells.git",     rev: "25b74d3" } # `hmr-alt` branch
   riscv-dbg:            { git: "https://github.com/pulp-platform/riscv-dbg.git",            version: 0.8.0 }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.3 }
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", version: 1.1.1 }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   rev: "7786760" }
-  cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "f67ee07" } # `safety-island-clic` branch
+  cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "9b77611" } # `michaero/safety-island-clic` branch
   clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "ce0d748" } # `xnxti` branch
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev: pulp-v0.1.1 }
   apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }

@@ -53,7 +53,7 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   cv32e40p:
-    revision: f67ee07376845b8b8975f86c831c5d17cffcc5cb
+    revision: 9b77611a1d0c681f4819798d95422b0b895528a2
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40p.git
@@ -85,8 +85,8 @@ packages:
     - common_cells
     - common_verification
   redundancy_cells:
-    revision: 4dadaa6af68f3818c900a32341754eb1c841ed3e
-    version: 0.5.1
+    revision: 25b74d3e8785c7bbfe12554cb9f1e4d8a9e8de3e
+    version: null
     source:
       Git: https://github.com/pulp-platform/redundancy_cells.git
     dependencies:
