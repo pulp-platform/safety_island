@@ -164,6 +164,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
     hmr_cv32e40p_bus_outputs_t      [NumBuses-1:0] sys_bus_outputs;
     hmr_cv32e40p_bus_outputs_t [2:0][NumBuses-1:0] core_bus_outputs;
+    logic                           [NumBuses-1:0] enable_bus_output;
 
     logic [2:0] core_setback;
 
@@ -195,16 +196,18 @@ module safety_core_wrap import safety_island_pkg::*; #(
     assign instr_req_o    = sys_outputs.instr_req;
     assign instr_addr_o   = sys_outputs.instr_addr;
     assign data_req_o     = sys_outputs.data_req;
+    assign enable_bus_output[DataBus] = sys_outputs.data_req;
     assign data_addr_o    = sys_bus_outputs[DataBus].addr;
     assign data_we_o      = sys_bus_outputs[DataBus].we;
     assign data_be_o      = sys_bus_outputs[DataBus].be;
     assign data_wdata_o   = sys_bus_outputs[DataBus].wdata;
     assign shadow_req_o   = sys_outputs.shadow_req;
+    assign enable_bus_output[ShadowBus] = sys_outputs.shadow_req;
     assign shadow_addr_o  = sys_bus_outputs[ShadowBus].addr;
     assign shadow_we_o    = sys_bus_outputs[ShadowBus].we;
     assign shadow_be_o    = sys_bus_outputs[ShadowBus].be;
     assign shadow_wdata_o = sys_bus_outputs[ShadowBus].wdata;
-    assign irq_ack_o      = sys_outputs.irq_ack;
+    assign core_irq_ready = sys_outputs.irq_ack;
 
     hmr_unit #(
       .NumCores          (    3                           ),
@@ -247,7 +250,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       .core_inputs_o         ( core_inputs      ),
       .core_nominal_outputs_i( core_outputs     ),
       .core_bus_outputs_i    ( core_bus_outputs ),
-      .enable_bus_vote_i     ()
+      .enable_bus_vote_i     ( enable_bus_output )
     );
 
     for (genvar i = 0; i < 3; i++) begin
@@ -261,15 +264,15 @@ module safety_core_wrap import safety_island_pkg::*; #(
       logic [31:0]                    apu_rdata;
       logic [cv32e40p_apu_core_pkg::APU_NUSFLAGS_CPU-1:0]    apu_rflags;
 
-// `ifdef PULP_FPGA_EMUL
-//       cv32e40p_core #(
-// `elsif SYNTHESIS
-//       cv32e40p_core #(
-// `elsif VERILATOR
-//       cv32e40p_core #(
-// `else
+`ifdef PULP_FPGA_EMUL
+      cv32e40p_core #(
+`elsif SYNTHESIS
+      cv32e40p_core #(
+`elsif VERILATOR
+      cv32e40p_core #(
+`else
       cv32e40p_wrapper #(
-// `endif
+`endif
         .PULP_XPULP       ( SafetyIslandCfg.UseXPulp          ),
         .PULP_CLUSTER     ( SafetyIslandCfg.UseIntegerCluster ),
         .FPU              ( SafetyIslandCfg.UseFpu            ),
@@ -389,15 +392,15 @@ module safety_core_wrap import safety_island_pkg::*; #(
     logic [31:0]                    apu_rdata;
     logic [cv32e40p_apu_core_pkg::APU_NUSFLAGS_CPU-1:0]    apu_rflags;
 
-// `ifdef PULP_FPGA_EMUL
-//     cv32e40p_core #(
-// `elsif SYNTHESIS
-//     cv32e40p_core #(
-// `elsif VERILATOR
-//     cv32e40p_core #(
-// `else
+`ifdef PULP_FPGA_EMUL
+    cv32e40p_core #(
+`elsif SYNTHESIS
+    cv32e40p_core #(
+`elsif VERILATOR
+    cv32e40p_core #(
+`else
     cv32e40p_wrapper #(
-// `endif
+`endif
       .PULP_XPULP   (SafetyIslandCfg.UseXPulp),
       .PULP_CLUSTER (SafetyIslandCfg.UseIntegerCluster),
       .FPU          (SafetyIslandCfg.UseFpu),
