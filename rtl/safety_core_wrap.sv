@@ -90,6 +90,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   logic core_irq_valid, core_irq_ready, core_irq_shv;
 
   logic [2:0] bus_err_irq;
+  logic resynch_irq;
 
  // TODO: add atomic support to cv32 + adapter (if needed)
 
@@ -233,15 +234,15 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
       .tmr_failure_o         (),
       .tmr_error_o           (),
-      .tmr_resynch_req_o     (),
-      .tmr_sw_synch_req_o    (),
-      .tmr_cores_synch_i     ('0),
+      .tmr_resynch_req_o     ( resynch_irq ),
+      .tmr_sw_synch_req_o    (), // Not used in fixed mode
+      .tmr_cores_synch_i     ('0), // Not used in fixed mode
 
-      .dmr_failure_o         (),
-      .dmr_error_o           (),
-      .dmr_resynch_req_o     (),
-      .dmr_sw_synch_req_o    (),
-      .dmr_cores_synch_i     ('0),
+      .dmr_failure_o         (), // Not used if DMR disabled
+      .dmr_error_o           (), // Not used if DMR disabled
+      .dmr_resynch_req_o     (), // Not used if DMR disabled
+      .dmr_sw_synch_req_o    (), // Not used if DMR disabled
+      .dmr_cores_synch_i     ('0), // Not used if DMR disabled
 
       .sys_inputs_i          ( sys_inputs      ),
       .sys_nominal_outputs_o ( sys_outputs     ),
@@ -648,7 +649,8 @@ module safety_core_wrap import safety_island_pkg::*; #(
   assign meip = '0;
   assign msip  = '0;
   assign clic_irqs[TotalNumInterrupts-1:32] = irqs_i;
-  assign clic_irqs[31:21] = '0;
+  assign clic_irqs[31:22] = '0;
+  assign clic_irqs[21]    = resynch_irq;
   assign clic_irqs[20:18] = bus_err_irq[2:0];
   assign clic_irqs[17:16] = timer_irqs_i;
   assign clic_irqs[15:0]  = {
