@@ -12,7 +12,6 @@ module safety_core_wrap import safety_island_pkg::*; #(
   parameter safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
   parameter bit [         31:0] PeriphBaseAddr  = 32'h0020_0000,
   parameter int unsigned        NumBusErrBits   = 2,
-  parameter bit                 EnableTcls      = 1'b1,
   parameter type                reg_req_t       = logic,
   parameter type                reg_rsp_t       = logic
 ) (
@@ -94,10 +93,10 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
  // TODO: add atomic support to cv32 + adapter (if needed)
 
-  if (EnableTcls) begin
-    localparam NumBuses = 2;
-    localparam DataBus = 0;
-    localparam ShadowBus = 1;
+  if (SafetyIslandCfg.UseTCLS) begin
+    localparam int unsigned NumBuses = 2;
+    localparam int unsigned DataBus = 0;
+    localparam int unsigned ShadowBus = 1;
     typedef struct packed {
       logic        pulp_clock_en;
       logic        scan_cg_en_i;
@@ -195,18 +194,21 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
     assign instr_req_o    = sys_outputs.instr_req;
     assign instr_addr_o   = sys_outputs.instr_addr;
+
     assign data_req_o     = sys_outputs.data_req;
     assign enable_bus_output[DataBus] = sys_outputs.data_req;
     assign data_addr_o    = sys_bus_outputs[DataBus].addr;
     assign data_we_o      = sys_bus_outputs[DataBus].we;
     assign data_be_o      = sys_bus_outputs[DataBus].be;
     assign data_wdata_o   = sys_bus_outputs[DataBus].wdata;
+
     assign shadow_req_o   = sys_outputs.shadow_req;
     assign enable_bus_output[ShadowBus] = sys_outputs.shadow_req;
     assign shadow_addr_o  = sys_bus_outputs[ShadowBus].addr;
     assign shadow_we_o    = sys_bus_outputs[ShadowBus].we;
     assign shadow_be_o    = sys_bus_outputs[ShadowBus].be;
     assign shadow_wdata_o = sys_bus_outputs[ShadowBus].wdata;
+
     assign core_irq_ready = sys_outputs.irq_ack;
 
     hmr_unit #(
@@ -357,15 +359,15 @@ module safety_core_wrap import safety_island_pkg::*; #(
         ) i_fpu (
           .clk_i,
           .rst_ni,
-          .flush_i       (core_setback[i]),
-          .apu_req_i     (apu_req),
-          .apu_gnt_o     (apu_gnt),
-          .apu_operands_i(apu_operands),
-          .apu_op_i      (apu_op),
-          .apu_flags_i   (apu_flags),
-          .apu_rvalid_o  (apu_rvalid),
-          .apu_rdata_o   (apu_rdata),
-          .apu_rflags_o  (apu_rflags)
+          .flush_i        ( core_setback[i] ),
+          .apu_req_i      ( apu_req         ),
+          .apu_gnt_o      ( apu_gnt         ),
+          .apu_operands_i ( apu_operands    ),
+          .apu_op_i       ( apu_op          ),
+          .apu_flags_i    ( apu_flags       ),
+          .apu_rvalid_o   ( apu_rvalid      ),
+          .apu_rdata_o    ( apu_rdata       ),
+          .apu_rflags_o   ( apu_rflags      )
         );
       end else begin : gen_no_safety_island_fpu
         //assign apu_req      = 1'b0;
