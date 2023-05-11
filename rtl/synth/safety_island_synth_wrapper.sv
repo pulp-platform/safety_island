@@ -60,6 +60,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   input  logic clk_i,
   input  logic ref_clk_i,
   input  logic rst_ni,
+  input  logic pwr_on_rst_ni,
   input  logic test_enable_i,
   input  logic [1:0] bootmode_i,
   input  logic fetch_en_i,
@@ -140,10 +141,10 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .async_data_slave_r_data_o ( async_axi_in_r_data_o  ),
     .async_data_slave_r_wptr_o ( async_axi_in_r_wptr_o  ),
     .async_data_slave_r_rptr_i ( async_axi_in_r_rptr_i  ),
-    .dst_clk_i                 ( clk_i       ),
-    .dst_rst_ni                ( rst_ni      ),
-    .dst_req_o                 ( axi_in_req  ),
-    .dst_resp_i                ( axi_in_resp )
+    .dst_clk_i                 ( clk_i         ),
+    .dst_rst_ni                ( pwr_on_rst_ni ),
+    .dst_req_o                 ( axi_in_req    ),
+    .dst_resp_i                ( axi_in_resp   )
   );
 
   axi_cdc_src #(
@@ -156,10 +157,10 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .axi_req_t  ( axi_out_req_t     ),
     .axi_resp_t ( axi_out_resp_t    )
   ) i_cdc_out (
-    .src_clk_i                  ( clk_i        ),
-    .src_rst_ni                 ( rst_ni       ),
-    .src_req_i                  ( axi_out_req  ),
-    .src_resp_o                 ( axi_out_resp ),
+    .src_clk_i                  ( clk_i         ),
+    .src_rst_ni                 ( pwr_on_rst_ni ),
+    .src_req_i                  ( axi_out_req   ),
+    .src_resp_o                 ( axi_out_resp  ),
     .async_data_master_aw_data_o( async_axi_out_aw_data_o ),
     .async_data_master_aw_wptr_o( async_axi_out_aw_wptr_o ),
     .async_data_master_aw_rptr_i( async_axi_out_aw_rptr_i ),

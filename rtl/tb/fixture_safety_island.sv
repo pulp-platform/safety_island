@@ -241,6 +241,7 @@ module fixture_safety_island;
     .clk_i                   ( s_clk         ),
     .ref_clk_i               ( s_ref_clk     ),
     .rst_ni                  ( s_rst_n       ),
+    .pwr_on_rst_ni           ( s_rst_n       ),
     .test_enable_i           ( s_test_enable ),
     .bootmode_i              ( s_bootmode    ),
     .fetch_en_i              ( '0            ), // Internal register used by default.
