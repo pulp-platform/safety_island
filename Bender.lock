@@ -15,6 +15,14 @@ packages:
     - common_cells
     - common_verification
     - tech_cells_generic
+  bus_err_unit:
+    revision: ff19129ed69094422243a76ae71eef45aa6f2c4b
+    version: null
+    source:
+      Git: git@iis-git.ee.ethz.ch:carfield/bus_err_unit.git
+    dependencies:
+    - common_cells
+    - register_interface
   clic:
     revision: ce0d748f28246c0635b225d9c8beb7b76eac8708
     version: null
@@ -69,12 +77,13 @@ packages:
     dependencies:
     - common_cells
   obi:
-    revision: fed3f7f87285f2754b78211fbe844c5012bab114
+    revision: 1285848fe155e7803d409648dac8cd327993b042
     version: null
     source:
-      Git: git@iis-git.ee.ethz.ch:carfield/obi.git
+      Git: https://github.com/pulp-platform/obi.git
     dependencies:
     - common_cells
+    - common_verification
   redundancy_cells:
     revision: 4dadaa6af68f3818c900a32341754eb1c841ed3e
     version: 0.5.1

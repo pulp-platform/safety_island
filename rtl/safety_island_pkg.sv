@@ -21,6 +21,7 @@ package safety_island_pkg;
     PeriphBootROM,
     PeriphGlobalPrepend,
     PeriphDebug,
+    PeriphTimer,
     PeriphCoreLocal
 `ifdef TARGET_SIMULATION
     ,
@@ -30,8 +31,10 @@ package safety_island_pkg;
 
   typedef enum int {
     RegbusOutTCLS,
-    RegbusOutTimer,
-    RegbusOutCLIC
+    RegbusOutCLIC,
+    RegbusOutInstrErr,
+    RegbusOutDataErr,
+    RegbusOutShadowErr
   } cl_regbus_outputs_e;
 
   // Address map of safety_island
@@ -50,16 +53,24 @@ package safety_island_pkg;
   localparam bit [31:0] GlobalPrependAddrRange  = 32'h0000_1000;
   localparam bit [31:0] DebugAddrOffset = 32'h0000_3000;
   localparam bit [31:0] DebugAddrRange  = 32'h0000_1000;
-  localparam bit [31:0] CoreLocalAddrOffset = 32'h0000_7000;
-  localparam bit [31:0] CoreLocalAddrRange  = 32'h0003_0000;
+  localparam bit [31:0] TBPrintfAddrOffset = 32'h0000_6000;
+  localparam bit [31:0] TBPrintfAddrRange  = 32'h0000_1000;
+  localparam bit [31:0] TimerAddrOffset = 32'h0000_8000;
+  localparam bit [31:0] TimerAddrRange = 32'h0000_5000;
+  localparam bit [31:0] CoreLocalAddrOffset = 32'h0000_D000;
+  localparam bit [31:0] CoreLocalAddrRange  = 32'h0002_3000;
 
   // Core-Local offsets and ranges
   localparam bit [31:0] TCLSAddrOffset = CoreLocalAddrOffset;
   localparam bit [31:0] TCLSAddrRange  = 32'h0000_1000;
-  localparam bit [31:0] TimerAddrOffset = 32'h0000_8000;
-  localparam bit [31:0] TimerAddrRange = 32'h0000_5000;
   localparam bit [31:0] ClicAddrOffset = 32'h0001_0000;
   localparam bit [31:0] ClicAddrRange  = 32'h0001_0000;
+  localparam bit [31:0] InstrErrOffset = 32'h0002_0000;
+  localparam bit [31:0] InstrErrRange  = 32'h0000_0010;
+  localparam bit [31:0] DataErrOffset  = 32'h0002_0010;
+  localparam bit [31:0] DataErrRange   = 32'h0000_0020;
+  localparam bit [31:0] ShadowErrOffset= 32'h0002_0020;
+  localparam bit [31:0] ShadowErrRange = 32'h0000_0030;
 
   typedef struct packed {
     int unsigned              HartId;

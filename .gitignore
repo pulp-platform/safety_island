@@ -5,3 +5,6 @@ sim/modelsim.ini
 sim/transcript
 pulp-runtime
 nonfree/
+working_dir/
+spyglass/
+sw/**/build/*

@@ -16,11 +16,12 @@ dependencies:
   cluster_interconnect: { git: "https://github.com/pulp-platform/cluster_interconnect.git", version: 1.1.1 }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   rev: "7786760" }
   cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "f67ee07" } # `safety-island-clic` branch
-  clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "ce0d748" } # `mnxti` branch
+  clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "ce0d748" } # `xnxti` branch
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev: pulp-v0.1.1 }
   apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }
   timer_unit:           { git: "https://github.com/pulp-platform/timer_unit.git",           version: 1.0.2 }
-  obi:                  { git: "git@iis-git.ee.ethz.ch:carfield/obi.git",                   rev: "fed3f7f" }
+  obi:                  { git: "https://github.com/pulp-platform/obi.git",                  rev: "1285848" } # `main` branch
+  bus_err_unit:         { git: "git@iis-git.ee.ethz.ch:carfield/bus_err_unit.git",          rev: "ff19129" } # `main` branch
 
 sources:
   # Level 1
