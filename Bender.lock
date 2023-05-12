@@ -7,8 +7,8 @@ packages:
     dependencies:
     - common_cells
   axi:
-    revision: fd60be8b51a4fa7476856be162ce3334474592ba
-    version: 0.39.0-beta.4
+    revision: f24b1faf7bcf651f1aabdef5e8f99ce2fd817c2e
+    version: 0.39.0-beta.9
     source:
       Git: https://github.com/pulp-platform/axi.git
     dependencies:
@@ -53,7 +53,7 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   cv32e40p:
-    revision: f67ee07376845b8b8975f86c831c5d17cffcc5cb
+    revision: 9b77611a1d0c681f4819798d95422b0b895528a2
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40p.git
@@ -85,8 +85,8 @@ packages:
     - common_cells
     - common_verification
   redundancy_cells:
-    revision: 4dadaa6af68f3818c900a32341754eb1c841ed3e
-    version: 0.5.1
+    revision: 6e10650b50c7b40f7f81602acf61526330c4d69d
+    version: null
     source:
       Git: https://github.com/pulp-platform/redundancy_cells.git
     dependencies:

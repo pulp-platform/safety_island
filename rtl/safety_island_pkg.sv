@@ -97,6 +97,7 @@ package safety_island_pkg;
                                                  // integer RF is used for the
                                                  // FPU instead of a dedicated
                                                  // FP RF
+    int unsigned              UseTCLS;           // Use Triple-core Lockstep
     int unsigned              NumInterrupts;     // Number of input interrupts
                                                  // to the safety island
     int unsigned              NumMhpmCounters;   // Number of performance
@@ -122,6 +123,7 @@ package safety_island_pkg;
     UseIntegerCluster:  0,
     UseXPulp:           1,
     UseZfinx:           1,
+    UseTCLS:            1,
     NumInterrupts:      64,
     NumMhpmCounters:    1
   };

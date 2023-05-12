@@ -19,6 +19,8 @@ module cv32e40p_fpu_wrap import cv32e40p_apu_core_pkg::*; #(
    input  logic                                   clk_i,
    input  logic                                   rst_ni,
 
+   input  logic                                   flush_i,
+
    // APU Side: Master port
    input  logic                                   apu_req_i,
    output logic                                   apu_gnt_o,
@@ -113,7 +115,7 @@ fpnew_top #(
   .simd_mask_i    ( '1                                    ),
   .in_valid_i     ( apu_req_i                             ),
   .in_ready_o     ( apu_gnt_o                             ),
-  .flush_i        ( 1'b0                                  ),
+  .flush_i        ( flush_i                               ),
   .result_o       ( apu_rdata_o                           ),
   .status_o       ( apu_rflags_o                          ),
   .tag_o          ( /* unused */                          ),
