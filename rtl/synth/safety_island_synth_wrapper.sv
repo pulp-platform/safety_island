@@ -19,6 +19,8 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter int unsigned AxiInIdWidth  = SynthAxiInIdWidth,
   parameter int unsigned AxiOutIdWidth = SynthAxiOutIdWidth,
   parameter int unsigned LogDepth      = SynthLogDepth,
+
+  parameter int unsigned SyncStages    = 3,
   
   parameter bit [AxiAddrWidth-1:0] SafetyIslandBaseAddr     = SynthSafetyIslandBaseAddr,
   parameter bit [31:0]             SafetyIslandAddrRange    = SynthSafetyIslandAddrRange,
@@ -60,6 +62,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   input  logic clk_i,
   input  logic ref_clk_i,
   input  logic rst_ni,
+  input  logic pwr_on_rst_ni,
   input  logic test_enable_i,
   input  logic [1:0] bootmode_i,
   input  logic fetch_en_i,
@@ -115,6 +118,42 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   axi_out_req_t axi_out_req, axi_out_isolate_req;
   axi_out_resp_t axi_out_resp, axi_out_isolate_resp;
 
+  logic fetch_en_sync;
+  logic axi_isolate_sync;
+  logic [SafetyIslandCfg.NumInterrupts-1:0] irqs_sync;
+
+  sync #(
+    .STAGES     ( SyncStages ),
+    .ResetValue ( 1'b0       )
+  ) i_fetch_en_sync (
+    .clk_i,
+    .rst_ni   ( pwr_on_rst_ni ),
+    .serial_i ( fetch_en_i    ),
+    .serial_o ( fetch_en_sync )
+  );
+
+  sync #(
+    .STAGES     ( SyncStages ),
+    .ResetValue ( 1'b1       )
+  ) i_isolate_sync (
+    .clk_i,
+    .rst_ni   ( pwr_on_rst_ni    ),
+    .serial_i ( axi_isolate_i    ),
+    .serial_o ( axi_isolate_sync )
+  );
+
+  for (genvar i = 0; i < SafetyIslandCfg.NumInterrupts; i++) begin
+    sync #(
+      .STAGES     ( SyncStages ),
+      .ResetValue ( 1'b0       )
+    ) i_irq_sync (
+      .clk_i,
+      .rst_ni   ( pwr_on_rst_ni ),
+      .serial_i ( irqs_i[i]     ),
+      .serial_o ( irqs_sync[i]  )
+    );
+  end
+
   axi_cdc_dst #(
     .LogDepth   ( LogDepth         ),
     .aw_chan_t  ( axi_in_aw_chan_t ),
@@ -140,10 +179,10 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .async_data_slave_r_data_o ( async_axi_in_r_data_o  ),
     .async_data_slave_r_wptr_o ( async_axi_in_r_wptr_o  ),
     .async_data_slave_r_rptr_i ( async_axi_in_r_rptr_i  ),
-    .dst_clk_i                 ( clk_i       ),
-    .dst_rst_ni                ( rst_ni      ),
-    .dst_req_o                 ( axi_in_req  ),
-    .dst_resp_i                ( axi_in_resp )
+    .dst_clk_i                 ( clk_i         ),
+    .dst_rst_ni                ( pwr_on_rst_ni ),
+    .dst_req_o                 ( axi_in_req    ),
+    .dst_resp_i                ( axi_in_resp   )
   );
 
   axi_cdc_src #(
@@ -156,10 +195,10 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .axi_req_t  ( axi_out_req_t     ),
     .axi_resp_t ( axi_out_resp_t    )
   ) i_cdc_out (
-    .src_clk_i                  ( clk_i        ),
-    .src_rst_ni                 ( rst_ni       ),
-    .src_req_i                  ( axi_out_req  ),
-    .src_resp_o                 ( axi_out_resp ),
+    .src_clk_i                  ( clk_i         ),
+    .src_rst_ni                 ( pwr_on_rst_ni ),
+    .src_req_i                  ( axi_out_req   ),
+    .src_resp_o                 ( axi_out_resp  ),
     .async_data_master_aw_data_o( async_axi_out_aw_data_o ),
     .async_data_master_aw_wptr_o( async_axi_out_aw_wptr_o ),
     .async_data_master_aw_rptr_i( async_axi_out_aw_rptr_i ),
@@ -194,7 +233,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .slv_resp_o           ( axi_out_isolate_resp ),
     .mst_req_o            ( axi_out_req          ),
     .mst_resp_i           ( axi_out_resp         ),
-    .isolate_i            ( axi_isolate_i        ),
+    .isolate_i            ( axi_isolate_sync     ),
     .isolated_o           ( axi_isolated_o       )
   );
 
@@ -228,8 +267,8 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .jtag_tdi_i,
     .jtag_tdo_o,
     .bootmode_i,
-    .fetch_enable_i   ( fetch_en_i           ),
-    .irqs_i,
+    .fetch_enable_i   ( fetch_en_sync        ),
+    .irqs_i           ( irqs_sync            ),
     .debug_req_o      ( debug_req_o          ),
     .axi_input_req_i  ( axi_in_req           ),
     .axi_input_resp_o ( axi_in_resp          ),
