@@ -95,6 +95,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
  // TODO: add atomic support to cv32 + adapter (if needed)
 
   if (SafetyIslandCfg.UseTCLS) begin
+    localparam int unsigned NumHMRCores = 3;
     localparam int unsigned NumBuses = 2;
     localparam int unsigned DataBus = 0;
     localparam int unsigned ShadowBus = 1;
@@ -156,17 +157,17 @@ module safety_core_wrap import safety_island_pkg::*; #(
       // logic [ 5:0] atop;
     } hmr_cv32e40p_bus_outputs_t;
 
-    hmr_cv32e40p_all_inputs_t       sys_inputs;
-    hmr_cv32e40p_all_inputs_t [2:0] core_inputs;
+    hmr_cv32e40p_all_inputs_t                   sys_inputs;
+    hmr_cv32e40p_all_inputs_t [NumHMRCores-1:0] core_inputs;
 
-    hmr_cv32e40p_nominal_outputs_t       sys_outputs;
-    hmr_cv32e40p_nominal_outputs_t [2:0] core_outputs;
+    hmr_cv32e40p_nominal_outputs_t                   sys_outputs;
+    hmr_cv32e40p_nominal_outputs_t [NumHMRCores-1:0] core_outputs;
 
-    hmr_cv32e40p_bus_outputs_t      [NumBuses-1:0] sys_bus_outputs;
-    hmr_cv32e40p_bus_outputs_t [2:0][NumBuses-1:0] core_bus_outputs;
-    logic                           [NumBuses-1:0] enable_bus_output;
+    hmr_cv32e40p_bus_outputs_t                  [NumBuses-1:0] sys_bus_outputs;
+    hmr_cv32e40p_bus_outputs_t [NumHMRCores-1:0][NumBuses-1:0] core_bus_outputs;
+    logic                                       [NumBuses-1:0] enable_bus_output;
 
-    logic [2:0] core_setback;
+    logic [NumHMRCores-1:0] core_setback;
 
     assign sys_inputs = '{
       pulp_clock_en:     '0,
@@ -213,7 +214,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
     assign core_irq_ready = sys_outputs.irq_ack;
 
     hmr_unit #(
-      .NumCores          (    3                           ),
+      .NumCores          ( NumHMRCores                    ),
       .DMRSupported      ( 1'b0                           ),
       .DMRFixed          ( 1'b0                           ),
       .TMRSupported      ( 1'b1                           ),
@@ -256,15 +257,15 @@ module safety_core_wrap import safety_island_pkg::*; #(
       .enable_bus_vote_i     ( enable_bus_output )
     );
 
-    for (genvar i = 0; i < 3; i++) begin
+    for (genvar i = 0; i < NumHMRCores; i++) begin
       // APU signals
-      logic                           apu_req;
+      logic                                                  apu_req;
       logic [cv32e40p_apu_core_pkg::APU_NARGS_CPU-1:0][31:0] apu_operands;
       logic [cv32e40p_apu_core_pkg::APU_WOP_CPU-1:0]         apu_op;
       logic [cv32e40p_apu_core_pkg::APU_NDSFLAGS_CPU-1:0]    apu_flags;
-      logic                           apu_gnt;
-      logic                           apu_rvalid;
-      logic [31:0]                    apu_rdata;
+      logic                                                  apu_gnt;
+      logic                                                  apu_rvalid;
+      logic [31:0]                                           apu_rdata;
       logic [cv32e40p_apu_core_pkg::APU_NUSFLAGS_CPU-1:0]    apu_rflags;
 
 `ifdef PULP_FPGA_EMUL
