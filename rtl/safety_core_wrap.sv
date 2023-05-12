@@ -269,10 +269,13 @@ module safety_core_wrap import safety_island_pkg::*; #(
       logic [cv32e40p_apu_core_pkg::APU_NUSFLAGS_CPU-1:0]    apu_rflags;
 
 `ifdef PULP_FPGA_EMUL
+      (* no_ungroup *)
       cv32e40p_core #(
 `elsif SYNTHESIS
+      (* no_ungroup *)
       cv32e40p_core #(
 `elsif VERILATOR
+      (* no_ungroup *)
       cv32e40p_core #(
 `else
       cv32e40p_wrapper #(
@@ -356,6 +359,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
       // FPU
       if (SafetyIslandCfg.UseFpu) begin : gen_safety_island_fpu
+        (* no_ungroup *)
         cv32e40p_fpu_wrap #(
           .FP_DIVSQRT (1)
         ) i_fpu (
