@@ -21,7 +21,7 @@ dependencies:
   apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }
   timer_unit:           { git: "https://github.com/pulp-platform/timer_unit.git",           version: 1.0.2 }
   obi:                  { git: "https://github.com/pulp-platform/obi.git",                  rev: "1285848" } # `main` branch
-  bus_err_unit:         { git: "git@iis-git.ee.ethz.ch:carfield/bus_err_unit.git",          rev: "ff19129" } # `main` branch
+  bus_err_unit:         { git: "git@iis-git.ee.ethz.ch:carfield/bus_err_unit.git",          rev: "47a6436" } # `main` branch
 
 sources:
   # Level 1
