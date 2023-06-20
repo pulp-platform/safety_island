@@ -1,4 +1,4 @@
-PULP_APP = clic-mnxti
+PULP_APP = runtime_clic_mnxti
 PULP_APP_FC_SRCS = clic-mnxti.c
 PULP_APP_HOST_SRCS = clic-mnxti.c
 PULP_APP_ASM_SRCS = handler.S

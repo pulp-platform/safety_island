@@ -1,4 +1,4 @@
-PULP_APP = clic-nested
+PULP_APP = runtime_clic_nested
 PULP_APP_FC_SRCS = clic-nested.c
 PULP_APP_HOST_SRCS = clic-nested.c
 PULP_APP_ASM_SRCS = handler.S
