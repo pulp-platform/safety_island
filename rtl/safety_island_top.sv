@@ -889,7 +889,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .DEBUG_TYPE ( "PE" ),
     .SILENT_MODE ( "OFF" ),
     .FULL_LINE   ( "ON" ),
-    .COLORED_MODE ( "ON" )
+    .COLORED_MODE ( "OFF" )
   ) i_fs_handler (
     .clk_i  ( clk_i          ),
     .rst_ni ( rst_ni         ),
