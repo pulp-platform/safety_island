@@ -12,42 +12,20 @@ module tb_safety_island_preloaded;
 
   fixture_safety_island fixt_safety_island();
 
-  logic [31:0] entry_point;
-  int          exit_status;
+  string       preload_elf;
+  bit   [31:0] exit_code;
+  bit          exit_status;
 
-  // pms boot driver process (AXI)
   initial begin : axi_boot_process
-    fixt_safety_island.set_bootmode(safety_island_pkg::Preloaded);
 
-    // Init AXI driver
-    fixt_safety_island.init_axi_driver();
+    if (!$value$plusargs("BINARY=%s",   preload_elf))   preload_elf   = "";
 
-    // Read entry point (different for pulp-runtime/freertos)
-    fixt_safety_island.read_entry_point(entry_point);
+    fixt_safety_island.vip.set_safed_boot_mode(safety_island_pkg::Preloaded);
+    fixt_safety_island.vip.safed_wait_for_reset();
+    fixt_safety_island.vip.axi_safed_elf_run(preload_elf);
+    fixt_safety_island.vip.axi_safed_wait_for_eoc(exit_code, exit_status);
 
-    // Reset pms
-    fixt_safety_island.apply_rstn();
-
-    #5us;
-
-    // Load binary into L2
-    fixt_safety_island.axi_load_binary();
-
-    // Select bootmode
-    fixt_safety_island.axi_select_bootmode(32'h0000_0001);
-
-    // Write entry point into boot address register
-    fixt_safety_island.axi_write_entry_point(entry_point);
-
-    // Assert fetch enable through CSRs
-    fixt_safety_island.axi_write_fetch_enable();
-
-    #500us;
-
-    // Wait for EOC
-    fixt_safety_island.axi_wait_for_eoc(exit_status);
-
-    $stop;
+    $finish;
   end  // block: axi_boot_process
 
 endmodule
