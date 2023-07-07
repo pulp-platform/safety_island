@@ -15,6 +15,15 @@ packages:
     - common_cells
     - common_verification
     - tech_cells_generic
+  axi_riscv_atomics:
+    revision: 97dcb14ef057cbe5bd70dda2060b5bb9e7e04c6d
+    version: 0.7.0
+    source:
+      Git: https://github.com/pulp-platform/axi_riscv_atomics.git
+    dependencies:
+    - axi
+    - common_cells
+    - common_verification
   bus_err_unit:
     revision: 47a6436dc4b4b7f4a44f7786033b22c6d01530b2
     version: null
@@ -39,8 +48,8 @@ packages:
     dependencies:
     - common_cells
   common_cells:
-    revision: 4ac82b420e46fd0005513ca2283cb3c905e7599a
-    version: 1.29.0
+    revision: 0989ff73d0315922791bf42137c0ce0cbb4a76ca
+    version: 1.30.0
     source:
       Git: https://github.com/pulp-platform/common_cells.git
     dependencies:

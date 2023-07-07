@@ -12,28 +12,22 @@ module tb_safety_island_jtag;
 
   fixture_safety_island fixt_safety_island();
 
-  logic [31:0] entry_point;
-  int exit_status;
+  string       preload_elf;
+  bit   [31:0] exit_code;
+  bit          exit_status;
 
   initial begin : jtag_boot_process
-    fixt_safety_island.set_bootmode(safety_island_pkg::Jtag);
-    fixt_safety_island.init_axi_driver();
 
-    fixt_safety_island.read_entry_point(entry_point);
+    if (!$value$plusargs("BINARY=%s",   preload_elf))   preload_elf   = "";
 
-    fixt_safety_island.apply_rstn();
+    fixt_safety_island.vip.set_safed_boot_mode(safety_island_pkg::Jtag);
+    fixt_safety_island.vip.safed_wait_for_reset();
+    fixt_safety_island.vip.jtag_safed_init();
+    fixt_safety_island.vip.jtag_write_test(32'h0000_1000, 32'hABBA_ABBA);
+    fixt_safety_island.vip.jtag_safed_elf_run(preload_elf);
+    fixt_safety_island.vip.jtag_safed_wait_for_eoc(exit_code, exit_status);
 
-    fixt_safety_island.jtag_reset();
-
-    fixt_safety_island.jtag_smoke_tests(entry_point);
-
-    fixt_safety_island.jtag_load_binary(entry_point);
-
-    fixt_safety_island.jtag_resume_hart();
-
-    fixt_safety_island.jtag_wait_for_eoc(exit_status);
-
-    $stop;
+    $finish;
   end // block: jtag_boot_process
 
 endmodule

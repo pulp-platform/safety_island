@@ -75,6 +75,7 @@ $(SAFED_SIM_DIR)/compile.tcl: $(SAFED_ROOT)/.deps
 	bender script vsim -p safety_island -t test -t rtl -t cv32e40p_use_ff_regfile \
 		--vlog-arg="$(VLOG_ARGS)" --vcom-arg="" \
 		| grep -v "set ROOT" >> $(SAFED_SIM_DIR)/compile.tcl
+	echo 'vlog "$$ROOT/rtl/tb/elfloader.cpp" -ccflags "-std=c++11"' >> $(SAFED_SIM_DIR)/compile.tcl
 
 clean_$(SAFED_SIM_DIR)/compile.tcl:
 	rm -rf $(SAFED_SIM_DIR)/compile.tcl
