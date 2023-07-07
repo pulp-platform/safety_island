@@ -1,8 +1,8 @@
-PULP_APP = clic-enter-leave
+PULP_APP = runtime_clic_enter_leave
 PULP_APP_FC_SRCS = clic-enter-leave.c
 PULP_APP_HOST_SRCS = clic-enter-leave.c
 PULP_APP_ASM_SRCS = handler.S
-PULP_CFLAGS = -Os -g3 -Wall -Wextra -I../../runtime_shared/include \
+PULP_CFLAGS = -Os -g3 -Wall -Wextra -I../runtime_shared/include \
 	-Wno-unused-parameter -Wno-unused-function -Wno-unused-variable \
 	-Wnull-dereference -Wformat=2
 
