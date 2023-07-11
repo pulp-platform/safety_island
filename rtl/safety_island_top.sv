@@ -138,25 +138,28 @@ module safety_island_top import safety_island_pkg::*; #(
   localparam int unsigned NumPeriphRules = 7;
 `endif
 
-  localparam int unsigned NumSubordinates = 4;
-  localparam int unsigned NumRules = (MemOffset != 0) ? 4 : 3;
+  localparam int unsigned NumSubordinates = 2 + SafetyIslandCfg.NumBanks;
+  localparam int unsigned NumRules = (MemOffset != 0) ? 2 + SafetyIslandCfg.NumBanks : 1 + SafetyIslandCfg.NumBanks;
 
-  // MemOffset != 0
-  localparam addr_map_rule_t [3:0] large_addr_map = '{             // 0: below/above address space, so AXI out (default)
-    '{ idx: 1, start_addr: BaseAddr32+MemOffset,                                end_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes  }, // 1: Bank 0
-    '{ idx: 2, start_addr: BaseAddr32+MemOffset+SafetyIslandCfg.BankNumBytes,   end_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes}, // 2: Bank 1
-    '{ idx: 3, start_addr: BaseAddr32+MemOffset+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange},                 // 3: Periphs
-    '{ idx: 3, start_addr: BaseAddr32,                                          end_addr: BaseAddr32+MemOffset}                  // 3: Periphs
-  };
+  function automatic addr_map_rule_t [NumRules-1:0] gen_xbar_addr_rules();
+    addr_map_rule_t [NumRules-1:0] ret;
+    for (int i = 0; i < SafetyIslandCfg.NumBanks; i++) begin
+      ret[i] = '{ idx: i+1,
+                  start_addr: BaseAddr32+MemOffset+( i   *SafetyIslandCfg.BankNumBytes),
+                  end_addr:   BaseAddr32+MemOffset+((i+1)*SafetyIslandCfg.BankNumBytes)};
+    end
+    if (MemOffset != 0) begin
+      ret[NumRules-2] = '{ idx: NumSubordinates-1, // 3: Periphs
+                           start_addr: BaseAddr32,
+                           end_addr: BaseAddr32+MemOffset};
+    end
+    ret[NumRules-1]   = '{ idx: NumSubordinates-1, // 3: Periphs
+                         start_addr: BaseAddr32+MemOffset+SafetyIslandCfg.NumBanks*SafetyIslandCfg.BankNumBytes,
+                         end_addr: BaseAddr32+AddrRange};
+    return ret;
+  endfunction
 
-  // MemOffest == 0
-  localparam addr_map_rule_t [2:0] small_addr_map = '{             // 0: below/above address space, so AXI out (default)
-    '{ idx: 1, start_addr: BaseAddr32,                                end_addr: BaseAddr32+SafetyIslandCfg.BankNumBytes  }, // 1: Bank 0
-    '{ idx: 2, start_addr: BaseAddr32+SafetyIslandCfg.BankNumBytes,   end_addr: BaseAddr32+2*SafetyIslandCfg.BankNumBytes}, // 2: Bank 1
-    '{ idx: 3, start_addr: BaseAddr32+2*SafetyIslandCfg.BankNumBytes, end_addr: BaseAddr32+AddrRange}                 // 3: Periphs
-  };
-
-  localparam addr_map_rule_t [NumRules-1:0] main_addr_map = (MemOffset != 0) ? large_addr_map : small_addr_map;
+  localparam addr_map_rule_t [NumRules-1:0] main_addr_map = gen_xbar_addr_rules();
 
   localparam addr_map_rule_t [NumPeriphRules-1:0] periph_addr_map = '{                                  // 0: Error subordinate (default)
     '{ idx: PeriphSocCtrl,       start_addr: PeriphBaseAddr+SocCtrlAddrOffset,       end_addr: PeriphBaseAddr+SocCtrlAddrOffset+      SocCtrlAddrRange},       // 1: SoC control
@@ -218,16 +221,11 @@ module safety_island_top import safety_island_pkg::*; #(
   // Subordinate buses
   // -----------------
 
-  // mem bank0 bus
-  xbar_sbr_obi_req_t xbar_mem_bank0_obi_req;
-  xbar_sbr_obi_rsp_t xbar_mem_bank0_obi_rsp;
-  sbr_obi_req_t mem_bank0_obi_req;
-  sbr_obi_rsp_t mem_bank0_obi_rsp;
-  // mem bank1 bus
-  xbar_sbr_obi_req_t xbar_mem_bank1_obi_req;
-  xbar_sbr_obi_rsp_t xbar_mem_bank1_obi_rsp;
-  sbr_obi_req_t mem_bank1_obi_req;
-  sbr_obi_rsp_t mem_bank1_obi_rsp;
+  // mem bank buses
+  xbar_sbr_obi_req_t [SafetyIslandCfg.NumBanks-1:0] xbar_mem_bank_obi_req;
+  xbar_sbr_obi_rsp_t [SafetyIslandCfg.NumBanks-1:0] xbar_mem_bank_obi_rsp;
+  sbr_obi_req_t [SafetyIslandCfg.NumBanks-1:0] mem_bank_obi_req;
+  sbr_obi_rsp_t [SafetyIslandCfg.NumBanks-1:0] mem_bank_obi_rsp;
 
   // axi output bus
   xbar_sbr_obi_req_t axi_output_obi_req;
@@ -244,12 +242,12 @@ module safety_island_top import safety_island_pkg::*; #(
   xbar_sbr_obi_rsp_t [NumSubordinates-1:0] all_slv_obi_rsp;
   assign axi_output_obi_req = all_slv_obi_req[0];
   assign all_slv_obi_rsp[0] = axi_output_obi_rsp;
-  assign xbar_mem_bank0_obi_req  = all_slv_obi_req[1];
-  assign all_slv_obi_rsp[1] = xbar_mem_bank0_obi_rsp;
-  assign xbar_mem_bank1_obi_req  = all_slv_obi_req[2];
-  assign all_slv_obi_rsp[2] = xbar_mem_bank1_obi_rsp;
-  assign xbar_periph_obi_req     = all_slv_obi_req[3];
-  assign all_slv_obi_rsp[3] = xbar_periph_obi_rsp;
+  for (genvar i = 0; i < SafetyIslandCfg.NumBanks; i++) begin
+    assign xbar_mem_bank_obi_req[i] = all_slv_obi_req[i+1];
+    assign all_slv_obi_rsp[i+1]     = xbar_mem_bank_obi_rsp[i];
+  end
+  assign xbar_periph_obi_req     = all_slv_obi_req[NumSubordinates-1];
+  assign all_slv_obi_rsp[NumSubordinates-1] = xbar_periph_obi_rsp;
 
   // -----------------
   // Peripheral buses
@@ -537,170 +535,92 @@ module safety_island_top import safety_island_pkg::*; #(
   // -----------------
   // Memories
   // -----------------
-  
-  obi_atop_resolver #(
-    .SbrPortObiCfg             ( XbarSbrObiCfg        ),
-    .MgrPortObiCfg             ( SbrObiCfg            ),
-    .sbr_port_obi_req_t        ( xbar_sbr_obi_req_t   ),
-    .sbr_port_obi_rsp_t        ( xbar_sbr_obi_rsp_t   ),
-    .mgr_port_obi_req_t        ( sbr_obi_req_t        ),
-    .mgr_port_obi_rsp_t        ( sbr_obi_rsp_t        ),
-    .mgr_port_obi_a_optional_t ( sbr_obi_a_optional_t ),
-    .mgr_port_obi_r_optional_t ( sbr_obi_r_optional_t ),
-    .LrScEnable                ( 1                    ),
-    .RegisterAmo               ( 1'b0                 )
-  ) i_bank0_atop_resolver (
-    .clk_i,
-    .rst_ni,
-    .testmode_i     ( test_enable_i          ),
-    .sbr_port_req_i ( xbar_mem_bank0_obi_req ),
-    .sbr_port_rsp_o ( xbar_mem_bank0_obi_rsp ),
-    .mgr_port_req_o ( mem_bank0_obi_req      ),
-    .mgr_port_rsp_i ( mem_bank0_obi_rsp      )
-  );
 
-  logic [1:0] bank_faults;
-  logic [1:0] scrub_fix;
-  logic [1:0] scrub_uncorrectable;
-  logic [1:0] scrub_trigger;
+  logic [SafetyIslandCfg.NumBanks-1:0] bank_faults;
+  logic [SafetyIslandCfg.NumBanks-1:0] scrub_fix;
+  logic [SafetyIslandCfg.NumBanks-1:0] scrub_uncorrectable;
+  logic [SafetyIslandCfg.NumBanks-1:0] scrub_trigger;
 
-  sbr_obi_rsp_t tmp_bank0_obi_rsp;
-  logic bank0_req, bank0_we, bank0_gnt, bank0_single_err;
-  logic [AddrWidth-1:0] bank0_addr;
-  logic [DataWidth-1:0] bank0_wdata, bank0_rdata;
-  logic [DataWidth/8-1:0] bank0_be;
+  for (genvar i = 0; i < SafetyIslandCfg.NumBanks; i++) begin : gen_sram_bank
+    obi_atop_resolver #(
+      .SbrPortObiCfg             ( XbarSbrObiCfg        ),
+      .MgrPortObiCfg             ( SbrObiCfg            ),
+      .sbr_port_obi_req_t        ( xbar_sbr_obi_req_t   ),
+      .sbr_port_obi_rsp_t        ( xbar_sbr_obi_rsp_t   ),
+      .mgr_port_obi_req_t        ( sbr_obi_req_t        ),
+      .mgr_port_obi_rsp_t        ( sbr_obi_rsp_t        ),
+      .mgr_port_obi_a_optional_t ( sbr_obi_a_optional_t ),
+      .mgr_port_obi_r_optional_t ( sbr_obi_r_optional_t ),
+      .LrScEnable                ( 1                    ),
+      .RegisterAmo               ( 1'b0                 )
+    ) i_bank_atop_resolver (
+      .clk_i,
+      .rst_ni,
+      .testmode_i     ( test_enable_i            ),
+      .sbr_port_req_i ( xbar_mem_bank_obi_req[i] ),
+      .sbr_port_rsp_o ( xbar_mem_bank_obi_rsp[i] ),
+      .mgr_port_req_o ( mem_bank_obi_req[i]      ),
+      .mgr_port_rsp_i ( mem_bank_obi_rsp[i]      )
+    );
 
-  always_comb begin
-    mem_bank0_obi_rsp = tmp_bank0_obi_rsp;
-    mem_bank0_obi_rsp.r.r_optional.ruser = bank0_single_err;
+    sbr_obi_rsp_t tmp_bank_obi_rsp;
+    logic bank_req, bank_we, bank_gnt, bank_single_err;
+    logic [AddrWidth-1:0] bank_addr;
+    logic [DataWidth-1:0] bank_wdata, bank_rdata;
+    logic [DataWidth/8-1:0] bank_be;
+
+    always_comb begin
+      mem_bank_obi_rsp[i] = tmp_bank_obi_rsp;
+      mem_bank_obi_rsp[i].r.r_optional.ruser = bank_single_err;
+    end
+
+    obi_sram_shim #(
+      .ObiCfg    ( SbrObiCfg     ),
+      .obi_req_t ( sbr_obi_req_t ),
+      .obi_rsp_t ( sbr_obi_rsp_t )
+    ) i_sram_shim_bank (
+      .clk_i,
+      .rst_ni,
+
+      .obi_req_i ( mem_bank_obi_req[i] ),
+      .obi_rsp_o ( tmp_bank_obi_rsp ),
+
+      .req_o   ( bank_req   ),
+      .we_o    ( bank_we    ),
+      .addr_o  ( bank_addr  ),
+      .wdata_o ( bank_wdata ),
+      .be_o    ( bank_be    ),
+
+      .gnt_i   ( bank_gnt   ),
+      .rdata_i ( bank_rdata )
+    );
+
+    ecc_sram_wrap #(
+      .BankSize        (BankNumWords),
+      .InputECC        (0),
+      .EnableTestMask  (0)
+    ) i_mem_bank (
+      .clk_i,
+      .rst_ni,
+      .test_enable_i         ( test_enable_i ),
+
+      .scrub_trigger_i       ( scrub_trigger      [i] ),
+      .scrubber_fix_o        ( scrub_fix          [i] ),
+      .scrub_uncorrectable_o ( scrub_uncorrectable[i] ),
+
+      .tcdm_wdata_i          ( bank_wdata ),
+      .tcdm_add_i            ( bank_addr  ),
+      .tcdm_req_i            ( bank_req   ),
+      .tcdm_wen_i            ( ~bank_we   ),
+      .tcdm_be_i             ( bank_be    ),
+      .tcdm_rdata_o          ( bank_rdata ),
+      .tcdm_gnt_o            ( bank_gnt   ),
+      .single_error_o        ( bank_faults[i] ),
+      .multi_error_o         ( bank_single_err ),
+
+      .test_write_mask_ni    ( '0 )
+    );
   end
-
-  obi_sram_shim #(
-    .ObiCfg    ( SbrObiCfg     ),
-    .obi_req_t ( sbr_obi_req_t ),
-    .obi_rsp_t ( sbr_obi_rsp_t )
-  ) i_sram_shim_bank0 (
-    .clk_i,
-    .rst_ni,
-
-    .obi_req_i ( mem_bank0_obi_req ),
-    .obi_rsp_o ( tmp_bank0_obi_rsp ),
-
-    .req_o   ( bank0_req   ),
-    .we_o    ( bank0_we    ),
-    .addr_o  ( bank0_addr  ),
-    .wdata_o ( bank0_wdata ),
-    .be_o    ( bank0_be    ),
-
-    .gnt_i   ( bank0_gnt   ),
-    .rdata_i ( bank0_rdata )
-  );
-
-  ecc_sram_wrap #(
-    .BankSize        (BankNumWords),
-    .InputECC        (0),
-    .EnableTestMask  (0)
-  ) i_mem_bank0 (
-    .clk_i,
-    .rst_ni,
-    .test_enable_i         ( test_enable_i ),
-
-    .scrub_trigger_i       ( scrub_trigger      [0] ),
-    .scrubber_fix_o        ( scrub_fix          [0] ),
-    .scrub_uncorrectable_o ( scrub_uncorrectable[0] ),
-
-    .tcdm_wdata_i          ( bank0_wdata ),
-    .tcdm_add_i            ( bank0_addr  ),
-    .tcdm_req_i            ( bank0_req   ),
-    .tcdm_wen_i            ( ~bank0_we   ),
-    .tcdm_be_i             ( bank0_be    ),
-    .tcdm_rdata_o          ( bank0_rdata ),
-    .tcdm_gnt_o            ( bank0_gnt   ),
-    .single_error_o        ( bank_faults[0] ),
-    .multi_error_o         ( bank0_single_err ),
-
-    .test_write_mask_ni    ( '0 )
-  );
-
-  obi_atop_resolver #(
-    .SbrPortObiCfg             ( XbarSbrObiCfg        ),
-    .MgrPortObiCfg             ( SbrObiCfg            ),
-    .sbr_port_obi_req_t        ( xbar_sbr_obi_req_t   ),
-    .sbr_port_obi_rsp_t        ( xbar_sbr_obi_rsp_t   ),
-    .mgr_port_obi_req_t        ( sbr_obi_req_t        ),
-    .mgr_port_obi_rsp_t        ( sbr_obi_rsp_t        ),
-    .mgr_port_obi_a_optional_t ( sbr_obi_a_optional_t ),
-    .mgr_port_obi_r_optional_t ( sbr_obi_r_optional_t ),
-    .LrScEnable                ( 1                    ),
-    .RegisterAmo               ( 1'b0                 )
-  ) i_bank1_atop_resolver (
-    .clk_i,
-    .rst_ni,
-    .testmode_i     ( test_enable_i          ),
-    .sbr_port_req_i ( xbar_mem_bank1_obi_req ),
-    .sbr_port_rsp_o ( xbar_mem_bank1_obi_rsp ),
-    .mgr_port_req_o ( mem_bank1_obi_req      ),
-    .mgr_port_rsp_i ( mem_bank1_obi_rsp      )
-  );
-
-
-  sbr_obi_rsp_t tmp_bank1_obi_rsp;
-  logic bank1_req, bank1_we, bank1_gnt, bank1_single_err;
-  logic [AddrWidth-1:0] bank1_addr;
-  logic [DataWidth-1:0] bank1_wdata, bank1_rdata;
-  logic [DataWidth/8-1:0] bank1_be;
-
-  always_comb begin
-    mem_bank1_obi_rsp = tmp_bank1_obi_rsp;
-    mem_bank1_obi_rsp.r.r_optional.ruser = bank1_single_err;
-  end
-
-  obi_sram_shim #(
-    .ObiCfg    ( SbrObiCfg     ),
-    .obi_req_t ( sbr_obi_req_t ),
-    .obi_rsp_t ( sbr_obi_rsp_t )
-  ) i_sram_shim_bank1 (
-    .clk_i,
-    .rst_ni,
-
-    .obi_req_i ( mem_bank1_obi_req ),
-    .obi_rsp_o ( tmp_bank1_obi_rsp ),
-
-    .req_o   ( bank1_req   ),
-    .we_o    ( bank1_we    ),
-    .addr_o  ( bank1_addr  ),
-    .wdata_o ( bank1_wdata ),
-    .be_o    ( bank1_be    ),
-
-    .gnt_i   ( bank1_gnt   ),
-    .rdata_i ( bank1_rdata )
-  );
-
-  ecc_sram_wrap #(
-    .BankSize        (BankNumWords),
-    .InputECC        (0),
-    .EnableTestMask  (0)
-  ) i_mem_bank1 (
-    .clk_i,
-    .rst_ni,
-    .test_enable_i         ( test_enable_i ),
-
-    .scrub_trigger_i       ( scrub_trigger      [1] ),
-    .scrubber_fix_o        ( scrub_fix          [1] ),
-    .scrub_uncorrectable_o ( scrub_uncorrectable[1] ),
-
-    .tcdm_wdata_i          ( bank1_wdata ),
-    .tcdm_add_i            ( bank1_addr  ),
-    .tcdm_req_i            ( bank1_req   ),
-    .tcdm_wen_i            ( ~bank1_we   ),
-    .tcdm_be_i             ( bank1_be    ),
-    .tcdm_rdata_o          ( bank1_rdata ),
-    .tcdm_gnt_o            ( bank1_gnt   ),
-    .single_error_o        ( bank_faults[1] ),
-    .multi_error_o         ( bank1_single_err ),
-
-    .test_write_mask_ni    ( '0 )
-  );
 
   // ECC Manager
   periph_to_reg #(
@@ -733,7 +653,7 @@ module safety_island_top import safety_island_pkg::*; #(
   assign ecc_mgr_obi_rsp.r.r_optional = '0;
 
   ecc_manager #(
-    .NumBanks      ( 2                ),
+    .NumBanks      ( SafetyIslandCfg.NumBanks ),
     .ecc_mgr_req_t ( safety_reg_req_t ),
     .ecc_mgr_rsp_t ( safety_reg_rsp_t )
   ) i_ecc_manager (

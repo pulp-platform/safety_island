@@ -78,6 +78,7 @@ package safety_island_pkg;
   typedef struct packed {
     int unsigned              HartId;
     int unsigned              BankNumBytes;
+    int unsigned              NumBanks;
     int unsigned              PulpJtagIdCode;
     int unsigned              NumTimers;         // Number of Timers. Warning:
                                                  // currently, we only support
@@ -110,6 +111,7 @@ package safety_island_pkg;
   localparam safety_island_cfg_t SafetyIslandDefaultConfig = '{
     HartId:             32'd8,
     BankNumBytes:       32'h0001_0000,
+    NumBanks:           32'd2,
     // JTAG ID code:
     // LSB                        [0]:     1'h1
     // PULP Platform Manufacturer [11:1]:  11'h6d9
