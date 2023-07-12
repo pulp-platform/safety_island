@@ -21,6 +21,7 @@ package safety_island_pkg;
     PeriphBootROM,
     PeriphGlobalPrepend,
     PeriphDebug,
+    PeriphEccManager,
     PeriphTimer,
     PeriphCoreLocal
 `ifdef TARGET_SIMULATION
@@ -53,6 +54,8 @@ package safety_island_pkg;
   localparam bit [31:0] GlobalPrependAddrRange  = 32'h0000_1000;
   localparam bit [31:0] DebugAddrOffset = 32'h0000_3000;
   localparam bit [31:0] DebugAddrRange  = 32'h0000_1000;
+  localparam bit [31:0] EccManagerAddrOffset = 32'h0000_4000;
+  localparam bit [31:0] EccManagerAddrRange = 32'h0000_0040; // Temporary for 2 banks
   localparam bit [31:0] TBPrintfAddrOffset = 32'h0000_6000;
   localparam bit [31:0] TBPrintfAddrRange  = 32'h0000_1000;
   localparam bit [31:0] TimerAddrOffset = 32'h0000_8000;
