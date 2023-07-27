@@ -35,6 +35,7 @@ package safety_island_synth_pkg;
   localparam SynthSafetyIslandPeriphOffset = 32'h0020_0000;
 
   localparam SynthLogDepth = 3;
+  localparam SynthCdcSyncStages = 2;
 
   localparam SynthAsyncAxiInAwWidth = (2**SynthLogDepth)*axi_pkg::aw_width(SynthAxiAddrWidth, SynthAxiInIdWidth, SynthAxiUserWidth);//$bits(synth_axi_in_aw_chan_t);
   localparam SynthAsyncAxiInWWidth  = (2**SynthLogDepth)*axi_pkg::w_width(SynthAxiDataWidth, SynthAxiUserWidth);//$bits(synth_axi_in_w_chan_t);

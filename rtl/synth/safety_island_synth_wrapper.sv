@@ -19,6 +19,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter int unsigned AxiInIdWidth  = SynthAxiInIdWidth,
   parameter int unsigned AxiOutIdWidth = SynthAxiOutIdWidth,
   parameter int unsigned LogDepth      = SynthLogDepth,
+  parameter int unsigned CdcSyncStages = SynthCdcSyncStages,
 
   parameter int unsigned SyncStages    = 3,
   
@@ -156,6 +157,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
 
   axi_cdc_dst #(
     .LogDepth   ( LogDepth         ),
+    .SyncStages ( CdcSyncStages    ),
     .aw_chan_t  ( axi_in_aw_chan_t ),
     .w_chan_t   ( axi_in_w_chan_t  ),
     .b_chan_t   ( axi_in_b_chan_t  ),
@@ -187,6 +189,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
 
   axi_cdc_src #(
     .LogDepth   ( LogDepth          ),
+    .SyncStages ( CdcSyncStages     ),
     .aw_chan_t  ( axi_out_aw_chan_t ),
     .w_chan_t   ( axi_out_w_chan_t  ),
     .b_chan_t   ( axi_out_b_chan_t  ),
