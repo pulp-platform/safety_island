@@ -25,8 +25,13 @@ module fixture_safety_island;
   // Safety Island Configs
   parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = SafetyIslandDefaultConfig;
 
+`ifdef SAFED_POSTLAYOUT
+  localparam int unsigned              GlobalAddrWidth = 48;
+  localparam bit [GlobalAddrWidth-1:0] BaseAddr        = 48'h0000_6000_0000;
+`else // SAFED_POSTLAYOUT
   localparam int unsigned              GlobalAddrWidth = 32;
   localparam bit [GlobalAddrWidth-1:0] BaseAddr        = 32'h0000_0000;
+`endif // SAFED_POSTLAYOUT
   localparam bit [31:0]                AddrRange       = 32'h0080_0000;
   localparam bit [31:0]                MemOffset       = 32'h0000_0000;
   localparam bit [31:0]                PeriphOffset    = 32'h0020_0000;
@@ -40,8 +45,8 @@ module fixture_safety_island;
   // Global AXI Configs
   localparam int unsigned AxiDataWidth     = 64;
   localparam int unsigned AxiAddrWidth     = GlobalAddrWidth;
-  localparam int unsigned AxiInputIdWidth  = 4;
-  localparam int unsigned AxiUserWidth     = 1;
+  localparam int unsigned AxiInputIdWidth  = 6;
+  localparam int unsigned AxiUserWidth     = 10;
   localparam int unsigned AxiOutputIdWidth = 2;
 
   `AXI_TYPEDEF_ALL(axi_input,  logic[AxiAddrWidth-1:0], logic[AxiInputIdWidth-1:0],  logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0], logic[AxiUserWidth-1:0])
@@ -108,6 +113,7 @@ module fixture_safety_island;
 
   axi_cdc_src #(
     .LogDepth  ( LogDepth            ),
+    .SyncStages( 3                   ),
     .aw_chan_t ( axi_input_aw_chan_t ),
     .w_chan_t  ( axi_input_w_chan_t  ),
     .b_chan_t  ( axi_input_b_chan_t  ),
@@ -140,6 +146,7 @@ module fixture_safety_island;
 
   axi_cdc_dst #(
     .LogDepth   ( LogDepth ),
+    .SyncStages ( 3        ),
     .aw_chan_t  ( axi_output_aw_chan_t ),
     .w_chan_t   ( axi_output_w_chan_t  ),
     .b_chan_t   ( axi_output_b_chan_t  ),
@@ -170,6 +177,9 @@ module fixture_safety_island;
     .dst_resp_i                 ( to_ext_resp )
   );
 
+`ifdef SAFED_POSTLAYOUT
+  safety_island
+`else // SAFED_POSTLAYOUT
   safety_island_synth_wrapper #(
     .SafetyIslandCfg         ( SafetyIslandCfg  ),
     .AxiAddrWidth            ( AxiAddrWidth     ),
@@ -178,6 +188,8 @@ module fixture_safety_island;
     .AxiInIdWidth            ( AxiInputIdWidth  ),
     .AxiOutIdWidth           ( AxiOutputIdWidth ),
     .LogDepth                ( LogDepth         ),
+    .CdcSyncStages           ( 3                ),
+    .SyncStages              ( 3                ),
 
     .SafetyIslandBaseAddr    ( BaseAddr     ),
     .SafetyIslandAddrRange   ( AddrRange    ),
@@ -210,7 +222,9 @@ module fixture_safety_island;
     .AsyncAxiOutBWidth       ( AsyncOutBWidth  ),
     .AsyncAxiOutArWidth      ( AsyncOutArWidth ),
     .AsyncAxiOutRWidth       ( AsyncOutRWidth  )
-  ) i_dut (
+  )
+`endif // SAFED_POSTLAYOUT
+  i_dut (
     .clk_i                   ( s_clk         ),
     .ref_clk_i               ( s_ref_clk     ),
     .rst_ni                  ( s_rst_n       ),
