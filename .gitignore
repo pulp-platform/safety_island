@@ -5,6 +5,7 @@ sim/work
 sim/modelsim.ini
 sim/transcript
 pulp-runtime
+pulp-freertos
 nonfree/
 working_dir/
 spyglass/

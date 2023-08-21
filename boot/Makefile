@@ -36,8 +36,12 @@ CFLAGS   = $(ARCH) -Os -g3 -UARCHI_CORE_HAS_PULPV2 -DRV_ISA_RV32
 CFLAGS	+= -Wall -Wextra -Wno-unused-parameter -Wno-clobbered
 CFLAGS  += -ffunction-sections -fdata-sections -ffreestanding
 CFLAGS  += -mno-save-restore
+ifdef CARFIELD
+CFLAGS += -DCARFIELD
+endif
 
-CPPFLAGS  += -DEXIT_REG_ADDR=0x1a1040a0 -DPULP_CHIP_STR=safety-island
+# CPPFLAGS  += -DEXIT_REG_ADDR=0x1a1040a0 -DPULP_CHIP_STR=safety-island
+CPPFLAGS  += -DPULP_CHIP_STR=safety-island
 
 CPPFLAGS += -I$(CURDIR) -I$(CURDIR)/include
 
@@ -47,7 +51,12 @@ CPPFLAGS += -I$(CURDIR) -I$(CURDIR)/include
 
 ASFLAGS  = $(CFLAGS) -DLANGUAGE_ASSEMBLY
 
-LDFLAGS  = -Tlink.ld -nostdlib -Wl,--gc-sections -Wl,-Map,boot_code.map $(ARCH)
+ifdef CARFIELD
+LDFLAGS = -Tlink_carfield.ld
+else
+LDFLAGS = -Tlink.ld
+endif
+LDFLAGS  += -nostdlib -Wl,--gc-sections -Wl,-Map,boot_code.map $(ARCH)
 LDFLAGS  += -Wl,--print-gc-sections
 LDLIBS = -lgcc
 
@@ -89,10 +98,17 @@ boot.gvsoc: rom.bin
 
 # gvsoc bootrom
 rom.bin: $(BOOTCODE)
+ifdef CARFIELD
+	./stim_utils.py  \
+		--binary=$(BOOTCODE) \
+		--stim-bin=rom.bin \
+		--area=0x60201000:0x60202000
+else
 	./stim_utils.py  \
 		--binary=$(BOOTCODE) \
 		--stim-bin=rom.bin \
 		--area=0x00201000:0x00202000
+endif
 
 # The rtl bootrom is just a verilog dump of the elf file
 boot.rtl: boot_code_asic.cde
