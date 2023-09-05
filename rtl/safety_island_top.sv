@@ -80,7 +80,19 @@ module safety_island_top import safety_island_pkg::*; #(
   localparam int unsigned NumManagers = 5; // AXI, DBG, Core Instr, Core Data, Core Shadow
 
   // typedef obi for default config
-  localparam obi_pkg::obi_optional_cfg_t ObiSiOptionalCfg= '{
+  localparam obi_pkg::obi_optional_cfg_t MgrObiOptionalCfg= '{
+    UseAtop:    1'b1,
+    UseMemtype: 1'b0,
+    UseProt:    1'b0,
+    UseDbg:     1'b0,
+    AUserWidth:    0,
+    WUserWidth:    0,
+    RUserWidth:    1,
+    MidWidth:      0,
+    AChkWidth:     0,
+    RChkWidth:     0
+  };
+  localparam obi_pkg::obi_optional_cfg_t SbrObiOptionalCfg= '{
     UseAtop:    1'b0,
     UseMemtype: 1'b0,
     UseProt:    1'b0,
@@ -92,19 +104,29 @@ module safety_island_top import safety_island_pkg::*; #(
     AChkWidth:     0,
     RChkWidth:     0
   };
-  localparam obi_pkg::obi_cfg_t MgrObiCfg = obi_pkg::obi_default_cfg(32, 32, 1, ObiSiOptionalCfg);
-  localparam obi_pkg::obi_cfg_t SbrObiCfg = obi_pkg::mux_grow_cfg(MgrObiCfg, NumManagers);
-  `OBI_TYPEDEF_MINIMAL_A_OPTIONAL(obi_a_optional_t)
+  localparam obi_pkg::obi_cfg_t MgrObiCfg = obi_pkg::obi_default_cfg(AddrWidth, DataWidth, AxiInputIdWidth, MgrObiOptionalCfg);
+  localparam obi_pkg::obi_cfg_t XbarSbrObiCfg = obi_pkg::mux_grow_cfg(MgrObiCfg, NumManagers);
+  localparam obi_pkg::obi_cfg_t SbrObiCfg = obi_pkg::obi_default_cfg(AddrWidth, DataWidth, XbarSbrObiCfg.IdWidth, SbrObiOptionalCfg);
+  `OBI_TYPEDEF_ATOP_A_OPTIONAL(obi_a_optional_t)
+  `OBI_TYPEDEF_MINIMAL_A_OPTIONAL(sbr_obi_a_optional_t)
   `OBI_TYPEDEF_A_CHAN_T(mgr_obi_a_chan_t, MgrObiCfg.AddrWidth, MgrObiCfg.DataWidth, MgrObiCfg.IdWidth, obi_a_optional_t)
-  `OBI_TYPEDEF_A_CHAN_T(sbr_obi_a_chan_t, SbrObiCfg.AddrWidth, SbrObiCfg.DataWidth, SbrObiCfg.IdWidth, obi_a_optional_t)
+  `OBI_TYPEDEF_A_CHAN_T(xbar_sbr_obi_a_chan_t, XbarSbrObiCfg.AddrWidth, XbarSbrObiCfg.DataWidth, XbarSbrObiCfg.IdWidth, obi_a_optional_t)
+  `OBI_TYPEDEF_A_CHAN_T(sbr_obi_a_chan_t, SbrObiCfg.AddrWidth, SbrObiCfg.DataWidth, SbrObiCfg.IdWidth, sbr_obi_a_optional_t)
   `OBI_TYPEDEF_DEFAULT_REQ_T(mgr_obi_req_t, mgr_obi_a_chan_t)
+  `OBI_TYPEDEF_DEFAULT_REQ_T(xbar_sbr_obi_req_t, xbar_sbr_obi_a_chan_t)
   `OBI_TYPEDEF_DEFAULT_REQ_T(sbr_obi_req_t, sbr_obi_a_chan_t)
   typedef struct packed {
     logic [0:0] ruser;
+    logic       exokay;
   } obi_r_optional_t;
+  typedef struct packed {
+    logic [0:0] ruser;
+  } sbr_obi_r_optional_t;
   `OBI_TYPEDEF_R_CHAN_T(mgr_obi_r_chan_t, MgrObiCfg.DataWidth, MgrObiCfg.IdWidth, obi_r_optional_t)
-  `OBI_TYPEDEF_R_CHAN_T(sbr_obi_r_chan_t, SbrObiCfg.DataWidth, SbrObiCfg.IdWidth, obi_r_optional_t)
+  `OBI_TYPEDEF_R_CHAN_T(xbar_sbr_obi_r_chan_t, XbarSbrObiCfg.DataWidth, XbarSbrObiCfg.IdWidth, obi_r_optional_t)
+  `OBI_TYPEDEF_R_CHAN_T(sbr_obi_r_chan_t, SbrObiCfg.DataWidth, SbrObiCfg.IdWidth, sbr_obi_r_optional_t)
   `OBI_TYPEDEF_RSP_T(mgr_obi_rsp_t, mgr_obi_r_chan_t)
+  `OBI_TYPEDEF_RSP_T(xbar_sbr_obi_rsp_t, xbar_sbr_obi_r_chan_t)
   `OBI_TYPEDEF_RSP_T(sbr_obi_rsp_t, sbr_obi_r_chan_t)
   `REG_BUS_TYPEDEF_ALL(safety_reg, logic[AddrWidth-1:0], logic[DataWidth-1:0], logic[(DataWidth/8)-1:0]);
 
@@ -173,7 +195,7 @@ module safety_island_top import safety_island_pkg::*; #(
   mgr_obi_req_t core_data_obi_req;
   mgr_obi_rsp_t core_data_obi_rsp;
   assign core_data_obi_req.a.aid = '0;
-  assign core_data_obi_req.a.a_optional = '0;
+  // assign core_data_obi_req.a.a_optional = '0;
 
   // Core shadow bus
   mgr_obi_req_t core_shadow_obi_req;
@@ -190,39 +212,43 @@ module safety_island_top import safety_island_pkg::*; #(
   // axi input bus
   mgr_obi_req_t axi_input_obi_req;
   mgr_obi_rsp_t axi_input_obi_rsp;
-  assign axi_input_obi_req.a.aid = '0;
-  assign axi_input_obi_req.a.a_optional = '0;
 
   // -----------------
   // Subordinate buses
   // -----------------
 
   // mem bank0 bus
+  xbar_sbr_obi_req_t xbar_mem_bank0_obi_req;
+  xbar_sbr_obi_rsp_t xbar_mem_bank0_obi_rsp;
   sbr_obi_req_t mem_bank0_obi_req;
   sbr_obi_rsp_t mem_bank0_obi_rsp;
   // mem bank1 bus
+  xbar_sbr_obi_req_t xbar_mem_bank1_obi_req;
+  xbar_sbr_obi_rsp_t xbar_mem_bank1_obi_rsp;
   sbr_obi_req_t mem_bank1_obi_req;
   sbr_obi_rsp_t mem_bank1_obi_rsp;
 
   // axi output bus
-  sbr_obi_req_t axi_output_obi_req;
-  sbr_obi_rsp_t axi_output_obi_rsp;
+  xbar_sbr_obi_req_t axi_output_obi_req;
+  xbar_sbr_obi_rsp_t axi_output_obi_rsp;
 
   // periph bus
+  xbar_sbr_obi_req_t xbar_periph_obi_req;
+  xbar_sbr_obi_rsp_t xbar_periph_obi_rsp;
   sbr_obi_req_t periph_obi_req;
   sbr_obi_rsp_t periph_obi_rsp;
 
   // Main xbar subordinate buses, must align with addr map!
-  sbr_obi_req_t [NumSubordinates-1:0] all_slv_obi_req;
-  sbr_obi_rsp_t [NumSubordinates-1:0] all_slv_obi_rsp;
+  xbar_sbr_obi_req_t [NumSubordinates-1:0] all_slv_obi_req;
+  xbar_sbr_obi_rsp_t [NumSubordinates-1:0] all_slv_obi_rsp;
   assign axi_output_obi_req = all_slv_obi_req[0];
   assign all_slv_obi_rsp[0] = axi_output_obi_rsp;
-  assign mem_bank0_obi_req  = all_slv_obi_req[1];
-  assign all_slv_obi_rsp[1] = mem_bank0_obi_rsp;
-  assign mem_bank1_obi_req  = all_slv_obi_req[2];
-  assign all_slv_obi_rsp[2] = mem_bank1_obi_rsp;
-  assign periph_obi_req     = all_slv_obi_req[3];
-  assign all_slv_obi_rsp[3] = periph_obi_rsp;
+  assign xbar_mem_bank0_obi_req  = all_slv_obi_req[1];
+  assign all_slv_obi_rsp[1] = xbar_mem_bank0_obi_rsp;
+  assign xbar_mem_bank1_obi_req  = all_slv_obi_req[2];
+  assign all_slv_obi_rsp[2] = xbar_mem_bank1_obi_rsp;
+  assign xbar_periph_obi_req     = all_slv_obi_req[3];
+  assign all_slv_obi_rsp[3] = xbar_periph_obi_rsp;
 
   // -----------------
   // Peripheral buses
@@ -297,7 +323,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   logic [NumInternalDebug-1:0] debug_req;
 
-  always_comb begin
+  always_comb begin : proc_debug
     debug_req_o = debug_req;
     debug_req_o[SafetyIslandCfg.HartId] = '0;
   end
@@ -337,6 +363,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .data_be_o        ( core_data_obi_req.a.be            ),
     .data_addr_o      ( core_data_obi_req.a.addr          ),
     .data_wdata_o     ( core_data_obi_req.a.wdata         ),
+    .data_atop_o      ( core_data_obi_req.a.a_optional.atop ),
     .data_rdata_i     ( core_data_obi_rsp.r.rdata         ),
     .data_err_i       ( {core_data_obi_rsp.r.r_optional.ruser[0], core_data_obi_rsp.r.err} ),
 
@@ -436,7 +463,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .master_be_o          ( dbg_req_obi_req.a.be     ),
     .master_gnt_i         ( dbg_req_obi_rsp.gnt    ),
     .master_r_valid_i     ( dbg_req_obi_rsp.rvalid ),
-    .master_r_err_i       ( '0),//dbg_req_obi_rsp.r.err    ),
+    .master_r_err_i       ( dbg_req_obi_rsp.r.err    ),
     .master_r_other_err_i ( 1'b0           ),
     .master_r_rdata_i     ( dbg_req_obi_rsp.r.rdata  ),
 
@@ -450,7 +477,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .dmi_resp_o           ( dmi_resp       )
   );
 
-  assign dbg_mem_obi_rsp.gnt = dbg_mem_obi_req.req;
+  assign dbg_mem_obi_rsp.gnt = 1'b1;
   assign dbg_mem_obi_rsp.r.err = '0;
   assign dbg_mem_obi_rsp.r.r_optional = '0;
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_dbg_mem
@@ -458,8 +485,8 @@ module safety_island_top import safety_island_pkg::*; #(
       dbg_mem_obi_rsp.rvalid <= '0;
       dbg_mem_obi_rsp.r.rid <= '0;
     end else begin
-      dbg_mem_obi_rsp.rvalid <= dbg_mem_obi_rsp.gnt;
-      dbg_mem_obi_rsp.r.rid <= dbg_req_obi_req.a.aid;
+      dbg_mem_obi_rsp.rvalid <= dbg_mem_obi_req.req;
+      dbg_mem_obi_rsp.r.rid <= dbg_mem_obi_req.a.aid;
     end
   end
 
@@ -469,13 +496,13 @@ module safety_island_top import safety_island_pkg::*; #(
 
   obi_xbar #(
     .SbrPortObiCfg      ( MgrObiCfg        ),
-    .MgrPortObiCfg      ( SbrObiCfg        ),
+    .MgrPortObiCfg      ( XbarSbrObiCfg    ),
     .sbr_port_obi_req_t ( mgr_obi_req_t    ),
     .sbr_port_a_chan_t  ( mgr_obi_a_chan_t ),
     .sbr_port_obi_rsp_t ( mgr_obi_rsp_t    ),
     .sbr_port_r_chan_t  ( mgr_obi_r_chan_t ),
-    .mgr_port_obi_req_t ( sbr_obi_req_t    ),
-    .mgr_port_obi_rsp_t ( sbr_obi_rsp_t    ),
+    .mgr_port_obi_req_t ( xbar_sbr_obi_req_t ),
+    .mgr_port_obi_rsp_t ( xbar_sbr_obi_rsp_t ),
     .NumSbrPorts        ( NumManagers      ),
     .NumMgrPorts        ( NumSubordinates  ),
     .NumMaxTrans        ( 2                ),
@@ -501,6 +528,27 @@ module safety_island_top import safety_island_pkg::*; #(
   // -----------------
   // Memories
   // -----------------
+  
+  obi_atop_resolver #(
+    .SbrPortObiCfg             ( XbarSbrObiCfg        ),
+    .MgrPortObiCfg             ( SbrObiCfg            ),
+    .sbr_port_obi_req_t        ( xbar_sbr_obi_req_t   ),
+    .sbr_port_obi_rsp_t        ( xbar_sbr_obi_rsp_t   ),
+    .mgr_port_obi_req_t        ( sbr_obi_req_t        ),
+    .mgr_port_obi_rsp_t        ( sbr_obi_rsp_t        ),
+    .mgr_port_obi_a_optional_t ( sbr_obi_a_optional_t ),
+    .mgr_port_obi_r_optional_t ( sbr_obi_r_optional_t ),
+    .LrScEnable                ( 1                    ),
+    .RegisterAmo               ( 1'b0                 )
+  ) i_bank0_atop_resolver (
+    .clk_i,
+    .rst_ni,
+    .testmode_i     ( test_enable_i          ),
+    .sbr_port_req_i ( xbar_mem_bank0_obi_req ),
+    .sbr_port_rsp_o ( xbar_mem_bank0_obi_rsp ),
+    .mgr_port_req_o ( mem_bank0_obi_req      ),
+    .mgr_port_rsp_i ( mem_bank0_obi_rsp      )
+  );
 
   sbr_obi_rsp_t tmp_bank0_obi_rsp;
   logic bank0_req, bank0_we, bank0_gnt, bank0_single_err;
@@ -559,6 +607,28 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .test_write_mask_ni    ( '0 )
   );
+
+  obi_atop_resolver #(
+    .SbrPortObiCfg             ( XbarSbrObiCfg        ),
+    .MgrPortObiCfg             ( SbrObiCfg            ),
+    .sbr_port_obi_req_t        ( xbar_sbr_obi_req_t   ),
+    .sbr_port_obi_rsp_t        ( xbar_sbr_obi_rsp_t   ),
+    .mgr_port_obi_req_t        ( sbr_obi_req_t        ),
+    .mgr_port_obi_rsp_t        ( sbr_obi_rsp_t        ),
+    .mgr_port_obi_a_optional_t ( sbr_obi_a_optional_t ),
+    .mgr_port_obi_r_optional_t ( sbr_obi_r_optional_t ),
+    .LrScEnable                ( 1                    ),
+    .RegisterAmo               ( 1'b0                 )
+  ) i_bank1_atop_resolver (
+    .clk_i,
+    .rst_ni,
+    .testmode_i     ( test_enable_i          ),
+    .sbr_port_req_i ( xbar_mem_bank1_obi_req ),
+    .sbr_port_rsp_o ( xbar_mem_bank1_obi_rsp ),
+    .mgr_port_req_o ( mem_bank1_obi_req      ),
+    .mgr_port_rsp_i ( mem_bank1_obi_rsp      )
+  );
+
 
   sbr_obi_rsp_t tmp_bank1_obi_rsp;
   logic bank1_req, bank1_we, bank1_gnt, bank1_single_err;
@@ -621,6 +691,28 @@ module safety_island_top import safety_island_pkg::*; #(
   // -----------------
   // Periphs
   // -----------------
+
+  obi_atop_resolver #(
+    .SbrPortObiCfg             ( XbarSbrObiCfg        ),
+    .MgrPortObiCfg             ( SbrObiCfg            ),
+    .sbr_port_obi_req_t        ( xbar_sbr_obi_req_t   ),
+    .sbr_port_obi_rsp_t        ( xbar_sbr_obi_rsp_t   ),
+    .mgr_port_obi_req_t        ( sbr_obi_req_t        ),
+    .mgr_port_obi_rsp_t        ( sbr_obi_rsp_t        ),
+    .mgr_port_obi_a_optional_t ( sbr_obi_a_optional_t ),
+    .mgr_port_obi_r_optional_t ( sbr_obi_r_optional_t ),
+    .LrScEnable                ( 1                    ),
+    .RegisterAmo               ( 1'b0                 )
+  ) i_periph_atop_resolver (
+    .clk_i,
+    .rst_ni,
+    .testmode_i     ( test_enable_i       ),
+    .sbr_port_req_i ( xbar_periph_obi_req ),
+    .sbr_port_rsp_o ( xbar_periph_obi_rsp ),
+    .mgr_port_req_o ( periph_obi_req      ),
+    .mgr_port_rsp_i ( periph_obi_rsp      )
+  );
+
 
   logic [cf_math_pkg::idx_width(NumPeriphs)-1:0] periph_idx;
 
@@ -900,12 +992,15 @@ module safety_island_top import safety_island_pkg::*; #(
 
   assign tbprintf_obi_rsp.r.rdata = '0;
   assign tbprintf_obi_rsp.gnt = 1'b1;
-  // assign tbprintf_obi_rsp.r.err = 1'b0;
+  assign tbprintf_obi_rsp.r.err = 1'b0;
+  assign tbprintf_obi_rsp.r.r_optional = 1'b0;
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_tbprintf_rvalid
     if(!rst_ni) begin
       tbprintf_obi_rsp.rvalid <= '0;
+      tbprintf_obi_rsp.r.rid <= '0;
     end else begin
       tbprintf_obi_rsp.rvalid <= tbprintf_obi_req.req;
+      tbprintf_obi_rsp.r.rid <= tbprintf_obi_req.a.aid;
     end
   end
 `endif
@@ -916,215 +1011,54 @@ module safety_island_top import safety_island_pkg::*; #(
 
   // AXI input
 
-  // Typedefs
-  `AXI_TYPEDEF_AW_CHAN_T(axi_in_aw_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_AW_CHAN_T(axi_in_aw32_aw_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_W_CHAN_T(axi_in_w_chan_t,                                 logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0],                             logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_W_CHAN_T(axi_in_dw32_w_chan_t,                            logic[DataWidth-1:0],    logic[DataWidth/8-1:0],                                logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_B_CHAN_T(axi_in_b_chan_t,                                                                                     logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_AR_CHAN_T(axi_in_ar_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_AR_CHAN_T(axi_in_aw32_ar_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_R_CHAN_T(axi_in_r_chan_t,                                 logic[AxiDataWidth-1:0],                            logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_R_CHAN_T(axi_in_dw32_r_chan_t,                            logic[DataWidth-1:0],                               logic[AxiInputIdWidth-1:0], logic[AxiUserWidth-1:0])
-
-  `AXI_TYPEDEF_REQ_T(axi_in_alt_req_t, axi_in_aw_chan_t, axi_in_w_chan_t, axi_in_ar_chan_t)
-  `AXI_TYPEDEF_RESP_T(axi_in_alt_resp_t, axi_in_b_chan_t, axi_in_r_chan_t)
-  `AXI_TYPEDEF_REQ_T(axi_in_dw32_req_t, axi_in_aw_chan_t, axi_in_dw32_w_chan_t, axi_in_ar_chan_t)
-  `AXI_TYPEDEF_RESP_T(axi_in_dw32_resp_t, axi_in_b_chan_t, axi_in_dw32_r_chan_t)
-  `AXI_TYPEDEF_REQ_T(axi_in_dw32_aw32_req_t, axi_in_aw32_aw_chan_t, axi_in_dw32_w_chan_t, axi_in_aw32_ar_chan_t)
-
-  // Consistency alternates for AXI input
-  axi_in_alt_req_t  axi_in_alt_req;
-  axi_in_alt_resp_t axi_in_alt_resp;
-  `AXI_ASSIGN_REQ_STRUCT(axi_in_alt_req, axi_input_req_i)
-  `AXI_ASSIGN_RESP_STRUCT(axi_input_resp_o, axi_in_alt_resp)
-
-  // AXI corrected data width
-  axi_in_dw32_req_t  axi_in_dw32_req;
-  axi_in_dw32_resp_t axi_in_dw32_resp;
-
-  // AXI corrected address width
-  axi_in_dw32_aw32_req_t axi_in_dw32_aw32_req;
-
-  // AXI cut
-  axi_in_dw32_aw32_req_t axi_in_dw32_aw32_cut_req;
-  axi_in_dw32_resp_t     axi_in_dw32_cut_resp;
-
-  // AXI Data Width converter
-  axi_dw_converter #(
-    .AxiMaxReads         ( safety_island_pkg::AxiMaxInTrans ),
-    .AxiSlvPortDataWidth ( AxiDataWidth         ),
-    .AxiMstPortDataWidth ( DataWidth            ),
-    .AxiAddrWidth        ( AxiAddrWidth         ),
-    .AxiIdWidth          ( AxiInputIdWidth      ),
-    .aw_chan_t           ( axi_in_aw_chan_t     ),
-    .mst_w_chan_t        ( axi_in_dw32_w_chan_t ),
-    .slv_w_chan_t        ( axi_in_w_chan_t      ),
-    .b_chan_t            ( axi_in_b_chan_t      ),
-    .ar_chan_t           ( axi_in_ar_chan_t     ),
-    .mst_r_chan_t        ( axi_in_dw32_r_chan_t ),
-    .slv_r_chan_t        ( axi_in_r_chan_t      ),
-    .axi_mst_req_t       ( axi_in_dw32_req_t    ),
-    .axi_mst_resp_t      ( axi_in_dw32_resp_t   ),
-    .axi_slv_req_t       ( axi_in_alt_req_t     ),
-    .axi_slv_resp_t      ( axi_in_alt_resp_t    )
-  ) i_axi_input_dw (
+  axi_to_obi #(
+    .ObiCfg         ( MgrObiCfg        ),
+    .obi_req_t      ( mgr_obi_req_t    ),
+    .obi_rsp_t      ( mgr_obi_rsp_t    ),
+    .obi_a_chan_t   ( mgr_obi_a_chan_t ),
+    .obi_r_chan_t   ( mgr_obi_r_chan_t ),
+    .AxiAddrWidth   ( AxiAddrWidth     ),
+    .AxiDataWidth   ( AxiDataWidth     ),
+    .AxiIdWidth     ( AxiInputIdWidth  ),
+    .AxiUserWidth   ( AxiUserWidth     ),
+    .UseAxiUserAsId (1'b0), // TODO for ATOPS
+    .AxiUserIdOffset('0),   // TODO for ATOPS
+    .MaxTrans       ( 2                ),
+    .axi_req_t      ( axi_input_req_t  ),
+    .axi_rsp_t      ( axi_input_resp_t )
+  ) i_axi_to_obi (
     .clk_i,
     .rst_ni,
-
-    .slv_req_i  ( axi_in_alt_req   ),
-    .slv_resp_o ( axi_in_alt_resp  ),
-
-    .mst_req_o  ( axi_in_dw32_req  ),
-    .mst_resp_i ( axi_in_dw32_resp )
-  );
-
-  // AXI Address Width aligment
-  // TODO: check for correct behavior!
-  `AXI_ASSIGN_REQ_STRUCT(axi_in_dw32_aw32_req, axi_in_dw32_req)
-
-  // AXI cut to fix https://github.com/pulp-platform/axi/issues/287
-  axi_cut #(
-    .Bypass     ( 1'b0                   ),
-    .aw_chan_t  ( axi_in_aw32_aw_chan_t  ),
-    .w_chan_t   ( axi_in_dw32_w_chan_t   ),
-    .b_chan_t   ( axi_in_b_chan_t        ),
-    .ar_chan_t  ( axi_in_aw32_ar_chan_t  ),
-    .r_chan_t   ( axi_in_dw32_r_chan_t   ),
-    .axi_req_t  ( axi_in_dw32_aw32_req_t ),
-    .axi_resp_t ( axi_in_dw32_resp_t     )
-  ) i_axi_input_cut (
-    .clk_i,
-    .rst_ni,
-
-    .slv_req_i  ( axi_in_dw32_aw32_req     ),
-    .slv_resp_o ( axi_in_dw32_resp         ),
-    .mst_req_o  ( axi_in_dw32_aw32_cut_req ),
-    .mst_resp_i ( axi_in_dw32_cut_resp     )
-  );
-
-  // AXI to Mem
-  axi_to_mem #(
-    .axi_req_t    ( axi_in_dw32_aw32_req_t ),
-    .axi_resp_t   ( axi_in_dw32_resp_t     ),
-    .AddrWidth    ( AddrWidth              ),
-    .DataWidth    ( DataWidth              ),
-    .IdWidth      ( AxiInputIdWidth        ),
-    .NumBanks     ( 1                      ),
-    .BufDepth     ( 1                      ),
-    .HideStrb     ( 1'b1                   ),
-    .OutFifoDepth ( 1                      )
-  ) i_axi_to_mem (
-    .clk_i,
-    .rst_ni,
-
-    .busy_o       (),
-
-    .axi_req_i    ( axi_in_dw32_aw32_cut_req  ),
-    .axi_resp_o   ( axi_in_dw32_cut_resp      ),
-
-    .mem_req_o    ( axi_input_obi_req.req     ),
-    .mem_gnt_i    ( axi_input_obi_rsp.gnt     ),
-    .mem_addr_o   ( axi_input_obi_req.a.addr  ),
-    .mem_wdata_o  ( axi_input_obi_req.a.wdata ),
-    .mem_strb_o   ( axi_input_obi_req.a.be    ),
-    .mem_we_o     ( axi_input_obi_req.a.we    ),
-    .mem_atop_o   (), // TODO?
-    .mem_rvalid_i ( axi_input_obi_rsp.rvalid  ),
-    .mem_rdata_i  ( axi_input_obi_rsp.r.rdata )
+    .testmode_i ( test_enable_i     ),
+    .axi_req_i  ( axi_input_req_i   ),
+    .axi_rsp_o  ( axi_input_resp_o  ),
+    .obi_req_o  ( axi_input_obi_req ),
+    .obi_rsp_i  ( axi_input_obi_rsp )
   );
 
   // AXI output
 
-  // Typedefs
-  `AXI_TYPEDEF_AW_CHAN_T(axi_out_aw_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  // `AXI_TYPEDEF_AW_CHAN_T(axi_out_aw32_aw_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_W_CHAN_T(axi_out_w_chan_t,                                 logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0],                              logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_W_CHAN_T(axi_out_dw32_w_chan_t,                            logic[DataWidth-1:0],    logic[DataWidth/8-1:0],                                 logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_B_CHAN_T(axi_out_b_chan_t,                                                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_AR_CHAN_T(axi_out_ar_chan_t,      logic[AxiAddrWidth-1:0],                                                     logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  // `AXI_TYPEDEF_AR_CHAN_T(axi_out_aw32_ar_chan_t, logic[AddrWidth-1:0],                                                        logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_R_CHAN_T(axi_out_r_chan_t,                                 logic[AxiDataWidth-1:0],                            logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_R_CHAN_T(axi_out_dw32_r_chan_t,                            logic[DataWidth-1:0],                               logic[AxiOutputIdWidth-1:0], logic[AxiUserWidth-1:0])
-
-  `AXI_TYPEDEF_REQ_T(axi_out_alt_req_t, axi_out_aw_chan_t, axi_out_w_chan_t, axi_out_ar_chan_t)
-  `AXI_TYPEDEF_RESP_T(axi_out_alt_resp_t, axi_out_b_chan_t, axi_out_r_chan_t)
-  `AXI_TYPEDEF_REQ_T(axi_out_dw32_req_t, axi_out_aw_chan_t, axi_out_dw32_w_chan_t, axi_out_ar_chan_t)
-  `AXI_TYPEDEF_RESP_T(axi_out_dw32_resp_t, axi_out_b_chan_t, axi_out_dw32_r_chan_t)
-  // `AXI_TYPEDEF_REQ_T(axi_out_dw32_aw32_req_t, axi_out_aw32_aw_chan_t, axi_out_dw32_w_chan_t, axi_out_aw32_ar_chan_t)
-
-  // Consistency alternates for AXI output
-  axi_out_alt_req_t  axi_out_alt_req;
-  axi_out_alt_resp_t axi_out_alt_resp;
-
-  // AXI corrected data width
-  axi_out_dw32_req_t  axi_out_dw32_req;
-  axi_out_dw32_resp_t axi_out_dw32_resp;
-
-  // // AXI corrected address width
-  // axi_out_dw32_aw32_req_t axi_out_dw32_aw32_req;
-
-
-  axi_from_mem #(
-    .MemAddrWidth( AddrWidth           ),
-    .AxiAddrWidth( AxiAddrWidth        ),
-    .DataWidth   ( DataWidth           ),
-    .MaxRequests ( safety_island_pkg::AxiMaxOutTrans ),
-    .AxiProt     ( '0                  ),
-    .axi_req_t   ( axi_out_dw32_req_t  ),
-    .axi_rsp_t   ( axi_out_dw32_resp_t )
-  ) i_mem_to_axi (
+  obi_to_axi #(
+    .ObiCfg       ( XbarSbrObiCfg      ),
+    .obi_req_t    ( xbar_sbr_obi_req_t ),
+    .obi_rsp_t    ( xbar_sbr_obi_rsp_t ),
+    .axi_req_t    ( axi_output_req_t   ),
+    .axi_rsp_t    ( axi_output_resp_t  ),
+    .AxiAddrWidth ( AxiAddrWidth       ),
+    .AxiDataWidth ( AxiDataWidth       ),
+    .AxiUserWidth ( AxiUserWidth       ),
+    .MaxRequests  ( 2                  ),
+    .AxiLite      ( 1'b0               )
+  ) i_obi_to_axi (
     .clk_i,
     .rst_ni,
-    .mem_req_i      ( axi_output_obi_req.req     ),
-    .mem_addr_i     ( axi_output_obi_req.a.addr  ),
-    .mem_we_i       ( axi_output_obi_req.a.we    ),
-    .mem_wdata_i    ( axi_output_obi_req.a.wdata ),
-    .mem_be_i       ( axi_output_obi_req.a.be    ),
-    .mem_gnt_o      ( axi_output_obi_rsp.gnt     ),
-    .mem_rsp_valid_o( axi_output_obi_rsp.rvalid  ),
-    .mem_rsp_rdata_o( axi_output_obi_rsp.r.rdata ),
-    .mem_rsp_error_o( axi_output_obi_rsp.r.err   ),
-    .slv_aw_cache_i ( axi_pkg::get_awcache(axi_pkg::NORMAL_NONCACHEABLE_NONBUFFERABLE) ),
-    .slv_ar_cache_i ( axi_pkg::get_arcache(axi_pkg::NORMAL_NONCACHEABLE_NONBUFFERABLE) ),
-    .axi_req_o      ( axi_out_dw32_req           ),
-    .axi_rsp_i      ( axi_out_dw32_resp          )
+    .obi_req_i ( axi_output_obi_req ),
+    .obi_rsp_o ( axi_output_obi_rsp ),
+    .user_i    ( '0 ), // TODO ATOP ID?
+    .axi_req_o ( axi_output_req_o   ),
+    .axi_rsp_i ( axi_output_resp_i  )
   );
-  assign axi_output_obi_rsp.r.r_optional = '0;
-  assign axi_output_obi_rsp.r.rid = '0; // TODO: fix appropriately
 
   // TODO?: AXI AddrWidth prepend
-
-  // AXI Data Width converter
-  axi_dw_converter #(
-    .AxiMaxReads         ( safety_island_pkg::AxiMaxOutTrans ),
-    .AxiSlvPortDataWidth ( DataWidth             ),
-    .AxiMstPortDataWidth ( AxiDataWidth          ),
-    .AxiAddrWidth        ( AxiAddrWidth          ),
-    .AxiIdWidth          ( AxiOutputIdWidth      ),
-    .aw_chan_t           ( axi_out_aw_chan_t     ),
-    .mst_w_chan_t        ( axi_out_w_chan_t      ),
-    .slv_w_chan_t        ( axi_out_dw32_w_chan_t ),
-    .b_chan_t            ( axi_out_b_chan_t      ),
-    .ar_chan_t           ( axi_out_ar_chan_t     ),
-    .mst_r_chan_t        ( axi_out_r_chan_t      ),
-    .slv_r_chan_t        ( axi_out_dw32_r_chan_t ),
-    .axi_mst_req_t       ( axi_out_alt_req_t     ),
-    .axi_mst_resp_t      ( axi_out_alt_resp_t    ),
-    .axi_slv_req_t       ( axi_out_dw32_req_t    ),
-    .axi_slv_resp_t      ( axi_out_dw32_resp_t   )
-  ) i_axi_output_dw (
-    .clk_i,
-    .rst_ni,
-
-    .slv_req_i  ( axi_out_dw32_req  ),
-    .slv_resp_o ( axi_out_dw32_resp ),
-    .mst_req_o  ( axi_out_alt_req   ),
-    .mst_resp_i ( axi_out_alt_resp  )
-  );
-
-  // Consistency alternatives for AXI output
-  `AXI_ASSIGN_REQ_STRUCT(axi_output_req_o, axi_out_alt_req)
-  `AXI_ASSIGN_RESP_STRUCT(axi_out_alt_resp, axi_output_resp_i)
 
 endmodule
