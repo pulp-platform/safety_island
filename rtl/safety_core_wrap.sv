@@ -46,6 +46,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   output logic [3:0]  data_be_o,
   output logic [31:0] data_addr_o,
   output logic [31:0] data_wdata_o,
+  output logic [5:0]  data_atop_o,
   input  logic [31:0] data_rdata_i,
   input  logic [NumBusErrBits-1:0] data_err_i,
 
@@ -91,8 +92,6 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
   logic [2:0] bus_err_irq;
   logic resynch_irq;
-
- // TODO: add atomic support to cv32 + adapter (if needed)
 
   if (SafetyIslandCfg.UseTCLS) begin
     localparam int unsigned NumHMRCores = 3;
@@ -154,7 +153,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       logic        we;
       logic [31:0] wdata;
       logic [ 3:0] be;
-      // logic [ 5:0] atop;
+      logic [ 5:0] atop;
     } hmr_cv32e40p_bus_outputs_t;
 
     hmr_cv32e40p_all_inputs_t                   sys_inputs;
@@ -203,6 +202,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
     assign data_we_o      = sys_bus_outputs[DataBus].we;
     assign data_be_o      = sys_bus_outputs[DataBus].be;
     assign data_wdata_o   = sys_bus_outputs[DataBus].wdata;
+    assign data_atop_o    = sys_bus_outputs[DataBus].atop;
 
     assign shadow_req_o   = sys_outputs.shadow_req;
     assign enable_bus_output[ShadowBus] = sys_outputs.shadow_req;
@@ -268,6 +268,8 @@ module safety_core_wrap import safety_island_pkg::*; #(
       logic [31:0]                                           apu_rdata;
       logic [cv32e40p_apu_core_pkg::APU_NUSFLAGS_CPU-1:0]    apu_rflags;
 
+      assign core_bus_outputs[i][ShadowBus].atop = '0;
+
 `ifdef PULP_FPGA_EMUL
       (* no_ungroup *)
       cv32e40p_core #(
@@ -317,8 +319,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
         .data_addr_o         ( core_bus_outputs[i][DataBus].addr  ),
         .data_wdata_o        ( core_bus_outputs[i][DataBus].wdata ),
         .data_rdata_i        ( core_inputs [i].data_rdata         ),
-        .data_atop_o         ( ),//core_bus_outputs[i][DataBus].atop), // currently, safety_island does not support AMOs and
-                          // LR/SC
+        .data_atop_o         ( core_bus_outputs[i][DataBus].atop  ),
 
         // Shadow memory interface
         .shadow_req_o        ( core_outputs[i].shadow_req           ),
@@ -446,8 +447,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       .data_addr_o,
       .data_wdata_o,
       .data_rdata_i,
-      .data_atop_o ( ), // currently, safety_island does not support AMOs and
-                        // LR/SC
+      .data_atop_o,
 
       // Shadow memory interface
       .shadow_req_o,
