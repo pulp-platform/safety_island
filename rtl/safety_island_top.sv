@@ -238,16 +238,16 @@ module safety_island_top import safety_island_pkg::*; #(
   sbr_obi_rsp_t periph_obi_rsp;
 
   // Main xbar subordinate buses, must align with addr map!
-  xbar_sbr_obi_req_t [NumSubordinates-1:0] all_slv_obi_req;
-  xbar_sbr_obi_rsp_t [NumSubordinates-1:0] all_slv_obi_rsp;
-  assign axi_output_obi_req = all_slv_obi_req[0];
-  assign all_slv_obi_rsp[0] = axi_output_obi_rsp;
-  for (genvar i = 0; i < SafetyIslandCfg.NumBanks; i++) begin
-    assign xbar_mem_bank_obi_req[i] = all_slv_obi_req[i+1];
-    assign all_slv_obi_rsp[i+1]     = xbar_mem_bank_obi_rsp[i];
+  xbar_sbr_obi_req_t [NumSubordinates-1:0] all_sbr_obi_req;
+  xbar_sbr_obi_rsp_t [NumSubordinates-1:0] all_sbr_obi_rsp;
+  assign axi_output_obi_req = all_sbr_obi_req[0];
+  assign all_sbr_obi_rsp[0] = axi_output_obi_rsp;
+  for (genvar i = 0; i < SafetyIslandCfg.NumBanks; i++) begin : gen_xbar_sbr_connect
+    assign xbar_mem_bank_obi_req[i] = all_sbr_obi_req[i+1];
+    assign all_sbr_obi_rsp[i+1]     = xbar_mem_bank_obi_rsp[i];
   end
-  assign xbar_periph_obi_req     = all_slv_obi_req[NumSubordinates-1];
-  assign all_slv_obi_rsp[NumSubordinates-1] = xbar_periph_obi_rsp;
+  assign xbar_periph_obi_req     = all_sbr_obi_req[NumSubordinates-1];
+  assign all_sbr_obi_rsp[NumSubordinates-1] = xbar_periph_obi_rsp;
 
   // -----------------
   // Peripheral buses
@@ -403,12 +403,12 @@ module safety_island_top import safety_island_pkg::*; #(
   localparam bit [NumInternalDebug-1:0] ActuallySelectableHarts = SelectableHarts | 1<<SafetyIslandCfg.HartId;
 
   dm::hartinfo_t [NumInternalDebug-1:0] hartinfo;
-  for (genvar i = 0; i < NumInternalDebug; i++) begin
-    if (i == SafetyIslandCfg.HartId) begin
+  for (genvar i = 0; i < NumInternalDebug; i++) begin : gen_hartinfo
+    if (i == SafetyIslandCfg.HartId) begin : gen_static_hartinfo
       assign hartinfo[i] = HARTINFO;
-    end else if (i <= NumDebug) begin
+    end else if (i <= NumDebug) begin : gen_ext_hartinfo
       assign hartinfo[i] = HartInfo[i];
-    end else begin
+    end else begin : gen_disable_hartinfo
       assign hartinfo[i] = '0;
     end
   end
@@ -524,8 +524,8 @@ module safety_island_top import safety_island_pkg::*; #(
 
     .sbr_ports_req_i  ( {axi_input_obi_req, core_instr_obi_req, core_data_obi_req, core_shadow_obi_req, dbg_req_obi_req} ),
     .sbr_ports_rsp_o  ( {axi_input_obi_rsp, core_instr_obi_rsp, core_data_obi_rsp, core_shadow_obi_rsp, dbg_req_obi_rsp} ),
-    .mgr_ports_req_o  ( all_slv_obi_req ),
-    .mgr_ports_rsp_i  ( all_slv_obi_rsp ),
+    .mgr_ports_req_o  ( all_sbr_obi_req ),
+    .mgr_ports_rsp_i  ( all_sbr_obi_rsp ),
 
     .addr_map_i       ( main_addr_map ),
     .en_default_idx_i ( 5'b11111 ),
@@ -569,7 +569,7 @@ module safety_island_top import safety_island_pkg::*; #(
     logic [DataWidth-1:0] bank_wdata, bank_rdata;
     logic [DataWidth/8-1:0] bank_be;
 
-    always_comb begin
+    always_comb begin : proc_mem_ecc_err
       mem_bank_obi_rsp[i] = tmp_bank_obi_rsp;
       mem_bank_obi_rsp[i].r.r_optional.ruser = bank_single_err;
     end

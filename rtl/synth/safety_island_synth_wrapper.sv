@@ -143,7 +143,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .serial_o ( axi_isolate_sync )
   );
 
-  for (genvar i = 0; i < SafetyIslandCfg.NumInterrupts; i++) begin
+  for (genvar i = 0; i < SafetyIslandCfg.NumInterrupts; i++) begin : gen_irq_sync
     sync #(
       .STAGES     ( SyncStages ),
       .ResetValue ( 1'b0       )
