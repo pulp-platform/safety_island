@@ -131,11 +131,11 @@ module safety_island_top import safety_island_pkg::*; #(
   `REG_BUS_TYPEDEF_ALL(safety_reg, logic[AddrWidth-1:0], logic[DataWidth-1:0], logic[(DataWidth/8)-1:0]);
 
 `ifdef TARGET_SIMULATION
+  localparam int unsigned NumPeriphs     = 9;
+  localparam int unsigned NumPeriphRules = 8;
+`else
   localparam int unsigned NumPeriphs     = 8;
   localparam int unsigned NumPeriphRules = 7;
-`else
-  localparam int unsigned NumPeriphs     = 7;
-  localparam int unsigned NumPeriphRules = 6;
 `endif
 
   localparam int unsigned NumSubordinates = 4;
@@ -163,11 +163,12 @@ module safety_island_top import safety_island_pkg::*; #(
     '{ idx: PeriphBootROM,       start_addr: PeriphBaseAddr+BootROMAddrOffset,       end_addr: PeriphBaseAddr+BootROMAddrOffset+      BootROMAddrRange},       // 2: Boot ROM
     '{ idx: PeriphGlobalPrepend, start_addr: PeriphBaseAddr+GlobalPrependAddrOffset, end_addr: PeriphBaseAddr+GlobalPrependAddrOffset+GlobalPrependAddrRange}, // 3: Global prepend
     '{ idx: PeriphDebug,         start_addr: PeriphBaseAddr+DebugAddrOffset,         end_addr: PeriphBaseAddr+DebugAddrOffset+        DebugAddrRange},         // 4: Debug
-    '{ idx: PeriphTimer,         start_addr: PeriphBaseAddr+TimerAddrOffset,         end_addr: PeriphBaseAddr+TimerAddrOffset+        TimerAddrRange},         // 5: Timer
-    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+CoreLocalAddrOffset,     end_addr: PeriphBaseAddr+CoreLocalAddrOffset+    CoreLocalAddrRange}      // 4: Core-Local peripherals
+    '{ idx: PeriphEccManager,    start_addr: PeriphBaseAddr+EccManagerAddrOffset,    end_addr: PeriphBaseAddr+EccManagerAddrOffset+   EccManagerAddrRange},    // 5: ECC Manager
+    '{ idx: PeriphTimer,         start_addr: PeriphBaseAddr+TimerAddrOffset,         end_addr: PeriphBaseAddr+TimerAddrOffset+        TimerAddrRange},         // 6: Timer
+    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+CoreLocalAddrOffset,     end_addr: PeriphBaseAddr+CoreLocalAddrOffset+    CoreLocalAddrRange}      // 7: Core-Local peripherals
 `ifdef TARGET_SIMULATION
     ,
-    '{ idx: PeriphTBPrintf,      start_addr: PeriphBaseAddr+TBPrintfAddrOffset,      end_addr: PeriphBaseAddr+TBPrintfAddrOffset+     TBPrintfAddrRange}       // 6: TBPrintf
+    '{ idx: PeriphTBPrintf,      start_addr: PeriphBaseAddr+TBPrintfAddrOffset,      end_addr: PeriphBaseAddr+TBPrintfAddrOffset+     TBPrintfAddrRange}       // 8: TBPrintf
 `endif
   };
 
@@ -276,6 +277,12 @@ module safety_island_top import safety_island_pkg::*; #(
   sbr_obi_req_t dbg_mem_obi_req;
   sbr_obi_rsp_t dbg_mem_obi_rsp;
 
+  // ECC Manager bus
+  sbr_obi_req_t ecc_mgr_obi_req;
+  sbr_obi_rsp_t ecc_mgr_obi_rsp;
+  safety_reg_req_t ecc_mgr_reg_req;
+  safety_reg_rsp_t ecc_mgr_reg_rsp;
+
   // Core local bus
   sbr_obi_req_t timer_obi_req;
   sbr_obi_rsp_t timer_obi_rsp;
@@ -306,6 +313,8 @@ module safety_island_top import safety_island_pkg::*; #(
   assign all_periph_obi_rsp[PeriphGlobalPrepend] = global_prepend_obi_rsp;
   assign dbg_mem_obi_req                      = all_periph_obi_req[PeriphDebug];
   assign all_periph_obi_rsp[PeriphDebug]      = dbg_mem_obi_rsp;
+  assign ecc_mgr_obi_req                      = all_periph_obi_req[PeriphEccManager];
+  assign all_periph_obi_rsp[PeriphEccManager] = ecc_mgr_obi_rsp;
   assign cl_periph_obi_req                    = all_periph_obi_req[PeriphCoreLocal];
   assign all_periph_obi_rsp[PeriphCoreLocal]  = cl_periph_obi_rsp;
   assign timer_obi_req                        = all_periph_obi_req[PeriphTimer];
@@ -550,6 +559,11 @@ module safety_island_top import safety_island_pkg::*; #(
     .mgr_port_rsp_i ( mem_bank0_obi_rsp      )
   );
 
+  logic [1:0] bank_faults;
+  logic [1:0] scrub_fix;
+  logic [1:0] scrub_uncorrectable;
+  logic [1:0] scrub_trigger;
+
   sbr_obi_rsp_t tmp_bank0_obi_rsp;
   logic bank0_req, bank0_we, bank0_gnt, bank0_single_err;
   logic [AddrWidth-1:0] bank0_addr;
@@ -591,9 +605,9 @@ module safety_island_top import safety_island_pkg::*; #(
     .rst_ni,
     .test_enable_i         ( test_enable_i ),
 
-    .scrub_trigger_i       ( '0 ),
-    .scrubber_fix_o        (),
-    .scrub_uncorrectable_o (),
+    .scrub_trigger_i       ( scrub_trigger      [0] ),
+    .scrubber_fix_o        ( scrub_fix          [0] ),
+    .scrub_uncorrectable_o ( scrub_uncorrectable[0] ),
 
     .tcdm_wdata_i          ( bank0_wdata ),
     .tcdm_add_i            ( bank0_addr  ),
@@ -602,7 +616,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .tcdm_be_i             ( bank0_be    ),
     .tcdm_rdata_o          ( bank0_rdata ),
     .tcdm_gnt_o            ( bank0_gnt   ),
-    .single_error_o        (),
+    .single_error_o        ( bank_faults[0] ),
     .multi_error_o         ( bank0_single_err ),
 
     .test_write_mask_ni    ( '0 )
@@ -671,9 +685,9 @@ module safety_island_top import safety_island_pkg::*; #(
     .rst_ni,
     .test_enable_i         ( test_enable_i ),
 
-    .scrub_trigger_i       ( '0 ),
-    .scrubber_fix_o        (),
-    .scrub_uncorrectable_o (),
+    .scrub_trigger_i       ( scrub_trigger      [1] ),
+    .scrubber_fix_o        ( scrub_fix          [1] ),
+    .scrub_uncorrectable_o ( scrub_uncorrectable[1] ),
 
     .tcdm_wdata_i          ( bank1_wdata ),
     .tcdm_add_i            ( bank1_addr  ),
@@ -682,10 +696,56 @@ module safety_island_top import safety_island_pkg::*; #(
     .tcdm_be_i             ( bank1_be    ),
     .tcdm_rdata_o          ( bank1_rdata ),
     .tcdm_gnt_o            ( bank1_gnt   ),
-    .single_error_o        (),
+    .single_error_o        ( bank_faults[1] ),
     .multi_error_o         ( bank1_single_err ),
 
     .test_write_mask_ni    ( '0 )
+  );
+
+  // ECC Manager
+  periph_to_reg #(
+    .AW    ( AddrWidth         ),
+    .DW    ( DataWidth         ),
+    .BW    ( 8                 ),
+    .IW    ( SbrObiCfg.IdWidth ),
+    .req_t ( safety_reg_req_t  ),
+    .rsp_t ( safety_reg_rsp_t  )
+  ) i_ecc_mgr_translate (
+    .clk_i,
+    .rst_ni,
+
+    .req_i     ( ecc_mgr_obi_req.req     ),
+    .add_i     ( ecc_mgr_obi_req.a.addr  ),
+    .wen_i     ( ~ecc_mgr_obi_req.a.we   ),
+    .wdata_i   ( ecc_mgr_obi_req.a.wdata ),
+    .be_i      ( ecc_mgr_obi_req.a.be    ),
+    .id_i      ( ecc_mgr_obi_req.a.aid   ),
+
+    .gnt_o     ( ecc_mgr_obi_rsp.gnt     ),
+    .r_rdata_o ( ecc_mgr_obi_rsp.r.rdata ),
+    .r_opc_o   ( ecc_mgr_obi_rsp.r.err   ),
+    .r_id_o    ( ecc_mgr_obi_rsp.r.rid   ),
+    .r_valid_o ( ecc_mgr_obi_rsp.rvalid  ),
+
+    .reg_req_o ( ecc_mgr_reg_req ),
+    .reg_rsp_i ( ecc_mgr_reg_rsp )
+  );
+  assign ecc_mgr_obi_rsp.r.r_optional = '0;
+
+  ecc_manager #(
+    .NumBanks      ( 2                ),
+    .ecc_mgr_req_t ( safety_reg_req_t ),
+    .ecc_mgr_rsp_t ( safety_reg_rsp_t )
+  ) i_ecc_manager (
+    .clk_i,
+    .rst_ni,
+    .ecc_mgr_req_i        ( ecc_mgr_reg_req     ),
+    .ecc_mgr_rsp_o        ( ecc_mgr_reg_rsp     ),
+    .bank_faults_i        ( bank_faults         ),
+    .scrub_fix_i          ( scrub_fix           ),
+    .scrub_uncorrectable_i( scrub_uncorrectable ),
+    .scrub_trigger_o      ( scrub_trigger       ),
+    .test_write_mask_no   ()
   );
 
   // -----------------
@@ -723,7 +783,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .rule_t    ( addr_map_rule_t ),
     .Napot     ( 1'b0            )
   ) i_addr_decode_periphs (
-    .addr_i           ( periph_obi_req.a.addr     ),
+    .addr_i           ( periph_obi_req.a.addr ),
     .addr_map_i       ( periph_addr_map ),
     .idx_o            ( periph_idx      ),
     .dec_valid_o      (),
