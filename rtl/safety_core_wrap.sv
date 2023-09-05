@@ -563,6 +563,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   // Instr Bus Err Unit
   obi_err_unit_wrap #(
     .AddrWidth       ( 32   ),
+    .MetaDataWidth   ( 1 ),
     .ErrBits         ( NumBusErrBits ),
     .NumOutstanding  ( 2    ),
     .NumStoredErrors ( 8    ),
@@ -579,6 +580,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .obi_rvalid_i( instr_rvalid_i ),
     .obi_addr_i  ( instr_addr_o ),
     .obi_err_i   ( instr_err_i ),
+    .obi_metadata_i ( '0 ),
 
     .err_irq_o   ( bus_err_irq[0] ),
 
@@ -589,6 +591,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   // Instr Bus Err Unit
   obi_err_unit_wrap #(
     .AddrWidth       ( 32   ),
+    .MetaDataWidth   ( 1 ),
     .ErrBits         ( NumBusErrBits ),
     .NumOutstanding  ( 2    ),
     .NumStoredErrors ( 8    ),
@@ -605,6 +608,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .obi_rvalid_i( data_rvalid_i ),
     .obi_addr_i  ( data_addr_o ),
     .obi_err_i   ( data_err_i ),
+    .obi_metadata_i ( '0 ),
 
     .err_irq_o   ( bus_err_irq[1] ),
 
@@ -615,6 +619,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   // Instr Bus Err Unit
   obi_err_unit_wrap #(
     .AddrWidth       ( 32   ),
+    .MetaDataWidth   ( 1 ),
     .ErrBits         ( NumBusErrBits ),
     .NumOutstanding  ( 2    ),
     .NumStoredErrors ( 8    ),
@@ -631,6 +636,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .obi_rvalid_i( shadow_rvalid_i ),
     .obi_addr_i  ( shadow_addr_o ),
     .obi_err_i   ( shadow_err_i ),
+    .obi_metadata_i ( '0 ),
 
     .err_irq_o   ( bus_err_irq[2] ),
 
