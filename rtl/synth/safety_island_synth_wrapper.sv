@@ -18,6 +18,13 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter int unsigned AxiUserWidth  = SynthAxiUserWidth,
   parameter int unsigned AxiInIdWidth  = SynthAxiInIdWidth,
   parameter int unsigned AxiOutIdWidth = SynthAxiOutIdWidth,
+
+  parameter bit          AxiUserAtop      = SynthAxiUserAtop,
+  parameter int unsigned AxiUserAtopMsb   = SynthAxiUserAtopMsb,
+  parameter int unsigned AxiUserAtopLsb   = SynthAxiUserAtopLsb,
+  parameter bit          AxiUserEccErr    = SynthAxiUserEccErr,
+  parameter int unsigned AxiUserEccErrBit = SynthAxiUserEccErrBit,
+
   parameter bit [AxiUserWidth-1:0] DefaultUser = SynthDefaultUser,
   parameter int unsigned LogDepth      = SynthLogDepth,
   parameter int unsigned CdcSyncStages = SynthCdcSyncStages,
@@ -251,6 +258,11 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .NumDebug          ( NumDebug                 ),
     .SelectableHarts   ( SelectableHarts          ),
     .HartInfo          ( HartInfo                 ),
+    .AxiUserAtop       ( AxiUserAtop              ),
+    .AxiUserAtopMsb    ( AxiUserAtopMsb           ),
+    .AxiUserAtopLsb    ( AxiUserAtopLsb           ),
+    .AxiUserEccErr     ( AxiUserEccErr            ),
+    .AxiUserEccErrBit  ( AxiUserEccErrBit         ),
     .AxiDataWidth      ( AxiDataWidth             ),
     .AxiAddrWidth      ( AxiAddrWidth             ),
     .AxiInputIdWidth   ( AxiInIdWidth             ),
@@ -258,6 +270,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
     .axi_input_req_t   ( axi_in_req_t             ),
     .axi_input_resp_t  ( axi_in_resp_t            ),
     .AxiOutputIdWidth  ( AxiOutIdWidth            ),
+    .DefaultUser       ( DefaultUser              ),
     .axi_output_req_t  ( axi_out_req_t            ),
     .axi_output_resp_t ( axi_out_resp_t           )
   ) i_safety_island_top (
