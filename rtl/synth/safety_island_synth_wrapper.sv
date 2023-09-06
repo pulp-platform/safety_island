@@ -18,6 +18,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter int unsigned AxiUserWidth  = SynthAxiUserWidth,
   parameter int unsigned AxiInIdWidth  = SynthAxiInIdWidth,
   parameter int unsigned AxiOutIdWidth = SynthAxiOutIdWidth,
+  parameter bit [AxiUserWidth-1:0] DefaultUser = SynthDefaultUser,
   parameter int unsigned LogDepth      = SynthLogDepth,
   parameter int unsigned CdcSyncStages = SynthCdcSyncStages,
 

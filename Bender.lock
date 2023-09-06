@@ -16,7 +16,7 @@ packages:
     - common_verification
     - tech_cells_generic
   axi_obi:
-    revision: 81e8db2098ff668efb2474772af426499705e543
+    revision: e436859daf6c6469509ce7844a7f3e7c35941839
     version: null
     source:
       Git: git@iis-git.ee.ethz.ch:carfield/axi_obi.git

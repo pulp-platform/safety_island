@@ -27,6 +27,9 @@ module safety_island_top import safety_island_pkg::*; #(
   parameter  bit [NumDebug-1:0]        SelectableHarts = {NumDebug{1'b0}},
   parameter  dm::hartinfo_t [NumDebug-1:0] HartInfo    = {NumDebug{'0}},
 
+  parameter bit          AxiUserEccErr    = 1'b1,
+  parameter int unsigned AxiUserEccErrBit = 4,
+
   /// AXI slave port structs (input)
   parameter int unsigned AxiDataWidth      = 64,
   parameter int unsigned AxiAddrWidth      = GlobalAddrWidth,
@@ -37,6 +40,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   /// AXI master port structs (output)
   parameter int unsigned AxiOutputIdWidth  = 1,
+  parameter bit [AxiUserWidth-1:0] DefaultUser = '0,
   parameter type         axi_output_req_t  = logic,
   parameter type         axi_output_resp_t = logic
 ) (
@@ -1018,6 +1022,19 @@ module safety_island_top import safety_island_pkg::*; #(
 
   // AXI output
 
+  logic [1:0]                                      axi_out_rsp_sel;
+  logic [AxiUserWidth-1:0]                         axi_out_b_user,
+                                                   axi_out_r_user;
+  logic [XbarSbrObiCfg.OptionalCfg.RUserWidth-1:0] axi_out_obi_user;
+
+  // Currently only implements ECC error bit
+  if (AxiUserEccErr) begin
+    assign axi_out_obi_user = axi_out_rsp_sel[1] ? axi_out_b_user[AxiUserEccErrBit] | axi_out_r_user[AxiUserEccErrBit] :
+                              axi_out_rsp_sel[0] ? axi_out_b_user[AxiUserEccErrBit] : axi_out_r_user[AxiUserEccErrBit];
+  end else begin
+    assign axi_out_obi_user = '0;
+  end
+
   obi_to_axi #(
     .ObiCfg       ( XbarSbrObiCfg      ),
     .obi_req_t    ( xbar_sbr_obi_req_t ),
@@ -1034,9 +1051,15 @@ module safety_island_top import safety_island_pkg::*; #(
     .rst_ni,
     .obi_req_i ( axi_output_obi_req ),
     .obi_rsp_o ( axi_output_obi_rsp ),
-    .user_i    ( '0 ), // TODO ATOP ID?
+    .user_i    ( DefaultUser        ),// Only one ATOP-capable master (cv32e40p data port),
+                                      // so we have only one user config even when using user as ATOP ID.
     .axi_req_o ( axi_output_req_o   ),
-    .axi_rsp_i ( axi_output_resp_i  )
+    .axi_rsp_i ( axi_output_resp_i  ),
+
+    .axi_rsp_channel_sel ( axi_out_rsp_sel  ),
+    .axi_rsp_b_user_o    ( axi_out_b_user   ),
+    .axi_rsp_r_user_o    ( axi_out_r_user   ),
+    .obi_rsp_user_i      ( axi_out_obi_user )
   );
 
   // TODO?: AXI AddrWidth prepend

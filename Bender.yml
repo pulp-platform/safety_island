@@ -22,7 +22,7 @@ dependencies:
   timer_unit:           { git: "https://github.com/pulp-platform/timer_unit.git",           version: 1.0.2 }
   obi:                  { git: "https://github.com/pulp-platform/obi.git",                  version: 0.1.1 }
   unbent:               { git: "https://github.com/pulp-platform/unbent.git",               version: 0.1.1 }
-  axi_obi:              { git: "git@iis-git.ee.ethz.ch:carfield/axi_obi.git",               rev: "81e8db2" } # `main` branch
+  axi_obi:              { git: "git@iis-git.ee.ethz.ch:carfield/axi_obi.git",               rev: "e436859" } # `user_manip` branch
 
 sources:
   # Level 1
