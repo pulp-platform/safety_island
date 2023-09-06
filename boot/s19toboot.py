@@ -54,11 +54,21 @@ if(len(sys.argv) < 3):
 
 
 rom_size      = 0x1000/8 # in double words (64 bit)
-rom_start     = 0x00201000
+rom_start = 0x00201000
+try:
+    os.environ['CARFIELD']
+    rom_start = 0x60201000
+except:
+    pass
 rom_end       = rom_start + rom_size * 8 - 1
 
 l2_size      = 128 # in double words (64 bit)
-l2_start     = 0x00000000
+l2_start = 0x00000000
+try:
+    os.environ['CARFIELD']
+    l2_start = 0x60000000
+except:
+    pass
 l2_end       = l2_start + l2_size * 8 - 1
 
 

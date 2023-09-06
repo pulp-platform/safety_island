@@ -59,11 +59,15 @@ $(SAFED_HW_DIR)/safety_island_bootrom.sv:
 	$(MAKE) -C boot clean safety_island_bootrom.sv
 	cp boot/safety_island_bootrom.sv rtl/safety_island_bootrom.sv
 
+$(SAFED_HW_DIR)/safety_island_bootrom_carfield.sv:
+	$(MAKE) -C boot clean safety_island_bootrom.sv CARFIELD=1
+	cp boot/safety_island_bootrom.sv rtl/safety_island_bootrom_carfield.sv
+
 .PHONY: safed-hw-gen safed-bootrom-gen
 ## Generate Safety Island HW sources
 safed-hw-gen: $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_pkg.sv $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_top.sv
 ## Generate Safety Island bootrom
-safed-bootrom-gen: $(SAFED_HW_DIR)/safety_island_bootrom.sv
+safed-bootrom-gen: $(SAFED_HW_DIR)/safety_island_bootrom.sv $(SAFED_HW_DIR)/safety_island_bootrom_carfield.sv
 
 ###########
 # Scripts #
