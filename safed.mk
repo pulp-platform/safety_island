@@ -6,7 +6,7 @@ BENDER  ?= bender
 PYTHON3 ?= python3
 REGGEN  ?= $(PYTHON3) $(shell $(BENDER) path register_interface)/vendor/lowrisc_opentitan/util/regtool.py
 
-VLOG_ARGS += -suppress 2583 -suppress 13314
+VLOG_ARGS += -suppress 2583 -suppress 13314 -svinputport=compat
 
 SAFED_ROOT    ?= $(shell $(BENDER) path safety_island)
 SAFED_SW_DIR  ?= $(SAFED_ROOT)/sw

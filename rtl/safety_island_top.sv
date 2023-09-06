@@ -120,7 +120,7 @@ module safety_island_top import safety_island_pkg::*; #(
     logic       exokay;
   } obi_r_optional_t;
   typedef struct packed {
-    logic [0:0] ruser;
+    logic [0:0] ruser; // ECC error
   } sbr_obi_r_optional_t;
   `OBI_TYPEDEF_R_CHAN_T(mgr_obi_r_chan_t, MgrObiCfg.DataWidth, MgrObiCfg.IdWidth, obi_r_optional_t)
   `OBI_TYPEDEF_R_CHAN_T(xbar_sbr_obi_r_chan_t, XbarSbrObiCfg.DataWidth, XbarSbrObiCfg.IdWidth, obi_r_optional_t)
