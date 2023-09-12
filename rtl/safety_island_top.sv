@@ -1002,7 +1002,6 @@ module safety_island_top import safety_island_pkg::*; #(
   logic [NumInterBanks-1:0][AxiInputIdWidth-1:0] axi_in_aw_id, axi_in_ar_id;
   logic [NumInterBanks-1:0][AxiUserWidth-1:0] axi_in_aw_user, axi_in_w_user, axi_in_ar_user;
   logic [NumInterBanks-1:0][MgrObiCfg.IdWidth-1:0] obi_in_write_aid, obi_in_read_aid;
-  logic [NumInterBanks-1:0][MgrObiCfg.OptionalCfg.AUserWidth-1:0] obi_in_write_auser, obi_in_read_auser;
 
   logic [AxiUserWidth-1:0] axi_in_rsp_aw_user, axi_in_rsp_w_user, axi_in_rsp_ar_user;
   logic [AxiUserWidth-1:0] axi_in_r_user, axi_in_b_user;
@@ -1021,8 +1020,6 @@ module safety_island_top import safety_island_pkg::*; #(
       assign obi_in_write_aid[i] = axi_in_aw_id[i];
       assign obi_in_read_aid [i] = axi_in_ar_id[i];
     end
-    assign obi_in_write_auser[i] = '0;
-    assign obi_in_read_auser [i] = '0;
   end
 
   always_comb begin
@@ -1085,12 +1082,13 @@ module safety_island_top import safety_island_pkg::*; #(
     .req_aw_user_o     ( axi_in_aw_user     ),
     .req_w_user_o      ( axi_in_w_user      ),
     .req_write_aid_i   ( obi_in_write_aid   ),
-    .req_write_auser_i ( obi_in_write_auser ),
+    .req_write_auser_i ( '0                 ),
+    .req_write_wuser_i ( '0                 ),
 
     .req_ar_id_o       ( axi_in_ar_id       ),
     .req_ar_user_o     ( axi_in_ar_user     ),
     .req_read_aid_i    ( obi_in_read_aid    ),
-    .req_read_auser_i  ( obi_in_read_auser  ),
+    .req_read_auser_i  ( '0  ),
 
     .rsp_write_aw_user_o   ( axi_in_rsp_aw_user           ),
     .rsp_write_w_user_o    ( axi_in_rsp_w_user            ),
