@@ -39,9 +39,24 @@ int main(void) {
 
     printf("Sum: %f\r\nSub: %f\r\nMult: %f\r\nDiv: %f\r\n", add, sub, mult, div);
 
-    if ((add != add_exp) && (sub != sub_exp) && (mult != mult_exp) && (div != div_exp)) {
-        return 1;
+    unsigned int errors = 0;
+
+    if (add != add_exp) {
+        errors += 1;
+    }
+    if (sub != sub_exp) {
+        errors += 1;
     }
 
-    return 0;
+    if (mult != mult_exp) {
+        errors += 1;
+    }
+
+    if (div != div_exp) {
+        errors += 1;
+    }
+
+    printf("Errors: %d\r\n", errors);
+
+    return errors;
 }

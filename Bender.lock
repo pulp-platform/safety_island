@@ -25,8 +25,8 @@ packages:
     - common_cells
     - obi
   axi_riscv_atomics:
-    revision: 97dcb14ef057cbe5bd70dda2060b5bb9e7e04c6d
-    version: 0.7.0
+    revision: c3c3f2b65071841035c4e081c61c9b7be801d749
+    version: 0.8.1
     source:
       Git: https://github.com/pulp-platform/axi_riscv_atomics.git
     dependencies:
@@ -41,13 +41,6 @@ packages:
     dependencies:
     - common_cells
     - register_interface
-  cluster_interconnect:
-    revision: 7d0a4f8acae71a583a6713cab5554e60b9bb8d27
-    version: 1.2.1
-    source:
-      Git: https://github.com/pulp-platform/cluster_interconnect.git
-    dependencies:
-    - common_cells
   common_cells:
     revision: 53b0b58af2db5bd3c850a7038fae170ed78326bb
     version: 1.31.1
@@ -63,7 +56,7 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   cv32e40p:
-    revision: 9b77611a1d0c681f4819798d95422b0b895528a2
+    revision: e863f576699815b38cc9d80dbdede8ed5efd5991
     version: null
     source:
       Git: https://github.com/pulp-platform/cv32e40p.git
@@ -72,7 +65,7 @@ packages:
     - fpnew
     - tech_cells_generic
   fpnew:
-    revision: f231041c610f270ffc03cbdac38739ddb6426572
+    revision: a8e0cba6dd50f357ece73c2c955d96efc3c6c315
     version: null
     source:
       Git: https://github.com/pulp-platform/cvfpu.git
