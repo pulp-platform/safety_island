@@ -35,30 +35,43 @@ __attribute__((interrupt("machine"))) void bus_err_handler(void) {
 
 
 int main(void) {
+    int errors = 0;
+
     bus_err_count = 0;
-
-    // Set up CLIC interrupt for Bus Error Unit
-    // @Ale how?
-    
-
     // Probe bus error unit, ensure no errors
-    if (data_bus_err_get_err_and_pop()) printf("init: got an error?\n");
+    if (data_bus_err_get_err_and_pop()) {
+        printf("Bus error Unit has error on startup.\n");
+        errors += 1;
+    }
 
     // Read error memory region
     uint32_t test_int = pulp_read32(ERR_ADDR);
-    if (test_int != 0xbadcab1e) return 1;
+    if (test_int != 0xbadcab1e) {
+        printf("Error Address not responding with expected 0xbadcab1e.\n");
+        errors += 1;
+    }
 
-    // while(1) {
-    //     if (bus_err_count > 0) break;
-    // }
-    // Ensure interrupt is handled correctly
+    for (int i = 0; i < 1000; i++) {
+        asm volatile ("nop");
+    }
 
-    for (int i = 0; i < 1000; i++) {asm volatile ("nop");}
+    uint32_t test_err_addr = data_bus_err_get_addr_32();
+    if (ERR_ADDR != test_err_addr) {
+        printf("Error Address does not match bus error unit trigger: 0x%d vs. 0x%d.\n", test_err_addr, ERR_ADDR);
+        errors += 1;
+    }
 
-    printf("Testing err addr 0x%x\n", data_bus_err_get_addr_32());
-    printf("Testing err code 0x%x\n", data_bus_err_get_err_and_pop());
+    if (0 == data_bus_err_get_err_and_pop()) {
+        printf("Bus error Unit did not trigger.\n");
+        errors += 1;
+    }
 
-    printf("Testing popped? 0x%x\n", data_bus_err_get_err_and_pop());
+    if (0 != data_bus_err_get_err_and_pop()) {
+        printf("Bus error Unit did not pop error.\n");
+        errors += 1;
+    }
 
-    return 0;
+
+
+    return errors;
 }
