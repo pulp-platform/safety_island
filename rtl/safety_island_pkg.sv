@@ -46,33 +46,33 @@ package safety_island_pkg;
   } addr_map_rule_t;
 
   // Periph offsets and ranges
-  localparam bit [31:0] SocCtrlAddrOffset = 32'h0000_0000;
-  localparam bit [31:0] SocCtrlAddrRange  = 32'h0000_1000;
-  localparam bit [31:0] BootROMAddrOffset = 32'h0000_1000;
-  localparam bit [31:0] BootROMAddrRange  = 32'h0000_1000;
+  localparam bit [31:0] SocCtrlAddrOffset       = 32'h0000_0000;
+  localparam bit [31:0] SocCtrlAddrRange       = 32'h0000_1000;
+  localparam bit [31:0] BootROMAddrOffset       = 32'h0000_1000;
+  localparam bit [31:0] BootROMAddrRange       = 32'h0000_1000;
   localparam bit [31:0] GlobalPrependAddrOffset = 32'h0000_2000;
-  localparam bit [31:0] GlobalPrependAddrRange  = 32'h0000_1000;
-  localparam bit [31:0] DebugAddrOffset = 32'h0000_3000;
-  localparam bit [31:0] DebugAddrRange  = 32'h0000_1000;
-  localparam bit [31:0] EccManagerAddrOffset = 32'h0000_4000;
-  localparam bit [31:0] EccManagerAddrRange = 32'h0000_0040; // Temporary for 2 banks
-  localparam bit [31:0] TBPrintfAddrOffset = 32'h0000_6000;
-  localparam bit [31:0] TBPrintfAddrRange  = 32'h0000_1000;
-  localparam bit [31:0] TimerAddrOffset = 32'h0000_8000;
-  localparam bit [31:0] TimerAddrRange = 32'h0000_5000;
-  localparam bit [31:0] CoreLocalAddrOffset = 32'h0000_D000;
-  localparam bit [31:0] CoreLocalAddrRange  = 32'h0002_3000;
+  localparam bit [31:0] GlobalPrependAddrRange = 32'h0000_1000;
+  localparam bit [31:0] DebugAddrOffset         = 32'h0000_3000;
+  localparam bit [31:0] DebugAddrRange         = 32'h0000_1000;
+  localparam bit [31:0] EccManagerAddrOffset    = 32'h0000_4000;
+  localparam bit [31:0] EccManagerAddrRange    = 32'h0000_0040; // Temporary for 2 banks
+  localparam bit [31:0] TBPrintfAddrOffset      = 32'h0000_6000;
+  localparam bit [31:0] TBPrintfAddrRange      = 32'h0000_1000;
+  localparam bit [31:0] TimerAddrOffset         = 32'h0000_8000;
+  localparam bit [31:0] TimerAddrRange         = 32'h0000_5000;
+  localparam bit [31:0] CoreLocalAddrOffset     = 32'h0000_D000;
+  localparam bit [31:0] CoreLocalAddrRange     = 32'h0002_3000;
 
   // Core-Local offsets and ranges
-  localparam bit [31:0] TCLSAddrOffset = CoreLocalAddrOffset;
+  localparam bit [31:0] TCLSAddrOffset  = CoreLocalAddrOffset;
   localparam bit [31:0] TCLSAddrRange  = 32'h0000_1000;
-  localparam bit [31:0] ClicAddrOffset = 32'h0001_0000;
+  localparam bit [31:0] ClicAddrOffset  = 32'h0001_0000;
   localparam bit [31:0] ClicAddrRange  = 32'h0001_0000;
-  localparam bit [31:0] InstrErrOffset = 32'h0002_0000;
+  localparam bit [31:0] InstrErrOffset  = 32'h0002_0000;
   localparam bit [31:0] InstrErrRange  = 32'h0000_0010;
-  localparam bit [31:0] DataErrOffset  = 32'h0002_0010;
+  localparam bit [31:0] DataErrOffset   = 32'h0002_0010;
   localparam bit [31:0] DataErrRange   = 32'h0000_0020;
-  localparam bit [31:0] ShadowErrOffset= 32'h0002_0020;
+  localparam bit [31:0] ShadowErrOffset = 32'h0002_0020;
   localparam bit [31:0] ShadowErrRange = 32'h0000_0030;
 
   typedef struct packed {
@@ -136,7 +136,7 @@ package safety_island_pkg;
   localparam int unsigned NumTimerInterrupts = 2*SafetyIslandDefaultConfig.NumTimers;
   // localparam int unsigned NumLocalInterrupts = SafetyIslandDefaultConfig.NumInterrupts - NumTimerInterrupts;
 
-  localparam AxiMaxInTrans = 3;  // 1 AXI cut, 1-cycle response
-  localparam AxiMaxOutTrans = 2; // Cores do not support more than 2 outstanding transactions
+  localparam int unsigned AxiMaxInTrans = 3;  // 1 AXI cut, 1-cycle response
+  localparam int unsigned AxiMaxOutTrans = 2; // Cores do not support more than 2 outstanding transactions
 
 endpackage

@@ -27,6 +27,12 @@ module safety_island_top import safety_island_pkg::*; #(
   parameter  bit [NumDebug-1:0]        SelectableHarts = {NumDebug{1'b0}},
   parameter  dm::hartinfo_t [NumDebug-1:0] HartInfo    = {NumDebug{'0}},
 
+  parameter bit          AxiUserAtop      = 1'b1,
+  parameter int unsigned AxiUserAtopMsb   = 3,
+  parameter int unsigned AxiUserAtopLsb   = 0,
+  parameter bit          AxiUserEccErr    = 1'b1,
+  parameter int unsigned AxiUserEccErrBit = 4,
+
   /// AXI slave port structs (input)
   parameter int unsigned AxiDataWidth      = 64,
   parameter int unsigned AxiAddrWidth      = GlobalAddrWidth,
@@ -37,6 +43,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   /// AXI master port structs (output)
   parameter int unsigned AxiOutputIdWidth  = 1,
+  parameter bit [AxiUserWidth-1:0] DefaultUser = '0,
   parameter type         axi_output_req_t  = logic,
   parameter type         axi_output_resp_t = logic
 ) (
@@ -104,7 +111,7 @@ module safety_island_top import safety_island_pkg::*; #(
     AChkWidth:     0,
     RChkWidth:     0
   };
-  localparam obi_pkg::obi_cfg_t MgrObiCfg = obi_pkg::obi_default_cfg(AddrWidth, DataWidth, AxiInputIdWidth, MgrObiOptionalCfg);
+  localparam obi_pkg::obi_cfg_t MgrObiCfg = obi_pkg::obi_default_cfg(AddrWidth, DataWidth, (AxiUserAtop ? AxiUserAtopMsb+1-AxiUserAtopLsb : AxiInputIdWidth), MgrObiOptionalCfg);
   localparam obi_pkg::obi_cfg_t XbarSbrObiCfg = obi_pkg::mux_grow_cfg(MgrObiCfg, NumManagers);
   localparam obi_pkg::obi_cfg_t SbrObiCfg = obi_pkg::obi_default_cfg(AddrWidth, DataWidth, XbarSbrObiCfg.IdWidth, SbrObiOptionalCfg);
   `OBI_TYPEDEF_ATOP_A_OPTIONAL(obi_a_optional_t)
@@ -120,7 +127,7 @@ module safety_island_top import safety_island_pkg::*; #(
     logic       exokay;
   } obi_r_optional_t;
   typedef struct packed {
-    logic [0:0] ruser;
+    logic [0:0] ruser; // ECC error
   } sbr_obi_r_optional_t;
   `OBI_TYPEDEF_R_CHAN_T(mgr_obi_r_chan_t, MgrObiCfg.DataWidth, MgrObiCfg.IdWidth, obi_r_optional_t)
   `OBI_TYPEDEF_R_CHAN_T(xbar_sbr_obi_r_chan_t, XbarSbrObiCfg.DataWidth, XbarSbrObiCfg.IdWidth, obi_r_optional_t)
@@ -991,6 +998,64 @@ module safety_island_top import safety_island_pkg::*; #(
 
   // AXI input
 
+  localparam NumInterBanks = AxiDataWidth/MgrObiCfg.DataWidth;
+  logic [NumInterBanks-1:0][AxiInputIdWidth-1:0] axi_in_aw_id, axi_in_ar_id;
+  logic [NumInterBanks-1:0][AxiUserWidth-1:0] axi_in_aw_user, axi_in_w_user, axi_in_ar_user;
+  logic [NumInterBanks-1:0][MgrObiCfg.IdWidth-1:0] obi_in_write_aid, obi_in_read_aid;
+
+  logic [AxiUserWidth-1:0] axi_in_rsp_aw_user, axi_in_rsp_w_user, axi_in_rsp_ar_user;
+  logic [AxiUserWidth-1:0] axi_in_r_user, axi_in_b_user;
+  logic [NumInterBanks-1:0] axi_in_rsp_write_bank_strobe, axi_in_rsp_read_size_enable;
+  logic [NumInterBanks-1:0][MgrObiCfg.IdWidth-1:0] obi_in_rsp_write_rid, obi_in_rsp_read_rid;
+  logic [NumInterBanks-1:0][MgrObiCfg.OptionalCfg.RUserWidth-1:0] obi_in_rsp_write_ruser, obi_in_rsp_read_ruser;
+  logic axi_in_rsp_write_last, axi_in_rsp_write_hs;
+
+  logic axi_b_ecc_err_incr;
+
+  for (genvar i = 0; i < NumInterBanks; i++) begin
+    if (AxiUserAtop) begin
+      assign obi_in_write_aid[i] = axi_in_aw_user[i][AxiUserAtopMsb:AxiUserAtopLsb];
+      assign obi_in_read_aid [i] = axi_in_ar_user[i][AxiUserAtopMsb:AxiUserAtopLsb];
+    end else begin
+      assign obi_in_write_aid[i] = axi_in_aw_id[i];
+      assign obi_in_read_aid [i] = axi_in_ar_id[i];
+    end
+  end
+
+  always_comb begin
+    axi_in_r_user = '0;
+    axi_in_b_user = '0;
+    // Respond with same ATOP ID
+    if (AxiUserAtop) begin
+      for (int i = 0; i < NumInterBanks; i++) begin
+        axi_in_r_user[AxiUserAtopMsb:AxiUserAtopLsb] |= axi_in_rsp_read_size_enable[i] ? obi_in_rsp_read_rid[i] : '0;
+        // No need to buffer the ATOP ID
+        axi_in_b_user[AxiUserAtopMsb:AxiUserAtopLsb] |= axi_in_rsp_write_bank_strobe[i] ? obi_in_rsp_write_rid[i] : '0;
+      end
+    end
+    // Attach ECC error
+    if (AxiUserEccErr) begin
+      axi_in_r_user[AxiUserEccErrBit:AxiUserEccErrBit] = |(axi_in_rsp_read_size_enable & obi_in_rsp_read_ruser);
+      axi_in_b_user[AxiUserEccErrBit:AxiUserEccErrBit] = axi_b_ecc_err_incr;
+    end
+  end
+
+  // Collect ECC error
+  if (AxiUserEccErr) begin
+    logic axi_b_ecc_err_d, axi_b_ecc_err_q;
+    assign axi_b_ecc_err_incr = axi_b_ecc_err_q | (axi_in_rsp_write_hs & |(obi_in_rsp_write_ruser & axi_in_rsp_write_bank_strobe));
+    assign axi_b_ecc_err_d = axi_in_rsp_write_last && axi_in_rsp_write_hs ? '0 : axi_b_ecc_err_incr;
+    always_ff @(posedge clk_i or negedge rst_ni) begin : proc_axi_b_ecc_err
+      if(~rst_ni) begin
+        axi_b_ecc_err_q <= 0;
+      end else begin
+        axi_b_ecc_err_q <= axi_b_ecc_err_d;
+      end
+    end
+  end else begin
+    assign axi_b_ecc_err_incr = '0;
+  end
+
   axi_to_obi #(
     .ObiCfg         ( MgrObiCfg        ),
     .obi_req_t      ( mgr_obi_req_t    ),
@@ -1001,22 +1066,60 @@ module safety_island_top import safety_island_pkg::*; #(
     .AxiDataWidth   ( AxiDataWidth     ),
     .AxiIdWidth     ( AxiInputIdWidth  ),
     .AxiUserWidth   ( AxiUserWidth     ),
-    .UseAxiUserAsId (1'b0), // TODO for ATOPS
-    .AxiUserIdOffset('0),   // TODO for ATOPS
     .MaxTrans       ( 2                ),
     .axi_req_t      ( axi_input_req_t  ),
     .axi_rsp_t      ( axi_input_resp_t )
   ) i_axi_to_obi (
     .clk_i,
     .rst_ni,
-    .testmode_i ( test_enable_i     ),
-    .axi_req_i  ( axi_input_req_i   ),
-    .axi_rsp_o  ( axi_input_resp_o  ),
-    .obi_req_o  ( axi_input_obi_req ),
-    .obi_rsp_i  ( axi_input_obi_rsp )
+    .testmode_i        ( test_enable_i      ),
+    .axi_req_i         ( axi_input_req_i    ),
+    .axi_rsp_o         ( axi_input_resp_o   ),
+    .obi_req_o         ( axi_input_obi_req  ),
+    .obi_rsp_i         ( axi_input_obi_rsp  ),
+
+    .req_aw_id_o       ( axi_in_aw_id       ),
+    .req_aw_user_o     ( axi_in_aw_user     ),
+    .req_w_user_o      ( axi_in_w_user      ),
+    .req_write_aid_i   ( obi_in_write_aid   ),
+    .req_write_auser_i ( '0                 ),
+    .req_write_wuser_i ( '0                 ),
+
+    .req_ar_id_o       ( axi_in_ar_id       ),
+    .req_ar_user_o     ( axi_in_ar_user     ),
+    .req_read_aid_i    ( obi_in_read_aid    ),
+    .req_read_auser_i  ( '0  ),
+
+    .rsp_write_aw_user_o   ( axi_in_rsp_aw_user           ),
+    .rsp_write_w_user_o    ( axi_in_rsp_w_user            ),
+    .rsp_write_bank_strb_o ( axi_in_rsp_write_bank_strobe ),
+    .rsp_write_rid_o       ( obi_in_rsp_write_rid         ),
+    .rsp_write_ruser_o     ( obi_in_rsp_write_ruser       ),
+    .rsp_write_last_o      ( axi_in_rsp_write_last        ),
+    .rsp_write_hs_o        ( axi_in_rsp_write_hs          ),
+    .rsp_b_user_i          ( axi_in_b_user                ),
+
+    .rsp_read_ar_user_o    ( axi_in_rsp_ar_user           ),
+    .rsp_read_size_enable_o( axi_in_rsp_read_size_enable  ),
+    .rsp_read_rid_o        ( obi_in_rsp_read_rid          ),
+    .rsp_read_ruser_o      ( obi_in_rsp_read_ruser        ),
+    .rsp_r_user_i          ( axi_in_r_user                )
   );
 
   // AXI output
+
+  logic [1:0]                                      axi_out_rsp_sel;
+  logic [AxiUserWidth-1:0]                         axi_out_b_user,
+                                                   axi_out_r_user;
+  logic [XbarSbrObiCfg.OptionalCfg.RUserWidth-1:0] axi_out_obi_user;
+
+  // Currently only implements ECC error bit
+  if (AxiUserEccErr) begin
+    assign axi_out_obi_user = axi_out_rsp_sel[1] ? axi_out_b_user[AxiUserEccErrBit] | axi_out_r_user[AxiUserEccErrBit] :
+                              axi_out_rsp_sel[0] ? axi_out_b_user[AxiUserEccErrBit] : axi_out_r_user[AxiUserEccErrBit];
+  end else begin
+    assign axi_out_obi_user = '0;
+  end
 
   obi_to_axi #(
     .ObiCfg       ( XbarSbrObiCfg      ),
@@ -1034,9 +1137,15 @@ module safety_island_top import safety_island_pkg::*; #(
     .rst_ni,
     .obi_req_i ( axi_output_obi_req ),
     .obi_rsp_o ( axi_output_obi_rsp ),
-    .user_i    ( '0 ), // TODO ATOP ID?
+    .user_i    ( DefaultUser        ),// Only one ATOP-capable master (cv32e40p data port),
+                                      // so we have only one user config even when using user as ATOP ID.
     .axi_req_o ( axi_output_req_o   ),
-    .axi_rsp_i ( axi_output_resp_i  )
+    .axi_rsp_i ( axi_output_resp_i  ),
+
+    .axi_rsp_channel_sel ( axi_out_rsp_sel  ),
+    .axi_rsp_b_user_o    ( axi_out_b_user   ),
+    .axi_rsp_r_user_o    ( axi_out_r_user   ),
+    .obi_rsp_user_i      ( axi_out_obi_user )
   );
 
   // TODO?: AXI AddrWidth prepend
