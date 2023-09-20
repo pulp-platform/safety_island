@@ -92,8 +92,10 @@ set StdArithNoWarnings 1
 set NumericStdNoWarnings 1
 
 if {[info exists ::env(INJECT_FAULT)]} {
+  echo "FLIPPING?"
+  echo $::env(INJECT_FAULT)
   # add fault injection
-  source $::env(VSIM_PATH)/../fault_injection.tcl
+  source $::env(INJECT_FAULT)
 }
 
 # check exit status in tb and quit the simulation accordingly
