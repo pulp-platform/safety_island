@@ -129,8 +129,8 @@ packages:
       Git: https://github.com/pulp-platform/timer_unit.git
     dependencies: []
   unbent:
-    revision: f6d82fc42ff4b29f87719966a2a9cf38fcca2d90
-    version: 0.1.3
+    revision: 89ea12018002e6fae51f88e25320e79f57db8073
+    version: 0.1.5
     source:
       Git: https://github.com/pulp-platform/unbent.git
     dependencies:
