@@ -21,7 +21,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// CLIC includes
+#include "csr.h"
+#include "io.h"
+#include "clic.h"
+#include "clicint.h"
+
 #define ERR_ADDR ARCHI_SAFETY_ISLAND_BASE_ADDR+2*ARCHI_SAFETY_ISLAND_PERIPH_OFFSET
+#define INSTR_ERR_IRQ 18
+#define DATA_ERR_IRQ 19
+#define SHADOW_ERR_IRQ 20
+
+
+void clic_setup_mtvec(void);
+void clic_setup_mtvt(void);
 
 unsigned int bus_err_count;
 unsigned int bus_err_addr;
@@ -71,7 +84,58 @@ int main(void) {
         errors += 1;
     }
 
+    // Ensure interrupt works with handler
+    // Other tests confirm CLIC works, here just the UNBENT handler is tested.
 
+    uint32_t mclicbase;
+    mclicbase = csr_read(CSR_MCLICBASE);
+    // redirect vector table
+    clic_setup_mtvec();
+    clic_setup_mtvt();
+
+    // Use vector jump, not default handler
+    writew((0x1 << CLICINT_CLICINT_ATTR_SHV_BIT) |
+               (readw(mclicbase + CLICINT_CLICINT_REG_OFFSET(DATA_ERR_IRQ)) & ~(0x1 << CLICINT_CLICINT_ATTR_SHV_BIT)),
+           mclicbase + CLICINT_CLICINT_REG_OFFSET(DATA_ERR_IRQ));
+
+
+    // set to edge-triggered for DATA_ERR_IRQ
+    writew((0x0 << CLICINT_CLICINT_ATTR_TRIG_OFFSET) |
+               (readw(mclicbase + CLICINT_CLICINT_REG_OFFSET(DATA_ERR_IRQ)) &
+                ~(CLICINT_CLICINT_ATTR_TRIG_MASK << CLICINT_CLICINT_ATTR_TRIG_OFFSET)),
+           mclicbase + CLICINT_CLICINT_REG_OFFSET(DATA_ERR_IRQ));
+
+    // Set nlbits, (level/priority global config)
+    writew((0x4 << MCLIC_MCLICCFG_MNLBITS_OFFSET), mclicbase + MCLIC_MCLICCFG_REG_OFFSET);
+
+    // set interrupt level and priority for interrupt DATA_ERR_IRQ to 0xaa (because this is the value in other tests)
+    writew((0xaa << CLICINT_CLICINT_CTL_OFFSET) | (readw(mclicbase + CLICINT_CLICINT_REG_OFFSET(DATA_ERR_IRQ)) &
+                                                   ~(CLICINT_CLICINT_CTL_MASK << CLICINT_CLICINT_CTL_OFFSET)),
+           mclicbase + CLICINT_CLICINT_REG_OFFSET(DATA_ERR_IRQ));
+
+    // enable interrupt DATA_ERR_IRQ on clic
+    writew((0x1 << CLICINT_CLICINT_IE_BIT) |
+               (readw(mclicbase + CLICINT_CLICINT_REG_OFFSET(DATA_ERR_IRQ)) & ~(0X1 << CLICINT_CLICINT_IE_BIT)),
+           mclicbase + CLICINT_CLICINT_REG_OFFSET(DATA_ERR_IRQ));
+
+    // Set interrupt threshold to enable all
+    csr_write(CSR_MINTTHRESH, 0); /* 0 < xx */
+
+    uint32_t test_int2 = pulp_read32(ERR_ADDR);
+
+    if (test_int2 != 0xbadcab1e) {
+        printf("Error Address not responding with expected 0xbadcab1e.\n");
+        errors += 1;
+    }
+
+    for (int i = 0; i < 1000; i++) {
+        asm volatile ("nop");
+    }
+
+    if (bus_err_count != 1) {
+        printf("Bus Error count from interrupt handler is not 1: %d\n", bus_err_count);
+        errors += 1;
+    }
 
     return errors;
 }
