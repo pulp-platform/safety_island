@@ -23,7 +23,7 @@
 
 /* quickly scan the given address range with AXI_N_SAMPLES */
 #ifndef AXI_N_SAMPLES
-#    define AXI_N_SAMPLES 16
+#    define AXI_N_SAMPLES 64
 #endif
 
 /* we scan 4096 words by default */
@@ -80,9 +80,9 @@ int main(void)
     probe_range((uintptr_t)ext_base_addr, (uintptr_t)ext_end_addr,
                 AXI_N_SAMPLES);
 
-    /* now test the whole address range */
-    scan_range((uintptr_t)ext_base_addr, (uintptr_t)(ext_base_addr + AXI_SCAN_NUM_BLOCKS * AXI_SCAN_BLOCKSIZE),
-               AXI_SCAN_INCREMENT, AXI_SCAN_BLOCKSIZE);
+    // /* now test the whole address range */
+    // scan_range((uintptr_t)ext_base_addr, (uintptr_t)(ext_base_addr + AXI_SCAN_NUM_BLOCKS * AXI_SCAN_BLOCKSIZE),
+    //            AXI_SCAN_INCREMENT, AXI_SCAN_BLOCKSIZE);
 
     printf("done\n");
     return 0;
