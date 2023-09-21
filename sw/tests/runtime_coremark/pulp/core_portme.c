@@ -123,7 +123,8 @@ volatile ee_s32 seed5_volatile = 0;
 #else
 #define SAMPLE_TIME_IMPLEMENTATION 0
 #endif
-#define EE_TICKS_PER_SEC 1000000 // Simulating 1MHz
+// #define EE_TICKS_PER_SEC 1000000 // Simulating 1MHz
+#define EE_TICKS_PER_SEC 10000 // Simulating 10kHz
 
 #if SAMPLE_TIME_IMPLEMENTATION
 /** Define Host specific (POSIX), or target specific global time variables. */
