@@ -1012,17 +1012,17 @@ module safety_island_top import safety_island_pkg::*; #(
 
   logic axi_b_ecc_err_incr;
 
-  for (genvar i = 0; i < NumInterBanks; i++) begin
-    if (AxiUserAtop) begin
+  for (genvar i = 0; i < NumInterBanks; i++) begin : gen_ext_obi_aid
+    if (AxiUserAtop) begin : gen_user_atop
       assign obi_in_write_aid[i] = axi_in_aw_user[i][AxiUserAtopMsb:AxiUserAtopLsb];
       assign obi_in_read_aid [i] = axi_in_ar_user[i][AxiUserAtopMsb:AxiUserAtopLsb];
-    end else begin
+    end else begin : gen_plain_atop
       assign obi_in_write_aid[i] = axi_in_aw_id[i];
       assign obi_in_read_aid [i] = axi_in_ar_id[i];
     end
   end
 
-  always_comb begin
+  always_comb begin : proc_obi_user
     axi_in_r_user = '0;
     axi_in_b_user = '0;
     // Respond with same ATOP ID
@@ -1041,7 +1041,7 @@ module safety_island_top import safety_island_pkg::*; #(
   end
 
   // Collect ECC error
-  if (AxiUserEccErr) begin
+  if (AxiUserEccErr) begin : gen_ext_obi_ecc_err
     logic axi_b_ecc_err_d, axi_b_ecc_err_q;
     assign axi_b_ecc_err_incr = axi_b_ecc_err_q | (axi_in_rsp_write_hs & |(obi_in_rsp_write_ruser & axi_in_rsp_write_bank_strobe));
     assign axi_b_ecc_err_d = axi_in_rsp_write_last && axi_in_rsp_write_hs ? '0 : axi_b_ecc_err_incr;
@@ -1114,10 +1114,10 @@ module safety_island_top import safety_island_pkg::*; #(
   logic [XbarSbrObiCfg.OptionalCfg.RUserWidth-1:0] axi_out_obi_user;
 
   // Currently only implements ECC error bit
-  if (AxiUserEccErr) begin
+  if (AxiUserEccErr) begin : gen_ext_ecc_err
     assign axi_out_obi_user = axi_out_rsp_sel[1] ? axi_out_b_user[AxiUserEccErrBit] | axi_out_r_user[AxiUserEccErrBit] :
                               axi_out_rsp_sel[0] ? axi_out_b_user[AxiUserEccErrBit] : axi_out_r_user[AxiUserEccErrBit];
-  end else begin
+  end else begin : gen_plain_user
     assign axi_out_obi_user = '0;
   end
 

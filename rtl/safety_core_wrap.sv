@@ -93,7 +93,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   logic [2:0] bus_err_irq;
   logic resynch_irq;
 
-  if (SafetyIslandCfg.UseTCLS) begin
+  if (SafetyIslandCfg.UseTCLS) begin : gen_TCLS_core
     localparam int unsigned NumHMRCores = 3;
     localparam int unsigned NumBuses = 2;
     localparam int unsigned DataBus = 0;
@@ -257,7 +257,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       .enable_bus_vote_i     ( enable_bus_output )
     );
 
-    for (genvar i = 0; i < NumHMRCores; i++) begin
+    for (genvar i = 0; i < NumHMRCores; i++) begin : gen_cores
       // APU signals
       logic                                                  apu_req;
       logic [cv32e40p_apu_core_pkg::APU_NARGS_CPU-1:0][31:0] apu_operands;
@@ -389,7 +389,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
     end
 
-  end else begin
+  end else begin : gen_single_core
 
     // APU signals
     logic                           apu_req;
