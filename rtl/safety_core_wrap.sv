@@ -682,7 +682,10 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .N_SOURCE   ( TotalNumInterrupts             ),
     .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits ),
     .SSCLIC     ( SafetyIslandCfg.UseSSClic      ),
-    .USCLIC     ( SafetyIslandCfg.UseUSClic      )
+    .USCLIC     ( SafetyIslandCfg.UseUSClic      ),
+    .VSCLIC     ( SafetyIslandCfg.UseVSClic      ),
+    .N_VSCTXTS  ( SafetyIslandCfg.NVsCtxts       ),
+    .VSPRIO     ( SafetyIslandCfg.UseVSPrio      )
   ) i_clic (
     .clk_i,
     .rst_ni,
@@ -697,7 +700,9 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .irq_id_o    ( core_irq_id    ),
     .irq_level_o ( core_irq_level ),
     .irq_shv_o   ( core_irq_shv   ),
-    .irq_priv_o     (  ),
+    .irq_priv_o  ( ),
+    .irq_v_o     ( ),
+    .irq_vsid_o  ( ),
     .irq_kill_req_o (  ),
     .irq_kill_ack_i ('0)
   );

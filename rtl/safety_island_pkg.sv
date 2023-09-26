@@ -92,6 +92,9 @@ package safety_island_pkg;
     int unsigned              UseSSClic;         // Enable Supervisor mode for
                                                  // CLIC
     int unsigned              UseUSClic;         // Enable USer mode for CLIC
+    int unsigned              UseVSClic;         // Enable virtual supervisor mode for CLIC
+    int unsigned              NVsCtxts;          // Number of virtual contexts supported
+    int unsigned              UseVSPrio;         // Enable virtual supervisor prioritization
     int unsigned              UseFastIrq;        // Use CV32RT (CV32 with fast
                                                  // interrupt extensions)
     int unsigned              UseFpu;            // Use FPU
@@ -123,6 +126,9 @@ package safety_island_pkg;
     ClicIntCtlBits:     8,
     UseSSClic:          0,
     UseUSClic:          0,
+    UseVSClic:          0,
+    NVsCtxts:           0,
+    UseVSPrio:          0,
     UseFastIrq:         1,
     UseFpu:             1,
     UseIntegerCluster:  0,
