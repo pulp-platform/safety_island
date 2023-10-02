@@ -220,6 +220,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       .TMRSupported      ( 1'b1                           ),
       .TMRFixed          ( 1'b1                           ),
       .InterleaveGrps    ( 1'b0                           ),
+      .RapidRecovery     ( 1'b0                           ),
       .SeparateData      ( 1'b1                           ),
       .NumBusVoters      ( NumBuses                       ),
       .all_inputs_t      ( hmr_cv32e40p_all_inputs_t      ),
@@ -244,6 +245,8 @@ module safety_core_wrap import safety_island_pkg::*; #(
       .dmr_resynch_req_o     (), // Not used if DMR disabled
       .dmr_sw_synch_req_o    (), // Not used if DMR disabled
       .dmr_cores_synch_i     ('0), // Not used if DMR disabled
+
+      .rapid_recovery_o      (), // Not used
 
       .sys_inputs_i          ( sys_inputs      ),
       .sys_nominal_outputs_o ( sys_outputs     ),
