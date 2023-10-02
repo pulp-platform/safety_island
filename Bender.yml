@@ -11,7 +11,7 @@ dependencies:
   common_cells:         { git: "https://github.com/pulp-platform/common_cells.git",         version: 1.29.0 }
   axi:                  { git: "https://github.com/pulp-platform/axi.git",                  version: 0.39.1 }
   axi_riscv_atomics:    { git: "https://github.com/pulp-platform/axi_riscv_atomics.git",    version: 0.8.1 }
-  redundancy_cells:     { git: "https://github.com/pulp-platform/redundancy_cells.git",     rev: "6a011b6" } # `hmr-alt` branch
+  redundancy_cells:     { git: "https://github.com/pulp-platform/redundancy_cells.git",     rev: "ecb92ca" } # `yt/rapidrecovery` branch
   riscv-dbg:            { git: "https://github.com/pulp-platform/riscv-dbg.git",            version: 0.8.1 }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.12 }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.4.1 }
