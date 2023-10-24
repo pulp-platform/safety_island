@@ -52,6 +52,7 @@ module $module_name #(
     parameter DATA_WIDTH=32
 ) (
    input logic                   CLK,
+   input logic                   RST_N,
    input logic                   CEN,
    input logic  [ADDR_WIDTH-1:0] A,
    output logic [DATA_WIDTH-1:0] Q
@@ -64,10 +65,12 @@ module $module_name #(
 $content
     };
 
-    always_ff @(posedge CLK)
-    begin
-      if (CEN == 1'b0)
-        A_Q <= A;
+    always_ff @(posedge CLK or negedge RST_N) begin : proc_addr
+        if(!RST_N) begin
+            A_Q <= '0;
+        end else begin
+            A_Q <= A;
+        end
     end
 
     assign Q = MEM[A_Q];

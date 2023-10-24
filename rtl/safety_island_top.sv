@@ -835,10 +835,11 @@ module safety_island_top import safety_island_pkg::*; #(
     .ADDR_WIDTH ( 10 ),
     .DATA_WIDTH ( DataWidth )
   ) i_bootrom (
-    .CLK ( clk_i ),
-    .CEN ( ~boot_rom_obi_req.req ),
-    .A   ( boot_rom_obi_req.a.addr[11:2] ),
-    .Q   ( boot_rom_obi_rsp.r.rdata )
+    .CLK   ( clk_i ),
+    .RST_N ( rst_ni ),
+    .CEN   ( ~boot_rom_obi_req.req ),
+    .A     ( boot_rom_obi_req.a.addr[11:2] ),
+    .Q     ( boot_rom_obi_rsp.r.rdata )
   );
   assign boot_rom_obi_rsp.gnt = 1'b1;
   assign boot_rom_obi_rsp.r.err = 1'b0;
