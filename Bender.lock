@@ -16,7 +16,7 @@ packages:
     - common_verification
     - tech_cells_generic
   axi_obi:
-    revision: 4ca45fa0129d7731ce7d40667882acec45a0f487
+    revision: f8605eadbb15b8de7a0833843403e991be04a15b
     version: null
     source:
       Git: git@iis-git.ee.ethz.ch:carfield/axi_obi.git
@@ -25,8 +25,8 @@ packages:
     - common_cells
     - obi
   axi_riscv_atomics:
-    revision: c3c3f2b65071841035c4e081c61c9b7be801d749
-    version: 0.8.1
+    revision: 0ac3a78fe342c5a5b9b10bff49d58897f773059e
+    version: 0.8.2
     source:
       Git: https://github.com/pulp-platform/axi_riscv_atomics.git
     dependencies:
@@ -35,7 +35,7 @@ packages:
     - common_verification
   clic:
     revision: 3aa6f06eb03e6c74b6fead5b1d42318f49a3cf32
-    version: null
+    version: 3.0.0-rc1
     source:
       Git: https://github.com/pulp-platform/clic.git
     dependencies:
@@ -129,10 +129,11 @@ packages:
       Git: https://github.com/pulp-platform/timer_unit.git
     dependencies: []
   unbent:
-    revision: 89ea12018002e6fae51f88e25320e79f57db8073
-    version: 0.1.5
+    revision: e9c9d5cfb635f2d4668c816ce9235798cfecb297
+    version: 0.1.6
     source:
       Git: https://github.com/pulp-platform/unbent.git
     dependencies:
+    - axi
     - common_cells
     - register_interface
