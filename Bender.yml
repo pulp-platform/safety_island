@@ -15,7 +15,7 @@ dependencies:
   riscv-dbg:            { git: "https://github.com/pulp-platform/riscv-dbg.git",            version: 0.8.0 }
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.12 }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.4.1 }
-  cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "e863f57" } # `michaero/safety-island-clic` branch
+  cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "417df78" } # `michaero/safety-island-clic` branch
   clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "3aa6f06" } # `aottaviano/dev` branch
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev: pulp-v0.1.3 }
   apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }
