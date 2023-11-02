@@ -20,9 +20,9 @@
 /*
  * Test mnxti CSR functionalities
  * The following interrupts are used:
- * Interrupt Name			ID 		SHV?	LVL/Prio
- * Origin Interrupt (OIC)	irq 27	SHV 	33
- * Initial Interrupt (I)	irq 28 	non		55
+ * Interrupt Name			ID 	SHV?	LVL/Prio
+ * Origin Interrupt (OIC)	        irq 27	SHV 	33
+ * Initial Interrupt (I)	        irq 28 	non	55
  * Interrupt II 			irq 29  non 	66
  * Interrupt III 			irq 30 	non 	44
  * Interrupt IV				irq 31  SHV 	66
@@ -183,6 +183,8 @@ int main(void) {
 
     printf("enable mnxti extension by writing to custom memory-mapped reg\n");
     writew((0x1 << MCLIC_CLICMNXTICONF_CLICMNXTICONF_BIT), mclicbase + MCLIC_CLICMNXTICONF_REG_OFFSET);
+    printf("enabling mnxti in core\n");
+    csr_write(CSR_MNXTICFG, 1);
 
     /* disable selective hardware vectoring, mnxti only supports
      * non-vectoring mode

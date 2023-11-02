@@ -40,6 +40,7 @@
 #define CSR_MINTSTATUS 0x346
 #define CSR_MINTTHRESH 0x347
 #define CSR_MCLICBASE  0x350
+#define CSR_MNXTICFG   0xBD0
 #define MIE 8
 
 #define __CSR_EXPAND(x) #x
