@@ -503,7 +503,7 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
 
   // Load a binary
   task automatic axi_elf_preload(input string binary, output word_bt entry);
-    longint sec_addr, sec_len, bus_offset;
+    longint sec_addr, sec_len, bus_offset, write_addr;
     $display("[AXI] Preloading ELF binary: %s", binary);
     if (read_elf(binary))
       $fatal(1, "[AXI] Failed to load ELF!");
@@ -532,8 +532,9 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
             end
           beats.push_back(beat);
         end
+        write_addr = sec_addr + (i==0 ? 0 : i - sec_addr%AxiStrbWidth);
         // Write this burst
-        axi_write_beats(sec_addr + i, AxiStrbBits, beats);
+        axi_write_beats(write_addr, AxiStrbBits, beats);
       end
     end
     void'(get_entry(entry));
