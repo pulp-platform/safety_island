@@ -20,130 +20,207 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "car_memory_map.h"
+#include "io.h"
 
-/* quickly scan the given address range with AXI_N_SAMPLES */
-#ifndef AXI_N_SAMPLES
-#    define AXI_N_SAMPLES 64
-#endif
+#define N_SAMPLES 64
+#define DEFAULT_SEED 0xdeadbeef
+#define FEEDBACK 0x7f000032
 
-/* we scan 4096 words by default */
-#ifndef AXI_SCAN_BLOCKSIZE
-#    define AXI_SCAN_BLOCKSIZE 0xfa0
-#endif
-
-/* we scan a finite number of blocks between *start and *end addresses to reduce execution time of the test */
-#ifndef AXI_SCAN_NUM_BLOCKS
-#    define AXI_SCAN_NUM_BLOCKS 10
-#endif
-
-/* We scan (read/write) AXI_SCAN_INCREMENT addresses before returning giving a
- * ok/return the result. Since the default axi address space for is rather large
- * (0x40'0000 bytes), per default we just check every 32 * AXI_SCAN_BLOCKSIZE.
- * If you want to run the full test, define AXI_FULL_SCAN. */
-#ifndef AXI_SCAN_INCREMENT
-#    ifdef AXI_FULL_SCAN
-#        define AXI_SCAN_INCREMENT AXI_SCAN_BLOCKSIZE
-#    else
-#        define AXI_SCAN_INCREMENT (AXI_SCAN_BLOCKSIZE * 32)
-#    endif
-#endif
-
-#define assert(expression)                                                     \
-    do {                                                                       \
-        if (!expression) {                                                     \
-            printf("%s:%d: assert error\n", __FILE__, __LINE__);               \
-            exit(1);                                                           \
-        }                                                                      \
-    } while (0)
-
-void probe_first_last(volatile uint32_t *from, volatile uint32_t *to);
-void probe_range(uintptr_t from, uintptr_t to, int samples);
-void scan_range(uintptr_t from, uintptr_t to, uintptr_t increment,
-                int blocksize);
-
-int main(void)
-{
-    volatile uint32_t *ext_base_addr    = (uint32_t *)0x20000000;
-    volatile uint32_t *ext_end_addr     = (uint32_t *)0x3fffffff;
-
-    /* axi tests: check if we can access the address space of the axi plug,
-     * assuming axi_example.sv is connected to it */
-    puts("Testing axi connection by writing patterns to memory and "
-         "reading them back\n");
-
-    /* the first thing we do is test the very first and very last address of the
-     * axi address space, they might be the most prone to failure */
-
-    probe_first_last(ext_base_addr, ext_end_addr);
-
-    puts("Probe nci_cp_top");
-    probe_range((uintptr_t)ext_base_addr, (uintptr_t)ext_end_addr,
-                AXI_N_SAMPLES);
-
-    // /* now test the whole address range */
-    // scan_range((uintptr_t)ext_base_addr, (uintptr_t)(ext_base_addr + AXI_SCAN_NUM_BLOCKS * AXI_SCAN_BLOCKSIZE),
-    //            AXI_SCAN_INCREMENT, AXI_SCAN_BLOCKSIZE);
-
-    printf("done\n");
-    return 0;
-}
-
-/* check first and last address of given address range */
-void probe_first_last(volatile uint32_t *from, volatile uint32_t *to)
-{
-    assert((uintptr_t)to > (uintptr_t)from);
-    puts("checking if the first and last address work\n");
-    printf("writing to start addr at %p\n", from);
-    *from = 0xcafedead;
-    printf("writing to end addr at %p\n", to - 1);
-    *(to - 1) = 0xcafedead;
-    printf("reading back ... ");
-    assert(*from == 0xcafedead);
-    assert(*(to - 1) == 0xcafedead);
-    puts("ok\n");
-}
+uint32_t *lfsr_byte_feedback;
 
 /* probe address range "samples" time, evenly spaced */
-void probe_range(uintptr_t from, uintptr_t to, int samples)
-{
-    assert(samples > 0);
-    assert(to > from);
-    puts("probing the address space at evently spaced samples ... ");
+int probe_range_direct(volatile uintptr_t from, volatile uintptr_t to, int samples) {
+    // check whether arguments passed make sense
+    if ((samples < 0) && (to < from))
+        return 2;
+
     uintptr_t addr = from;
     uintptr_t incr = ((to - from) / samples);
 
     for (int i = 0; i < samples; i++) {
+        // write
+        uint32_t expected = 0xcafedead + 0xab + i;
+        writed(expected, addr);
+        // read
+        if (expected != readd(addr))
+            return 1;
+        // increment
+        addr += incr;
+    }
+    return 0;
+}
 
-        printf("writing at %p\n", addr);
-        uint32_t expected          = 0xcafedead + 0xab + i;
-        *(volatile uint32_t *)addr = expected;
+uint32_t lfsr_iter_bit(uint32_t lfsr) { return (lfsr & 1) ? ((lfsr >> 1) ^ FEEDBACK) : (lfsr >> 1); }
 
-        printf("reading at %p\n", addr);
-        uint32_t axi_read = *(volatile uint32_t *)addr;
+uint32_t lfsr_iter_byte(uint32_t lfsr, uint32_t *lfsr_byte_feedback) {
+    uint32_t l = lfsr;
+    for (int i = 0; i < 8; i++)
+        l = lfsr_iter_bit(l);
+    return l;
+}
 
-        assert(expected == axi_read);
+uint32_t lfsr_iter_word(uint32_t lfsr, uint32_t *lfsr_byte_feedback) {
+    uint32_t l = lfsr_iter_byte(lfsr, lfsr_byte_feedback);
+    l = lfsr_iter_byte(l, lfsr_byte_feedback);
+    l = lfsr_iter_byte(l, lfsr_byte_feedback);
+    return lfsr_iter_byte(l, lfsr_byte_feedback);
+}
+
+int probe_range_lfsr_wrwr(volatile uintptr_t from, volatile uintptr_t to, int samples) {
+    // check whether arguments passed make sense
+    if ((samples < 0) && (to < from))
+        return 2;
+
+    uintptr_t addr = from;
+    uintptr_t incr = ((to - from) / samples);
+
+    uint32_t lfsr = DEFAULT_SEED;
+    for (int i = 0; i < samples; i++) {
+        // write
+        lfsr = lfsr_iter_word(lfsr, lfsr_byte_feedback);
+        writew(lfsr, addr);
+        fence();
+        // read
+        if (lfsr != readw(addr))
+            return 1;
+        // increment
+        addr += incr;
+    }
+    return 0;
+}
+
+int probe_range_lfsr_wwrr(volatile uintptr_t from, volatile uintptr_t to, int samples) {
+    // check whether arguments passed make sense
+    if ((samples < 0) && (to < from))
+        return 2;
+
+    uintptr_t addr = from;
+    uintptr_t incr = ((to - from) / samples);
+
+    // write
+    uint32_t lfsr = DEFAULT_SEED;
+    for (int i = 0; i < samples; i++) {
+        lfsr = lfsr_iter_word(lfsr, lfsr_byte_feedback);
+        // write
+        writew(lfsr, addr);
+        // increment
         addr += incr;
     }
 
-    puts("ok\n");
+    fence();
+
+    // read
+    addr = from;
+    lfsr = DEFAULT_SEED;
+    for (int i = 0; i < samples; i++) {
+        lfsr = lfsr_iter_word(lfsr, lfsr_byte_feedback);
+        // read
+        if (lfsr != readw(addr))
+            return 1;
+        // increment
+        addr += incr;
+    }
+
+    return 0;
 }
 
-/* scan the whole address range, evently spaced with the given blocksize */
-void scan_range(uintptr_t from, uintptr_t to, uintptr_t increment,
-                int blocksize)
+int main(void)
 {
-    for (uintptr_t block_addr = from; block_addr < to;
-         block_addr += blocksize) {
-        printf("writing %d KiB at %p\n", (blocksize) / 1024 * 4, block_addr);
-        for (int i = 0; i < blocksize; i++)
-            *(((volatile uint32_t *)block_addr) + i) = 0xcafecafe + i;
 
-        printf("reading back from %p ... ", block_addr);
-        for (int i = 0; i < blocksize; i++) {
-            uint32_t expected_read = 0xcafecafe + i;
-            uint32_t axi_read      = *(((volatile uint32_t *)block_addr) + i);
-            assert(expected_read == axi_read);
-        }
-        puts("ok\n");
+    int errors = 0;
+
+    // Probe an address range with pseudo-random values and read after each write
+    // (wrwr)
+
+    // L2 shared memory
+    errors += probe_range_lfsr_wrwr((uint32_t *)CAR_L2_SPM_PORT1_INTERLEAVED_BASE_ADDR,
+                                    (uint32_t *)CAR_L2_SPM_PORT1_INTERLEAVED_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "1\n";
+        printf(str, sizeof(str));
     }
-  }
+
+    errors += probe_range_lfsr_wrwr((uint32_t *)CAR_L2_SPM_PORT1_CONTIGUOUS_BASE_ADDR,
+                                    (uint32_t *)CAR_L2_SPM_PORT1_CONTIGUOUS_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "2\n";
+        printf(str, sizeof(str));
+    }
+
+    // Integer Cluster
+    errors += probe_range_lfsr_wrwr((uint32_t *)CAR_INT_CLUSTER_SPM_BASE_ADDR,
+                                    (uint32_t *)CAR_INT_CLUSTER_SPM_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "4\n";
+        printf(str, sizeof(str));
+    }
+    // HyperRAM
+    errors += probe_range_lfsr_wrwr((uint32_t *)CAR_HYPERRAM_BASE_ADDR,
+                                    (uint32_t *)CAR_HYPERRAM_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "5\n";
+        printf(str, sizeof(str));
+    }
+    // FP Cluster
+    errors += probe_range_lfsr_wrwr((uint32_t *)CAR_FP_CLUSTER_SPM_BASE_ADDR,
+                                    (uint32_t *)CAR_FP_CLUSTER_SPM_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "6\n";
+        printf(str, sizeof(str));
+    }
+    // TODO Mailboxes
+
+    // Probe an address space with pseudo-random values and read all after
+    // writing (wwrr)
+
+    // L2 shared memory
+    errors += probe_range_lfsr_wwrr((uint32_t *)CAR_L2_SPM_PORT1_INTERLEAVED_BASE_ADDR,
+                                    (uint32_t *)CAR_L2_SPM_PORT1_INTERLEAVED_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "7\n";
+        printf(str, sizeof(str));
+    }
+    errors += probe_range_lfsr_wwrr((uint32_t *)CAR_L2_SPM_PORT1_CONTIGUOUS_BASE_ADDR,
+                                    (uint32_t *)CAR_L2_SPM_PORT1_CONTIGUOUS_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "8\n";
+        printf(str, sizeof(str));
+    }
+
+    // Integer Cluster
+    errors += probe_range_lfsr_wwrr((uint32_t *)CAR_INT_CLUSTER_SPM_BASE_ADDR,
+                                    (uint32_t *)CAR_INT_CLUSTER_SPM_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "a\n";
+        printf(str, sizeof(str));
+    }
+    // HyperRAM
+    errors += probe_range_lfsr_wwrr((uint32_t *)CAR_HYPERRAM_BASE_ADDR,
+                                    (uint32_t *)CAR_HYPERRAM_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "b\n";
+        printf(str, sizeof(str));
+    }
+    // FP Cluster
+    errors += probe_range_lfsr_wrwr((uint32_t *)CAR_FP_CLUSTER_SPM_BASE_ADDR,
+                                    (uint32_t *)CAR_FP_CLUSTER_SPM_END_ADDR,
+                                    N_SAMPLES);
+    if (errors) {
+        char str[] = "c\n";
+        printf(str, sizeof(str));
+    }
+    // TODO Mailboxes
+
+    return errors;
+
+}
