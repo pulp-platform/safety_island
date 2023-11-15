@@ -247,6 +247,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       .dmr_cores_synch_i     ('0), // Not used if DMR disabled
 
       .rapid_recovery_o      (), // Not used
+      .core_backup_i         ('0), // Not used
 
       .sys_inputs_i          ( sys_inputs      ),
       .sys_nominal_outputs_o ( sys_outputs     ),

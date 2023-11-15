@@ -88,7 +88,7 @@ packages:
     - common_cells
     - common_verification
   redundancy_cells:
-    revision: ecb92caca3f1872360623448397bb9a06d0c2c96
+    revision: 5616a36f5e51d6f07f1c8bca15194077657e197d
     version: null
     source:
       Git: https://github.com/pulp-platform/redundancy_cells.git
