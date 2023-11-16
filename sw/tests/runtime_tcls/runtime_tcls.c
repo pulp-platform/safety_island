@@ -69,7 +69,7 @@ int main(void) {
 
     writew(
         (0 ? 1<<HMR_TMR_REGS_TMR_CONFIG_DELAY_RESYNCH_BIT  : 0) |
-        (0 ? 1<<HMR_TMR_REGS_TMR_CONFIG_SETBACK_BIT        : 0) |
+        (1 ? 1<<HMR_TMR_REGS_TMR_CONFIG_SETBACK_BIT        : 0) |
         (0 ? 1<<HMR_TMR_REGS_TMR_CONFIG_RELOAD_SETBACK_BIT : 0) |
         (0 ? 1<<HMR_TMR_REGS_TMR_CONFIG_RAPID_RECOVERY_BIT : 0) |
         (0 ? 1<<HMR_TMR_REGS_TMR_CONFIG_SYNCH_REQ_BIT      : 0),
@@ -165,16 +165,6 @@ int main(void) {
     if (mismatch_count != 2) {
         errors += 1;
     }
-
-
-
-
-
-
-
-
-
-
 
     return errors;
 }
