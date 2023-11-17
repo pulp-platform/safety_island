@@ -4,7 +4,7 @@
 // from offload-manager.c //
 ////////////////////////////
 
-#define DEBUG_LEVEL_OFFLOAD_MANAGER 0
+#define DEBUG_LEVEL_OFFLOAD_MANAGER 10
 
 /*
  * Copyright (C) 2018 ETH Zurich and University of Bologna
@@ -47,22 +47,21 @@
 
 // #include "hero/offload-manager.h"
 
-//FIXME consider to move these variables to L1 (vars it is ususally Empty when OpenMP4 Offload is used)
-void** offload_func_table;
+// FIXME consider to move these variables to L1 (vars it is ususally Empty when
+// OpenMP4 Offload is used)
+void **offload_func_table;
 uint32_t nb_offload_funcs;
-void** offload_var_table;
+void **offload_var_table;
 uint32_t nb_offload_vars;
 
-int
-gomp_offload_manager ( )
-{
-    //Init the manager (handshake btw host and accelerator is here)
-    //gomp_init_offload_manager();
+int gomp_offload_manager() {
+    // Init the manager (handshake btw host and accelerator is here)
+    // gomp_init_offload_manager();
 
-    //FIXME For the momenent we are not using the cmd sended as trigger.
+    // FIXME For the momenent we are not using the cmd sended as trigger.
     // It should be used to perform the deactivation of the accelerator,
     // as well as other operations, like local data allocation or movement.
-    //FIXME Note that the offload at the moment use several time the mailbox.
+    // FIXME Note that the offload at the moment use several time the mailbox.
     // We should compact the offload descriptor and just sent a pointer to
     // that descriptor.
     uint32_t cmd = (uint32_t)NULL;
@@ -74,37 +73,56 @@ gomp_offload_manager ( )
 
     int cycles = 0;
 
-    while(1) {
+    g_a2h_mbox = *((struct ring_buf **)0x3000004);
+    g_h2a_mbox = *((struct ring_buf **)0x3000000);
+
+    // Print the addresses of the mboxes for debug purpose
+    // Note this printf is uper minimal, we need to wait to avoid
+    // loosing chars when the UART is busy
+    csleep(1024 * 1024 * 100);
+    printf("[device g_a2h_mbox]\n\r");
+    csleep(1024 * 1024 * 10);
+    printf("%x\n\r", g_a2h_mbox);
+    csleep(1024 * 1024 * 10);
+    printf("%x\n\r", g_h2a_mbox);
+    csleep(1024 * 1024 * 10);
+    printf("done\n\r");
+
+    while (1) {
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-            printf("Waiting for command...\n");
+            printf("Waiting for command...\n\r");
 
         // (1) Wait for the offload trigger.
         mailbox_read((uint32_t *)&cmd, 1);
+
         if (MBOX_DEVICE_STOP == cmd) {
             if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
                 printf("Got PULP_STOP from host, stopping execution now.\n");
             break;
         }
 
-        // (2) The host sends through the mailbox the pointer to the function that should be
+        // (2) The host sends through the mailbox the pointer to the function
+        // that should be
         // executed on the accelerator.
         mailbox_read((uint32_t *)&offloadFn, 1);
 
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-            printf("tgt_fn @ 0x%x\n",(uint32_t)offloadFn);
+            printf("tgt_fn @ 0x%x\n", (uint32_t)offloadFn);
 
-        // (3) The host sends through the mailbox the pointer to the arguments that should
+        // (3) The host sends through the mailbox the pointer to the arguments
+        // that should
         // be used.
         mailbox_read((uint32_t *)&offloadArgs, 1);
 
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
             printf("tgt_vars @ 0x%x\n", (uint32_t)offloadArgs);
 
-        // (3b) The host sends through the mailbox the number of rab misses handlers threads
+        // (3b) The host sends through the mailbox the number of rab misses
+        // handlers threads
         mailbox_read((uint32_t *)&nbOffloadRabMissHandlers, 1);
 
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-          printf("nbOffloadRabMissHandlers %d\n", nbOffloadRabMissHandlers);
+            printf("nbOffloadRabMissHandlers %d\n", nbOffloadRabMissHandlers);
 
         // (3c) Spawning nbOffloadRabMissHandlers
         // Not implemented
@@ -114,13 +132,13 @@ gomp_offload_manager ( )
 
         // (5) Execute the offloaded function.
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-          printf("begin offloading\n");
+            printf("begin offloading\n");
         reset_timer();
         start_timer();
         offloadFn(offloadArgs);
         stop_timer();
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-          printf("end offloading\n");
+            printf("end offloading\n");
         cycles = get_time();
 
         mailbox_write(MBOX_DEVICE_DONE);
@@ -129,13 +147,12 @@ gomp_offload_manager ( )
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
             printf("Kernel execution time [PULP cycles] = %d\n", cycles);
 
-        if(nbOffloadRabMissHandlers) {
+        if (nbOffloadRabMissHandlers) {
         }
     }
 
     return 0;
 }
-
 
 ////////////////////////////
 
@@ -143,7 +160,7 @@ int done = 0;
 int iters = 0;
 
 __attribute__((weak)) int main(int argc, char **argv, char **envp) {
-  // FIXME: handle multi-cluster properly
-  gomp_offload_manager();
-  return 0;
+    // FIXME: handle multi-cluster properly
+    gomp_offload_manager();
+    return 0;
 }
