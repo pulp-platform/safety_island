@@ -1,8 +1,10 @@
 # Safety Island
 
-This IP contains a safety island, designed for the Carfield SoC. It consists of
+This IP contains a safety island, designed for the [Carfield](https://github.com/pulp-platform/carfield) project. It consists of
 a Triple-Core Lockstep (TCLS) core and two memory banks. To interface with the
 rest of the SoC, it has both an AXI input and an AXI output port.
+
+The safety island, as well as [Carfield](https://github.com/pulp-platform/carfield), is developed as part of the PULP project, a joint effort between ETH Zurich and the University of Bologna.
 
 ## Getting started
 
@@ -53,4 +55,4 @@ This will start a simulation in Questasim. To activate GUI mode, add `gui=1` to
 the end of the last command.
 
 ## License
-Solderpad Hardware License, Version 0.51
+Unless specified otherwise in the respective file headers, all code checked into this repository is made available under a permissive license. All hardware sources and tool scripts are licensed under the Solderpad Hardware License 0.51 (see `LICENSE.md`). All software sources are licensed under Apache 2.0.
