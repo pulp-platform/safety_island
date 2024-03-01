@@ -198,7 +198,7 @@ SECTIONS
    * Contains other data such as peripheral data and cluster code and data
    */
 
-  .l2_data MAX(0x1c010000,ALIGN(4)) :
+  .l2_data :
   {
     . = ALIGN(4);
     *(.l2_data)
@@ -209,5 +209,7 @@ SECTIONS
   } > L2
 
   __l2_shared_end = ALIGN(4);
+
+  __base_uart     = 0x03002000;
 
 }

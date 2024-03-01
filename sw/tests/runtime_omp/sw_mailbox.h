@@ -39,15 +39,12 @@
  * @data_v: points to the base of the data buffer in virtual address space
  */
 struct ring_buf {
-    uint32_t tail;
-    uint64_t data_v;
-    uint32_t element_size;
-    uint32_t size;
-    uint64_t data_p;
-    // put accelerator data onto a new cache-line (cva6 specific: 128-bit cache
-    // lines)
-    uint8_t _pad1[4];
     uint32_t head;
+    uint32_t size;
+    uint32_t tail;
+    uint32_t element_size;
+    uint64_t data_v;
+    uint64_t data_p;
 };
 
 /***********************************************************************************
@@ -60,6 +57,26 @@ extern volatile struct ring_buf *g_h2a_mbox;
 /***********************************************************************************
  * INLINES
  ***********************************************************************************/
+
+static inline void dump_mbox(struct ring_buf *rbuf) {
+  printf("---DUMPING NOW---\n\r");
+  printf("mbox (%p)\n\r", rbuf);
+  uint8_t* addr = (uint8_t*) rbuf;
+  for(int i = 0; i < sizeof(struct ring_buf); i++) {
+    if(i % 8 == 0)
+        printf("\n\r(%p) : ", addr);
+    printf("%#hhx-", *(addr++));
+  }
+  printf("\n\r");
+  printf("head : %p = %u\n\r"     , &rbuf->head         , rbuf->head         );
+  printf("size : %p = %u\n\r"     , &rbuf->size         , rbuf->size         );
+  printf("tail : %p = %u\n\r"     , &rbuf->tail         , rbuf->tail         );
+  printf("data_p : %p = %lx\n\r", &rbuf->data_p , rbuf->data_p       );
+  printf("data_v : %p = %lx\n\r", &rbuf->data_v , rbuf->data_v       );
+  //printf("tail %u, data_v %" PRIu64 ", element_size %u, size %u, data_p %" PRIu64 ", head %u\n\r", rbuf->tail, rbuf->data_v, rbuf->element_size, rbuf->size, rbuf->data_p, rbuf->head);
+  printf("---DUMPING ENDS---\n\r");
+}
+
 /**
  * @brief Copy data from `el` in the next free slot in the ring-buffer on the
  *physical addresses

@@ -72,8 +72,8 @@ module safety_island_top import safety_island_pkg::*; #(
   output axi_input_resp_t axi_input_resp_o,
 
   /// AXI output
-  output axi_output_req_t  axi_output_req_o,
-  input  axi_output_resp_t axi_output_resp_i
+  (* dont_touch = "yes" *) (* mark_debug = "true" *) output axi_output_req_t  axi_output_req_o,
+  (* dont_touch = "yes" *) (* mark_debug = "true" *) input  axi_output_resp_t axi_output_resp_i
 );
 
   localparam int unsigned AddrWidth = 32;

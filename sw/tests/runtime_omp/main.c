@@ -42,6 +42,11 @@
 #include "archi/pulp.h"
 #include "hal/pulp.h"
 
+void pos_putc(char c) {
+    *((char *) 0x3002000) = c;
+    csleep(10000);
+}
+
 #include <stdio.h>
 #include <stdint.h>
 
@@ -70,23 +75,33 @@ int gomp_offload_manager() {
     void (*offloadFn)(uint64_t) = NULL;
     uint64_t offloadArgs = 0x0;
     int nbOffloadRabMissHandlers = 0x0;
-
     int cycles = 0;
 
-    g_a2h_mbox = *((struct ring_buf **)0x3000004);
     g_h2a_mbox = *((struct ring_buf **)0x3000000);
+    g_a2h_mbox = *((struct ring_buf **)0x3000008);
+
+
+    while(1) {
+
+    dump_mbox(g_h2a_mbox);
+    dump_mbox(g_a2h_mbox);
+
+    printf("------\n\r");
+
+    for(uint32_t *addr = 0xc0000000; addr < 0xc0000020; addr++)
+        printf("%x %x\n\r", addr, *addr);
+
+
+    csleep(10000000);
+
+    for(uint32_t *addr = 0xc0000000; addr < 0xc0000020; addr++)
+        *addr = (uint32_t) addr;
+
+    }
 
     // Print the addresses of the mboxes for debug purpose
     // Note this printf is uper minimal, we need to wait to avoid
     // loosing chars when the UART is busy
-    csleep(1024 * 1024 * 100);
-    printf("[device g_a2h_mbox]\n\r");
-    csleep(1024 * 1024 * 10);
-    printf("%x\n\r", g_a2h_mbox);
-    csleep(1024 * 1024 * 10);
-    printf("%x\n\r", g_h2a_mbox);
-    csleep(1024 * 1024 * 10);
-    printf("done\n\r");
 
     while (1) {
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
@@ -97,7 +112,7 @@ int gomp_offload_manager() {
 
         if (MBOX_DEVICE_STOP == cmd) {
             if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-                printf("Got PULP_STOP from host, stopping execution now.\n");
+                printf("Got PULP_STOP from host, stopping execution now.\n\r");
             break;
         }
 
@@ -107,7 +122,7 @@ int gomp_offload_manager() {
         mailbox_read((uint32_t *)&offloadFn, 1);
 
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-            printf("tgt_fn @ 0x%x\n", (uint32_t)offloadFn);
+            printf("tgt_fn @ 0x%x\n\r", (uint32_t)offloadFn);
 
         // (3) The host sends through the mailbox the pointer to the arguments
         // that should
@@ -115,14 +130,14 @@ int gomp_offload_manager() {
         mailbox_read((uint32_t *)&offloadArgs, 1);
 
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-            printf("tgt_vars @ 0x%x\n", (uint32_t)offloadArgs);
+            printf("tgt_vars @ 0x%x\n\r", (uint32_t)offloadArgs);
 
         // (3b) The host sends through the mailbox the number of rab misses
         // handlers threads
         mailbox_read((uint32_t *)&nbOffloadRabMissHandlers, 1);
 
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-            printf("nbOffloadRabMissHandlers %d\n", nbOffloadRabMissHandlers);
+            printf("nbOffloadRabMissHandlers %d\n\r", nbOffloadRabMissHandlers);
 
         // (3c) Spawning nbOffloadRabMissHandlers
         // Not implemented
@@ -132,20 +147,20 @@ int gomp_offload_manager() {
 
         // (5) Execute the offloaded function.
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-            printf("begin offloading\n");
+            printf("begin offloading\n\r");
         reset_timer();
         start_timer();
         offloadFn(offloadArgs);
         stop_timer();
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-            printf("end offloading\n");
+            printf("end offloading\n\r");
         cycles = get_time();
 
         mailbox_write(MBOX_DEVICE_DONE);
         mailbox_write(cycles);
 
         if (DEBUG_LEVEL_OFFLOAD_MANAGER > 0)
-            printf("Kernel execution time [PULP cycles] = %d\n", cycles);
+            printf("Kernel execution time [PULP cycles] = %d\n\r", cycles);
 
         if (nbOffloadRabMissHandlers) {
         }
