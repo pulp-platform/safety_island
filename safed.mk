@@ -35,10 +35,10 @@ NONFREE_COMMIT ?= 4ef4950629df2f683b11db14884d741281f69e48
 .PHONY: nonfree-init
 ## Initialize Safety Island CI repository
 nonfree-init:
-	git clone $(NONFREE_REMOTE) nonfree
-	cd nonfree && git checkout $(NONFREE_COMMIT)
+	git clone $(NONFREE_REMOTE) $(SAFED_ROOT)/nonfree
+	cd $(SAFED_ROOT)/nonfree && git checkout $(NONFREE_COMMIT)
 
--include nonfree/nonfree.mk
+-include $(SAFED_ROOT)/nonfree/nonfree.mk
 
 
 #####################
@@ -48,7 +48,7 @@ REG_HTML_STRING = "<!DOCTYPE html>\n<html>\n<head>\n<link rel="stylesheet" href=
 
 $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_pkg.sv $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_top.sv: $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_regs.hjson
 	$(REGGEN) $< -t $(SAFED_HW_DIR)/soc_ctrl -r
-	git apply $(SAFED_HW_DIR)/soc_ctrl/boot_addr.patch
+	cd $(SAFED_ROOT) && git apply $(SAFED_HW_DIR)/soc_ctrl/boot_addr.patch
 	printf $(REG_HTML_STRING) > $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.html
 	$(REGGEN) $< -d >> $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.html
 	printf "</html>\n" >> $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.html
@@ -91,7 +91,7 @@ clean: clean_$(SAFED_SIM_DIR)/compile.tcl
 ##############
 
 SIM_TOP ?= tb_safety_island_jtag
-include sim/safed_sim.mk
+include $(SAFED_ROOT)/sim/safed_sim.mk
 
 ##############
 ## SOFTWARE ##
