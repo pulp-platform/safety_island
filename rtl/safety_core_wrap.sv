@@ -85,7 +85,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
   logic [cf_math_pkg::idx_width(NumCoreLocalPeriphs)-1:0] regbus_idx;
 
   // Interrupt signals
-  logic [TotalNumInterrupts-1:0] core_irq_onehot;
+  logic [TotalNumInterrupts-1:0] core_irq;
   logic [$clog2(TotalNumInterrupts)-1:0]  core_irq_id;
   logic [7:0]  core_irq_level;
   logic core_irq_valid, core_irq_ready, core_irq_shv;
@@ -186,7 +186,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       shadow_gnt:        shadow_gnt_i,
       shadow_rvalid:     shadow_rvalid_i,
       shadow_rdata:      shadow_rdata_i,
-      irq:               core_irq_onehot,
+      irq:               core_irq,
       irq_level:         core_irq_level,
       irq_shv:           core_irq_shv,
       debug_req:         debug_req_i,
@@ -415,7 +415,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       .FPU          (SafetyIslandCfg.UseFpu),
       .PULP_ZFINX   (SafetyIslandCfg.UseZfinx),
       .NUM_MHPMCOUNTERS (SafetyIslandCfg.NumMhpmCounters),
-      .NUM_INTERRUPTS   (TotalNumInterrupts),
+      .NUM_INTERRUPTS   ((SafetyIslandCfg.UseClic) ? TotalNumInterrupts : 32),
       .CLIC             (SafetyIslandCfg.UseClic),
       .SHADOW           (SafetyIslandCfg.UseFastIrq),
       .MCLICBASE_ADDR   (PeriphBaseAddr+ClicAddrOffset)
@@ -470,7 +470,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
       .apu_flags_i         ( apu_rflags   ),
 
       // Interrupt inputs
-      .irq_i       ( core_irq_onehot ),
+      .irq_i       ( core_irq        ),
       .irq_level_i ( core_irq_level  ),
       .irq_shv_i   ( core_irq_shv    ),
       .irq_ack_o   ( core_irq_ready  ),
@@ -644,18 +644,9 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .reg_rsp_o   (cl_periph_rsp[RegbusOutShadowErr])
   );
 
-
   // Interrupts
-  always_comb begin : gen_core_irq_onehot
-    core_irq_onehot = '0;
-    if (core_irq_valid) begin
-        core_irq_onehot[core_irq_id] = 1'b1;
-    end
-  end
-
   logic [TotalNumInterrupts-1:0] clic_irqs;
   logic seip, meip, msip;
-
   assign seip = '0;
   assign meip = '0;
   assign msip  = '0;
@@ -676,35 +667,53 @@ module safety_core_wrap import safety_island_pkg::*; #(
     {3{1'b0}}        // reserved, ssip, reserved
   };
 
-  clic #(
-    .reg_req_t  ( reg_req_t ),
-    .reg_rsp_t  ( reg_rsp_t ),
-    .N_SOURCE   ( TotalNumInterrupts             ),
-    .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits ),
-    .SSCLIC     ( SafetyIslandCfg.UseSSClic      ),
-    .USCLIC     ( SafetyIslandCfg.UseUSClic      ),
-    .VSCLIC     ( SafetyIslandCfg.UseVSClic      ),
-    .N_VSCTXTS  ( SafetyIslandCfg.NVsCtxts       ),
-    .VSPRIO     ( SafetyIslandCfg.UseVSPrio      )
-  ) i_clic (
-    .clk_i,
-    .rst_ni,
-     // Bus Interface
-    .reg_req_i   ( cl_periph_req[RegbusOutCLIC] ),
-    .reg_rsp_o   ( cl_periph_rsp[RegbusOutCLIC] ),
-    // Interrupt Sources
-    .intr_src_i  ( clic_irqs      ),
-    // Interrupt notification to core
-    .irq_valid_o ( core_irq_valid ),
-    .irq_ready_i ( core_irq_ready ),
-    .irq_id_o    ( core_irq_id    ),
-    .irq_level_o ( core_irq_level ),
-    .irq_shv_o   ( core_irq_shv   ),
-    .irq_priv_o  ( ),
-    .irq_v_o     ( ),
-    .irq_vsid_o  ( ),
-    .irq_kill_req_o (  ),
-    .irq_kill_ack_i ('0)
-  );
+  // TODO: Implement CLIC-less operation for TCLS core operation
+  if (SafetyIslandCfg.UseClic && !SafetyIslandCfg.UseTCLS) begin : gen_clic
+    clic #(
+      .reg_req_t  ( reg_req_t ),
+      .reg_rsp_t  ( reg_rsp_t ),
+      .N_SOURCE   ( TotalNumInterrupts             ),
+      .INTCTLBITS ( SafetyIslandCfg.ClicIntCtlBits ),
+      .SSCLIC     ( SafetyIslandCfg.UseSSClic      ),
+      .USCLIC     ( SafetyIslandCfg.UseUSClic      ),
+      .VSCLIC     ( SafetyIslandCfg.UseVSClic      ),
+      .N_VSCTXTS  ( SafetyIslandCfg.NVsCtxts       ),
+      .VSPRIO     ( SafetyIslandCfg.UseVSPrio      )
+    ) i_clic (
+      .clk_i,
+      .rst_ni,
+      // Bus Interface
+      .reg_req_i   ( cl_periph_req[RegbusOutCLIC] ),
+      .reg_rsp_o   ( cl_periph_rsp[RegbusOutCLIC] ),
+      // Interrupt Sources
+      .intr_src_i  ( clic_irqs      ),
+      // Interrupt notification to core
+      .irq_valid_o ( core_irq_valid ),
+      .irq_ready_i ( core_irq_ready ),
+      .irq_id_o    ( core_irq_id    ),
+      .irq_level_o ( core_irq_level ),
+      .irq_shv_o   ( core_irq_shv   ),
+      .irq_priv_o  ( ),
+      .irq_v_o     ( ),
+      .irq_vsid_o  ( ),
+      .irq_kill_req_o (  ),
+      .irq_kill_ack_i ('0)
+    );
+
+    // onehot encoded in clic mode
+    always_comb begin : gen_core_irq_onehot
+      core_irq = '0;
+      if (core_irq_valid) begin
+          core_irq[core_irq_id] = 1'b1;
+      end
+    end
+
+  end else begin
+    // same assignment as CLIC with 10 custom irqs
+    // only lowest 10 irqs_i used
+    // TODO: assert valid configuration (UseClint==0 -> NumInterrupts<=10)
+    assign core_irq[21:0]   = clic_irqs;
+    assign core_irq[22+:10] = irqs_i;
+  end
 
 endmodule
