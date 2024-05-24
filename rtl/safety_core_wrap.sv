@@ -647,25 +647,29 @@ module safety_core_wrap import safety_island_pkg::*; #(
   // Interrupts
   logic [TotalNumInterrupts-1:0] clic_irqs;
   logic seip, meip, msip;
-  assign seip = '0;
-  assign meip = '0;
-  assign msip  = '0;
-  assign clic_irqs[TotalNumInterrupts-1:32] = irqs_i;
-  assign clic_irqs[31:22] = '0;
-  assign clic_irqs[21]    = resynch_irq;
-  assign clic_irqs[20:18] = bus_err_irq[2:0];
-  assign clic_irqs[17:16] = timer_irqs_i;
-  assign clic_irqs[15:0]  = {
-    {4{1'b0}},       // reserved
-    meip,            // meip
-    1'b0,            // reserved
-    seip,            // seip
-    1'b0,            // reserved
-    timer_irqs_i[0], // mtip
-    {3{1'b0}},       // reserved, stip, reserved
-    msip,            // msip
-    {3{1'b0}}        // reserved, ssip, reserved
-  };
+  always_comb begin : assign_clic_irqs
+    seip = '0;
+    meip = '0;
+    msip = '0;
+    clic_irqs = '0;
+    clic_irqs[TotalNumInterrupts-1:32] = irqs_i;
+    clic_irqs[31:22] = '0;
+    clic_irqs[21]    = resynch_irq;
+    clic_irqs[20:18] = bus_err_irq[2:0];
+    clic_irqs[17:16] = timer_irqs_i;
+    clic_irqs[15:0]  = {
+      {4{1'b0}},       // reserved
+      meip,            // meip
+      1'b0,            // reserved
+      seip,            // seip
+      1'b0,            // reserved
+      timer_irqs_i[0], // mtip
+      {3{1'b0}},       // reserved, stip, reserved
+      msip,            // msip
+      {3{1'b0}}        // reserved, ssip, reserved
+    };
+  end
+  
 
   // TODO: Implement CLIC-less operation for TCLS core operation
   if (SafetyIslandCfg.UseClic && !SafetyIslandCfg.UseTCLS) begin : gen_clic
@@ -708,12 +712,15 @@ module safety_core_wrap import safety_island_pkg::*; #(
       end
     end
 
-  end else begin
+  end else begin : gen_irq_forwarding
     // same assignment as CLIC with 10 custom irqs
     // only lowest 10 irqs_i used
     // TODO: assert valid configuration (UseClint==0 -> NumInterrupts<=10)
-    assign core_irq[21:0]   = clic_irqs;
-    assign core_irq[22+:10] = irqs_i;
+    always_comb begin : assign_irqs
+      core_irq = '0;
+      core_irq[21:0]   = clic_irqs;
+      core_irq[22+:10] = irqs_i;
+    end
   end
 
 endmodule
