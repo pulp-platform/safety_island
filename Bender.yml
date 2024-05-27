@@ -16,6 +16,7 @@ dependencies:
   tech_cells_generic:   { git: "https://github.com/pulp-platform/tech_cells_generic.git",   version: 0.2.12 }
   register_interface:   { git: "https://github.com/pulp-platform/register_interface.git",   version: 0.4.1 }
   cv32e40p:             { git: "https://github.com/pulp-platform/cv32e40p.git",             rev: "1a93f34" } # `michaero/safety-island-clic` branch
+  ibex:                 { git: "https://github.com/pulp-platform/ibex.git",                 rev: "pulpissimo-v6.1.2" }
   clic:                 { git: "https://github.com/pulp-platform/clic.git",                 rev: "3aa6f06" } # `aottaviano/dev` branch
   fpnew:                { git: "https://github.com/pulp-platform/cvfpu.git",                rev: pulp-v0.1.3 }
   apb:                  { git: "https://github.com/pulp-platform/apb.git",                  version: 0.2.3 }

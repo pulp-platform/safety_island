@@ -401,90 +401,173 @@ module safety_core_wrap import safety_island_pkg::*; #(
     logic [31:0]                    apu_rdata;
     logic [cv32e40p_apu_core_pkg::APU_NUSFLAGS_CPU-1:0]    apu_rflags;
 
+    if(!SafetyIslandCfg.UseIbex) begin : gen_cv32e40p
 `ifdef PULP_FPGA_EMUL
-    cv32e40p_core #(
+      cv32e40p_core #(
 `elsif SYNTHESIS
-    cv32e40p_core #(
+      cv32e40p_core #(
 `elsif VERILATOR
-    cv32e40p_core #(
+      cv32e40p_core #(
 `else
-    cv32e40p_wrapper #(
+      cv32e40p_wrapper #(
 `endif
-      .PULP_XPULP   (SafetyIslandCfg.UseXPulp),
-      .PULP_CLUSTER (SafetyIslandCfg.UseIntegerCluster),
-      .FPU          (SafetyIslandCfg.UseFpu),
-      .PULP_ZFINX   (SafetyIslandCfg.UseZfinx),
-      .NUM_MHPMCOUNTERS (SafetyIslandCfg.NumMhpmCounters),
-      .NUM_INTERRUPTS   ((SafetyIslandCfg.UseClic) ? TotalNumInterrupts : 32),
-      .CLIC             (SafetyIslandCfg.UseClic),
-      .SHADOW           (SafetyIslandCfg.UseFastIrq),
-      .MCLICBASE_ADDR   (PeriphBaseAddr+ClicAddrOffset)
-    ) i_cv32e40p (
-      .clk_i,
-      .rst_ni,
-      .setback_i           ( '0            ),
+        .PULP_XPULP   (SafetyIslandCfg.UseXPulp),
+        .PULP_CLUSTER (SafetyIslandCfg.UseIntegerCluster),
+        .FPU          (SafetyIslandCfg.UseFpu),
+        .PULP_ZFINX   (SafetyIslandCfg.UseZfinx),
+        .NUM_MHPMCOUNTERS (SafetyIslandCfg.NumMhpmCounters),
+        .NUM_INTERRUPTS   ((SafetyIslandCfg.UseClic) ? TotalNumInterrupts : 32),
+        .CLIC             (SafetyIslandCfg.UseClic),
+        .SHADOW           (SafetyIslandCfg.UseFastIrq),
+        .MCLICBASE_ADDR   (PeriphBaseAddr+ClicAddrOffset)
+      ) i_cv32e40p (
+        .clk_i,
+        .rst_ni,
+        .setback_i           ( '0            ),
 
-      .pulp_clock_en_i     ( '0            ),
-      .scan_cg_en_i        ( test_enable_i ),
-      .boot_addr_i,
-      .mtvec_addr_i        ( 32'h0000_0000 ),
-      .mtvt_addr_i         ( 32'h0000_0000 ),
-      .dm_halt_addr_i      ( PeriphBaseAddr + DebugAddrOffset + dm::HaltAddress[31:0]      ),
-      .hart_id_i,
-      .dm_exception_addr_i ( PeriphBaseAddr + DebugAddrOffset + dm::ExceptionAddress[31:0] ),
+        .pulp_clock_en_i     ( '0            ),
+        .scan_cg_en_i        ( test_enable_i ),
+        .boot_addr_i,
+        .mtvec_addr_i        ( 32'h0000_0000 ),
+        .mtvt_addr_i         ( 32'h0000_0000 ),
+        .dm_halt_addr_i      ( PeriphBaseAddr + DebugAddrOffset + dm::HaltAddress[31:0]      ),
+        .hart_id_i,
+        .dm_exception_addr_i ( PeriphBaseAddr + DebugAddrOffset + dm::ExceptionAddress[31:0] ),
 
-      .instr_req_o,
-      .instr_gnt_i,
-      .instr_rvalid_i,
-      .instr_addr_o,
-      .instr_rdata_i,
+        .instr_req_o,
+        .instr_gnt_i,
+        .instr_rvalid_i,
+        .instr_addr_o,
+        .instr_rdata_i,
 
-      .data_req_o,
-      .data_gnt_i,
-      .data_rvalid_i,
-      .data_we_o,
-      .data_be_o,
-      .data_addr_o,
-      .data_wdata_o,
-      .data_rdata_i,
-      .data_atop_o,
+        .data_req_o,
+        .data_gnt_i,
+        .data_rvalid_i,
+        .data_we_o,
+        .data_be_o,
+        .data_addr_o,
+        .data_wdata_o,
+        .data_rdata_i,
+        .data_atop_o,
 
-      // Shadow memory interface
-      .shadow_req_o,
-      .shadow_gnt_i,
-      .shadow_rvalid_i,
-      .shadow_we_o,
-      .shadow_be_o,
-      .shadow_addr_o,
-      .shadow_wdata_o,
-      .shadow_rdata_i,
+        // Shadow memory interface
+        .shadow_req_o,
+        .shadow_gnt_i,
+        .shadow_rvalid_i,
+        .shadow_we_o,
+        .shadow_be_o,
+        .shadow_addr_o,
+        .shadow_wdata_o,
+        .shadow_rdata_i,
 
-      .apu_req_o           ( apu_req      ),
-      .apu_gnt_i           ( apu_gnt      ),
-      .apu_operands_o      ( apu_operands ),
-      .apu_op_o            ( apu_op       ),
-      .apu_flags_o         ( apu_flags    ),
-      .apu_type_o          (),
-      .apu_rvalid_i        ( apu_rvalid   ),
-      .apu_result_i        ( apu_rdata    ),
-      .apu_flags_i         ( apu_rflags   ),
+        .apu_req_o           ( apu_req      ),
+        .apu_gnt_i           ( apu_gnt      ),
+        .apu_operands_o      ( apu_operands ),
+        .apu_op_o            ( apu_op       ),
+        .apu_flags_o         ( apu_flags    ),
+        .apu_type_o          (),
+        .apu_rvalid_i        ( apu_rvalid   ),
+        .apu_result_i        ( apu_rdata    ),
+        .apu_flags_i         ( apu_rflags   ),
 
-      // Interrupt inputs
-      .irq_i       ( core_irq        ),
-      .irq_level_i ( core_irq_level  ),
-      .irq_shv_i   ( core_irq_shv    ),
-      .irq_ack_o   ( core_irq_ready  ),
-      .irq_id_o    (),
+        // Interrupt inputs
+        .irq_i       ( core_irq        ),
+        .irq_level_i ( core_irq_level  ),
+        .irq_shv_i   ( core_irq_shv    ),
+        .irq_ack_o   ( core_irq_ready  ),
+        .irq_id_o    (),
 
-      .debug_req_i,
-      .debug_havereset_o   (),
-      .debug_running_o     (),
-      .debug_halted_o      (),
+        .debug_req_i,
+        .debug_havereset_o   (),
+        .debug_running_o     (),
+        .debug_halted_o      (),
 
-      .fetch_enable_i,
-      .core_sleep_o        (),
-      .external_perf_i     ('0)
-    );
+        .fetch_enable_i,
+        .core_sleep_o        (),
+        .external_perf_i     ('0)
+      );
+    end else begin : gen_ibex
+     // RI5CY expects 0x80 offset, Ibex expects 0x00 offset (adds reset offset 0x80 internally)
+     logic[31:0] ibex_boot_addr;
+     assign ibex_boot_addr = boot_addr_i & 32'hFFFFFF00; 
+`ifdef VERILATOR
+      ibex_core #(
+`elsif SYNTHESIS
+      ibex_core #(
+`elsif TRACE_EXECUTION
+      ibex_core_tracing #(
+`else
+      ibex_core #(
+`endif
+        .PMPEnable        ( 1'b0                ),
+        .PMPGranularity   ( 0                   ),
+        .PMPNumRegions    ( 4                   ),
+        .MHPMCounterNum   ( 0                   ),
+        .MHPMCounterWidth ( 40                  ),
+        .RV32E            ( 0                   ),
+        .RV32M            ( ibex_pkg::RV32MSlow ),
+        .RV32B            ( ibex_pkg::RV32BNone ),
+        .RegFile          ( ibex_pkg::RegFileFF ),
+        .BranchTargetALU  ( 1'b0                ),
+        .WritebackStage   ( 1'b0                ),
+        .ICache           ( 1'b0                ),
+        .ICacheECC        ( 1'b0                ),
+        .BranchPredictor  ( 1'b0                ),
+        .DbgTriggerEn     ( 1'b1                ),
+        .DbgHwBreakNum    ( 1                   ),
+        .SecureIbex       ( 1'b0                ),
+        .DmHaltAddr       ( PeriphBaseAddr + DebugAddrOffset + dm::HaltAddress[31:0]      ),
+        .DmExceptionAddr  ( PeriphBaseAddr + DebugAddrOffset + dm::ExceptionAddress[31:0] )
+      ) i_ibex (
+        .clk_i,
+        .rst_ni,
+
+        .test_en_i             ( test_enable_i  ),
+
+        .hart_id_i,
+        .boot_addr_i           ( ibex_boot_addr ),
+
+        // Instruction Memory Interface:
+        .instr_req_o,
+        .instr_gnt_i,
+        .instr_rdata_i,
+        .instr_rvalid_i,
+        .instr_addr_o,
+        .instr_err_i            ( (instr_err_i != 0) ),
+
+        // Data memory interface:
+        .data_req_o, 
+        .data_gnt_i,
+        .data_rvalid_i,
+        .data_we_o,
+        .data_be_o,
+        .data_addr_o,
+        .data_wdata_o,
+        .data_rdata_i,
+        .data_err_i            ( (data_err_i != 0)  ),
+
+        // TODO: properly connect interrupts to Ibex
+        .irq_software_i        (  1'b0 ),
+        .irq_timer_i           (  1'b0 ),
+        .irq_external_i        (  1'b0 ),
+        .irq_fast_i            ( 15'b0 ),
+        .irq_nm_i              (  1'b0 ),
+
+        // Ibex supports 32 additional fast interrupts and reads the interrupt lines directly.
+        .irq_x_i               ( core_irq        ),
+        .irq_x_ack_o           ( core_irq_ready  ),
+        .irq_x_ack_id_o        ( ),
+
+        .external_perf_i       ( '0 ),
+
+        .debug_req_i,
+
+        .fetch_enable_i,
+        .alert_minor_o         ( ),
+        .alert_major_o         ( ),
+        .core_sleep_o          ( )
+      );
+    end
 
     // FPU
     if (SafetyIslandCfg.UseFpu) begin : gen_safety_island_fpu

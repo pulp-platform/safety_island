@@ -105,6 +105,7 @@ package safety_island_pkg;
                                                  // FPU instead of a dedicated
                                                  // FP RF
     int unsigned              UseTCLS;           // Use Triple-core Lockstep
+    int unsigned              UseIbex;           // Use Ibex core (only for single core)
     int unsigned              NumInterrupts;     // Number of input interrupts
                                                  // to the safety island
     int unsigned              NumMhpmCounters;   // Number of performance
@@ -135,6 +136,7 @@ package safety_island_pkg;
     UseXPulp:           1,
     UseZfinx:           1,
     UseTCLS:            1,
+    UseIbex:            0,
     NumInterrupts:      64,
     NumMhpmCounters:    1
   };
