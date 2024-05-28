@@ -491,16 +491,24 @@ module safety_island_top import safety_island_pkg::*; #(
     .dmi_resp_o           ( dmi_resp       )
   );
 
+  // as of 28.05.2024 Verilator has trouble with non-blocking assignments
+  // to only parts of a struct (here rvalid and r.rid)
+  // -> we need to use intermediary signals to avoid this
+  logic dbg_mem_obi_rsp_rvalid;
+  logic dbg_mem_obi_rsp_r_rid;
+
   assign dbg_mem_obi_rsp.gnt = 1'b1;
   assign dbg_mem_obi_rsp.r.err = '0;
   assign dbg_mem_obi_rsp.r.r_optional = '0;
+  assign dbg_mem_obi_rsp.rvalid = dbg_mem_obi_rsp_rvalid;
+  assign dbg_mem_obi_rsp.r.rid = dbg_mem_obi_rsp_r_rid;
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_dbg_mem
     if(!rst_ni) begin
-      dbg_mem_obi_rsp.rvalid <= '0;
-      dbg_mem_obi_rsp.r.rid <= '0;
+      dbg_mem_obi_rsp_rvalid <= '0;
+      dbg_mem_obi_rsp_r_rid <= '0;
     end else begin
-      dbg_mem_obi_rsp.rvalid <= dbg_mem_obi_req.req;
-      dbg_mem_obi_rsp.r.rid <= dbg_mem_obi_req.a.aid;
+      dbg_mem_obi_rsp_rvalid <= dbg_mem_obi_req.req;
+      dbg_mem_obi_rsp_r_rid <= dbg_mem_obi_req.a.aid;
     end
   end
 
@@ -841,15 +849,24 @@ module safety_island_top import safety_island_pkg::*; #(
     .A     ( boot_rom_obi_req.a.addr[11:2] ),
     .Q     ( boot_rom_obi_rsp.r.rdata )
   );
+
+  // as of 28.05.2024 Verilator has trouble with non-blocking assignments
+  // to only parts of a struct (here rvalid and r.rid)
+  // -> we need to use intermediary signals to avoid this
+  logic boot_rom_obi_rsp_rvalid;
+  logic boot_rom_obi_rsp_r_rid;
+
   assign boot_rom_obi_rsp.gnt = 1'b1;
   assign boot_rom_obi_rsp.r.err = 1'b0;
+  assign boot_rom_obi_rsp.rvalid = boot_rom_obi_rsp_rvalid;
+  assign boot_rom_obi_rsp.r.rid = boot_rom_obi_rsp_r_rid;
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_boot_rom_rvalid
     if(!rst_ni) begin
-      boot_rom_obi_rsp.rvalid <= '0;
-      boot_rom_obi_rsp.r.rid <= '0;
+      boot_rom_obi_rsp_rvalid <= '0;
+      boot_rom_obi_rsp_r_rid <= '0;
     end else begin
-      boot_rom_obi_rsp.rvalid <= boot_rom_obi_req.req;
-      boot_rom_obi_rsp.r.rid <= boot_rom_obi_req.a.aid;
+      boot_rom_obi_rsp_rvalid <= boot_rom_obi_req.req;
+      boot_rom_obi_rsp_r_rid <= boot_rom_obi_req.a.aid;
     end
   end
   assign boot_rom_obi_rsp.r.r_optional = '0;
