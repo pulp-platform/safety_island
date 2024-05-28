@@ -8,10 +8,11 @@ REGGEN  ?= $(PYTHON3) $(shell $(BENDER) path register_interface)/vendor/lowrisc_
 
 VLOG_ARGS += -suppress 2583 -suppress 13314 -svinputport=compat
 
-SAFED_ROOT    ?= $(shell $(BENDER) path safety_island)
-SAFED_SW_DIR  ?= $(SAFED_ROOT)/sw
-SAFED_HW_DIR  ?= $(SAFED_ROOT)/rtl
-SAFED_SIM_DIR ?= $(SAFED_ROOT)/sim
+SAFED_ROOT     ?= $(shell $(BENDER) path safety_island)
+SAFED_SW_DIR   ?= $(SAFED_ROOT)/sw
+SAFED_HW_DIR   ?= $(SAFED_ROOT)/rtl
+SAFED_SIM_DIR  ?= $(SAFED_ROOT)/sim
+SAFED_BOOT_DIR ?= $(SAFED_ROOT)/boot
 
 ################
 # Dependencies #
@@ -56,12 +57,12 @@ $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_pkg.sv $(SAFED_HW_DIR)/soc_ctrl/saf
 	cp $(shell $(BENDER) path register_interface)/vendor/lowrisc_opentitan/util/reggen/reg_html.css $(SAFED_HW_DIR)/soc_ctrl
 
 $(SAFED_HW_DIR)/safety_island_bootrom.sv:
-	$(MAKE) -C boot clean safety_island_bootrom.sv
-	cp boot/safety_island_bootrom.sv rtl/safety_island_bootrom.sv
+	$(MAKE) -C$(SAFED_BOOT_DIR) clean safety_island_bootrom.sv
+	cp $(SAFED_BOOT_DIR)/safety_island_bootrom.sv $(SAFED_HW_DIR)/safety_island_bootrom.sv
 
 $(SAFED_HW_DIR)/safety_island_bootrom_carfield.sv:
-	$(MAKE) -C boot clean safety_island_bootrom.sv CARFIELD=1
-	cp boot/safety_island_bootrom.sv rtl/safety_island_bootrom_carfield.sv
+	$(MAKE) -C$(SAFED_BOOT_DIR) clean safety_island_bootrom.sv CARFIELD=1
+	cp $(SAFED_BOOT_DIR)/safety_island_bootrom.sv $(SAFED_HW_DIR)/safety_island_bootrom_carfield.sv
 
 .PHONY: safed-hw-gen safed-bootrom-gen
 ## Generate Safety Island HW sources
