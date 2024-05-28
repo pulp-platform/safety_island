@@ -567,6 +567,13 @@ module safety_core_wrap import safety_island_pkg::*; #(
         .alert_major_o         ( ),
         .core_sleep_o          ( )
       );
+
+      // tie-off shadow interface
+      assign shadow_req_o   = '0;
+      assign shadow_we_o    = '0;
+      assign shadow_be_o    = '0;
+      assign shadow_addr_o  = '0;
+      assign shadow_wdata_o = '0;
     end
 
     // FPU
