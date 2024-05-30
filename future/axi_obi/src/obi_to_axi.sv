@@ -284,11 +284,17 @@ module obi_to_axi #(
     .pop_i      ( obi_rsp_o.rvalid )// rsp_mux flow control used
   );
 
+  localparam int unsigned NumObiChans = AxiDataWidth/ObiCfg.DataWidth;
+  localparam int unsigned NumObiChanWidth = $clog2(NumObiChans);
+
+  typedef logic[NumObiChanWidth-1:0] obi_chan_sel_t;
+
+
   if (AxiDataWidth > ObiCfg.DataWidth) begin : gen_datawidth_offset_fifo
     fifo_v3 #(
       .FALL_THROUGH ( 1'b0        ), // No fallthrough for one cycle delay before ready on AXI.
       .DEPTH        ( MaxRequests ),
-      .dtype        ( logic [$clog2(AxiDataWidth/ObiCfg.DataWidth)-1:0] )
+      .dtype        ( obi_chan_sel_t  )
     ) i_fifo_size (
       .clk_i,
       .rst_ni,
