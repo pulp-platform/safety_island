@@ -85,7 +85,8 @@ module safety_island_top import safety_island_pkg::*; #(
   localparam bit [31:0] BaseAddr32     = BaseAddr[31:0];
   localparam bit [31:0] PeriphBaseAddr = BaseAddr32+PeriphOffset;
 
-  localparam int unsigned NumManagers = 5; // AXI, DBG, Core Instr, Core Data, Core Shadow
+  // AXI, DBG, Core Instr, Core Data, Core Shadow, (DMA)
+  localparam int unsigned NumManagers = 5 + (SafetyIslandCfg.UseDMA ? 2 : 0);
 
   // typedef obi for default config
   localparam obi_pkg::obi_optional_cfg_t MgrObiOptionalCfg= '{
@@ -169,11 +170,11 @@ module safety_island_top import safety_island_pkg::*; #(
                        logic[(DataWidth/8)-1:0]);
 
 `ifdef TARGET_SIMULATION
+  localparam int unsigned NumPeriphs     = 10;
+  localparam int unsigned NumPeriphRules = 9;
+`else
   localparam int unsigned NumPeriphs     = 9;
   localparam int unsigned NumPeriphRules = 8;
-`else
-  localparam int unsigned NumPeriphs     = 8;
-  localparam int unsigned NumPeriphRules = 7;
 `endif
 
   localparam int unsigned NumSubordinates = 2 + SafetyIslandCfg.NumBanks;
@@ -221,6 +222,9 @@ module safety_island_top import safety_island_pkg::*; #(
     '{ idx: PeriphTimer,
        start_addr: PeriphBaseAddr+TimerAddrOffset,
        end_addr: PeriphBaseAddr+TimerAddrOffset+        TimerAddrRange},         // 6: Timer
+    '{ idx: PeriphDmaCfg,
+       start_addr: PeriphBaseAddr+DmaCfgAddrOffset,
+       end_addr: PeriphBaseAddr+DmaCfgAddrOffset+       DmaCfgAddrRange},        // 7: DMA Config
     '{ idx: PeriphCoreLocal,
        start_addr: PeriphBaseAddr+CoreLocalAddrOffset,
        end_addr: PeriphBaseAddr+CoreLocalAddrOffset+    CoreLocalAddrRange}      // 7: Core-Local
@@ -273,6 +277,10 @@ module safety_island_top import safety_island_pkg::*; #(
   // axi input bus
   mgr_obi_req_t axi_input_obi_req;
   mgr_obi_rsp_t axi_input_obi_rsp;
+
+  // DMA bus
+  mgr_obi_req_t [1:0] dma_obi_req;
+  mgr_obi_rsp_t [1:0] dma_obi_rsp;
 
   // -----------------
   // Subordinate buses
@@ -338,7 +346,7 @@ module safety_island_top import safety_island_pkg::*; #(
   safety_reg_req_t ecc_mgr_reg_req;
   safety_reg_rsp_t ecc_mgr_reg_rsp;
 
-  // Core local bus
+  // Timer bus
   sbr_obi_req_t timer_obi_req;
   sbr_obi_rsp_t timer_obi_rsp;
   safety_reg_req_t timer_reg_req;
@@ -349,6 +357,12 @@ module safety_island_top import safety_island_pkg::*; #(
   sbr_obi_rsp_t cl_periph_obi_rsp;
   safety_reg_req_t cl_periph_reg_req;
   safety_reg_rsp_t cl_periph_reg_rsp;
+
+  // DMA config bus
+  sbr_obi_req_t dma_periph_obi_req;
+  sbr_obi_rsp_t dma_periph_obi_rsp;
+  safety_reg_req_t dma_periph_reg_req;
+  safety_reg_rsp_t dma_periph_reg_rsp;
 
 `ifdef TARGET_SIMULATION
   // TBPrintf bus
@@ -374,6 +388,8 @@ module safety_island_top import safety_island_pkg::*; #(
   assign all_periph_obi_rsp[PeriphCoreLocal]  = cl_periph_obi_rsp;
   assign timer_obi_req                        = all_periph_obi_req[PeriphTimer];
   assign all_periph_obi_rsp[PeriphTimer]      = timer_obi_rsp;
+  assign dma_periph_obi_req                   = all_periph_obi_req[PeriphDmaCfg];
+  assign all_periph_obi_rsp[PeriphDmaCfg]     = dma_periph_obi_rsp;
 `ifdef TARGET_SIMULATION
   assign tbprintf_obi_req                     = all_periph_obi_req[PeriphTBPrintf];
   assign all_periph_obi_rsp[PeriphTBPrintf]   = tbprintf_obi_rsp;
@@ -566,8 +582,93 @@ module safety_island_top import safety_island_pkg::*; #(
   end
 
   // -----------------
+  // DMA
+  // -----------------
+
+  if (SafetyIslandCfg.UseDMA) begin : gen_dma_unit
+    periph_to_reg #(
+      .AW    ( AddrWidth         ),
+      .DW    ( DataWidth         ),
+      .BW    ( 8                 ),
+      .IW    ( SbrObiCfg.IdWidth ),
+      .req_t ( safety_reg_req_t  ),
+      .rsp_t ( safety_reg_rsp_t  )
+    ) i_ecc_mgr_translate (
+      .clk_i,
+      .rst_ni,
+
+      .req_i     ( dma_periph_obi_req.req     ),
+      .add_i     ( dma_periph_obi_req.a.addr  ),
+      .wen_i     ( ~dma_periph_obi_req.a.we   ),
+      .wdata_i   ( dma_periph_obi_req.a.wdata ),
+      .be_i      ( dma_periph_obi_req.a.be    ),
+      .id_i      ( dma_periph_obi_req.a.aid   ),
+
+      .gnt_o     ( dma_periph_obi_rsp.gnt     ),
+      .r_rdata_o ( dma_periph_obi_rsp.r.rdata ),
+      .r_opc_o   ( dma_periph_obi_rsp.r.err   ),
+      .r_id_o    ( dma_periph_obi_rsp.r.rid   ),
+      .r_valid_o ( dma_periph_obi_rsp.rvalid  ),
+
+      .reg_req_o ( dma_periph_reg_req ),
+      .reg_rsp_i ( dma_periph_reg_rsp )
+    );
+    assign dma_periph_obi_rsp.r.r_optional = '0;
+
+    safety_island_dma #(
+      .reg_req_t   ( safety_reg_req_t ),
+      .reg_rsp_t   ( safety_reg_rsp_t ),
+      .ObiCfg      ( MgrObiCfg ),
+      .obi_a_chan_t( mgr_obi_a_chan_t ),
+      .obi_r_chan_t( mgr_obi_r_chan_t ),
+      .obi_req_t   ( mgr_obi_req_t ),
+      .obi_rsp_t   ( mgr_obi_rsp_t )
+    ) i_dma_unit (
+      .clk_i,
+      .rst_ni,
+      .test_mode_i ( test_enable_i ),
+      .reg_req_i   ( dma_periph_reg_req ),
+      .reg_rsp_o   ( dma_periph_reg_rsp ),
+      .obi_req_o   ( dma_obi_req ),
+      .obi_rsp_i   ( dma_obi_rsp )
+    );
+  end else begin : gen_dma_cfg_err
+    obi_err_sbr #(
+      .ObiCfg      ( SbrObiCfg     ),
+      .obi_req_t   ( sbr_obi_req_t ),
+      .obi_rsp_t   ( sbr_obi_rsp_t ),
+      .NumMaxTrans ( 1             ),
+      .RspData     ( 32'hBADCAB1E  )
+    ) i_dma_cfg_err_sbr (
+      .clk_i,
+      .rst_ni,
+      .testmode_i ( test_enable_i ),
+      .obi_req_i  ( dma_periph_obi_req ),
+      .obi_rsp_o  ( dma_periph_obi_rsp )
+    );
+  end
+
+  // -----------------
   // Main Interconnect
   // -----------------
+
+  mgr_obi_req_t [NumManagers-1:0] all_obi_mgr_req;
+  mgr_obi_rsp_t [NumManagers-1:0] all_obi_mgr_rsp;
+
+  assign all_obi_mgr_req[4:0] = {axi_input_obi_req,
+                                 core_instr_obi_req,
+                                 core_data_obi_req,
+                                 core_shadow_obi_req,
+                                 dbg_req_obi_req};
+  assign {axi_input_obi_rsp,
+          core_instr_obi_rsp,
+          core_data_obi_rsp,
+          core_shadow_obi_rsp,
+          dbg_req_obi_rsp    } = all_obi_mgr_rsp[4:0];
+  if (SafetyIslandCfg.UseDMA) begin : gen_connect_dma_xbar_mgr
+    assign all_obi_mgr_req[6:5] = dma_obi_req;
+    assign dma_obi_rsp = all_obi_mgr_rsp[6:5];
+  end
 
   obi_xbar #(
     .SbrPortObiCfg      ( MgrObiCfg        ),
@@ -590,21 +691,13 @@ module safety_island_top import safety_island_pkg::*; #(
     .rst_ni,
     .testmode_i       ( test_enable_i ),
 
-    .sbr_ports_req_i  ( {axi_input_obi_req,
-                         core_instr_obi_req,
-                         core_data_obi_req,
-                         core_shadow_obi_req,
-                         dbg_req_obi_req} ),
-    .sbr_ports_rsp_o  ( {axi_input_obi_rsp,
-                         core_instr_obi_rsp,
-                         core_data_obi_rsp,
-                         core_shadow_obi_rsp,
-                         dbg_req_obi_rsp} ),
+    .sbr_ports_req_i  ( all_obi_mgr_req ),
+    .sbr_ports_rsp_o  ( all_obi_mgr_rsp ),
     .mgr_ports_req_o  ( all_sbr_obi_req ),
     .mgr_ports_rsp_i  ( all_sbr_obi_rsp ),
 
     .addr_map_i       ( MainAddrMap ),
-    .en_default_idx_i ( 5'b11111 ),
+    .en_default_idx_i ( '1 ),
     .default_idx_i    ( '0 )
   );
 

@@ -2,3 +2,4 @@ hjson
 mako
 pyyaml
 tabulate
+flatdict

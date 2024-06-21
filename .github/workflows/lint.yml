@@ -48,6 +48,7 @@ jobs:
             ./rtl/tb/riscv_pkg.sv
             ./rtl/tb/tb_fs_handler.sv
             ./rtl/safety_island_bootrom_carfield.sv
+            ./rtl/dma/safety_island_dma_generated.sv
           extra_args: "--rules=-interface-name-style --lint_fatal --parse_fatal"
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reviewdog_reporter: github-check
