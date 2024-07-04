@@ -666,25 +666,28 @@ module safety_core_wrap import safety_island_pkg::*; #(
   logic [TotalNumInterrupts-1:0] clic_irqs;
   logic seip, meip, msip;
 
-  assign seip = '0;
-  assign meip = '0;
-  assign msip  = '0;
-  assign clic_irqs[TotalNumInterrupts-1:32] = irqs_i;
-  assign clic_irqs[31:22] = '0;
-  assign clic_irqs[21]    = resynch_irq;
-  assign clic_irqs[20:18] = bus_err_irq[2:0];
-  assign clic_irqs[17:16] = timer_irqs_i;
-  assign clic_irqs[15:0]  = {
-    {4{1'b0}},       // reserved
-    meip,            // meip
-    1'b0,            // reserved
-    seip,            // seip
-    1'b0,            // reserved
-    timer_irqs_i[0], // mtip
-    {3{1'b0}},       // reserved, stip, reserved
-    msip,            // msip
-    {3{1'b0}}        // reserved, ssip, reserved
-  };
+  always_comb begin : assign_clic_irqs
+    seip = '0;
+    meip = '0;
+    msip = '0;
+    clic_irqs = '0; // Default assignment to avoid unassigned irqs
+    clic_irqs[TotalNumInterrupts-1:32] = irqs_i;
+    clic_irqs[31:22] = '0;
+    clic_irqs[21]    = resynch_irq;
+    clic_irqs[20:18] = bus_err_irq[2:0];
+    clic_irqs[17:16] = timer_irqs_i;
+    clic_irqs[15:0]  = {
+      {4{1'b0}},       // reserved
+      meip,            // meip
+      1'b0,            // reserved
+      seip,            // seip
+      1'b0,            // reserved
+      timer_irqs_i[0], // mtip
+      {3{1'b0}},       // reserved, stip, reserved
+      msip,            // msip
+      {3{1'b0}}        // reserved, ssip, reserved
+    };
+  end
 
   clic #(
     .reg_req_t  ( reg_req_t ),
