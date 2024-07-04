@@ -31,14 +31,17 @@ module axi_to_obi #(
   parameter type               axi_rsp_t = logic,
   // Dependent Parameters, *DO NOT OVERWRITE*
   parameter int unsigned       NumBanks = AxiDataWidth/ObiCfg.DataWidth,
-  parameter int unsigned       AUserWidthAdjusted = ObiCfg.OptionalCfg.AUserWidth ? ObiCfg.OptionalCfg.AUserWidth : 1,
-  parameter int unsigned       WUserWidthAdjusted = ObiCfg.OptionalCfg.WUserWidth ? ObiCfg.OptionalCfg.WUserWidth : 1,
-  parameter int unsigned       RUserWidthAdjusted = ObiCfg.OptionalCfg.RUserWidth ? ObiCfg.OptionalCfg.RUserWidth : 1
+  parameter int unsigned       AUserWidthAdjusted = ObiCfg.OptionalCfg.AUserWidth ?
+                                                    ObiCfg.OptionalCfg.AUserWidth : 1,
+  parameter int unsigned       WUserWidthAdjusted = ObiCfg.OptionalCfg.WUserWidth ?
+                                                    ObiCfg.OptionalCfg.WUserWidth : 1,
+  parameter int unsigned       RUserWidthAdjusted = ObiCfg.OptionalCfg.RUserWidth ?
+                                                    ObiCfg.OptionalCfg.RUserWidth : 1
 ) (
   input  logic     clk_i,
   input  logic     rst_ni,
   input  logic     testmode_i,
-  
+
   input  axi_req_t axi_req_i,
   output axi_rsp_t axi_rsp_o,
 
@@ -82,6 +85,8 @@ module axi_to_obi #(
   axi_req_t axi_read_req, axi_write_req;
   axi_rsp_t axi_read_rsp, axi_write_rsp;
 
+  localparam int unsigned IdRuserWidth = ObiCfg.IdWidth+ObiCfg.OptionalCfg.RUserWidth;
+
   logic            [2*NumBanks-1:0]                         bank_mem_req;
   logic            [2*NumBanks-1:0]                         bank_mem_gnt;
   logic            [2*NumBanks-1:0][      AxiAddrWidth-1:0] bank_mem_addr;
@@ -98,9 +103,9 @@ module axi_to_obi #(
   logic            [2*NumBanks-1:0][  ObiCfg.DataWidth-1:0] bank_mem_rdata;
   logic            [2*NumBanks-1:0]                         bank_mem_err;
   logic            [2*NumBanks-1:0]                         bank_mem_exokay;
-  logic            [2*NumBanks-1:0][ObiCfg.IdWidth+ObiCfg.OptionalCfg.RUserWidth-1:0] bank_mem_ruser;
+  logic            [2*NumBanks-1:0][      IdRuserWidth-1:0] bank_mem_ruser;
 
-  logic [2*NumBanks-1:0][ObiCfg.IdWidth+ObiCfg.OptionalCfg.RUserWidth-1:0] rsp_ruser;
+  logic [2*NumBanks-1:0][  IdRuserWidth-1:0] rsp_ruser;
   logic [  NumBanks-1:0][2*AxiUserWidth-1:0] tmp_write_user;
 
   obi_req_t [2*NumBanks-1:0] obi_reqs;
@@ -141,13 +146,13 @@ module axi_to_obi #(
     .HideStrb    ( 1'b1         ),
     .OutFifoDepth( 2            ),
     .PropagateWUser ( 1'b0      ),
-    .RUserExtra    (ObiCfg.IdWidth+ObiCfg.OptionalCfg.RUserWidth)
+    .RUserExtra    (IdRuserWidth)
   ) i_axi_to_mem_read (
     .clk_i,
     .rst_ni,
-    
+
     .busy_o      (),
-    
+
     .axi_req_i   ( axi_read_req ),
     .axi_resp_o  ( axi_read_rsp ),
 
@@ -196,13 +201,13 @@ module axi_to_obi #(
     .HideStrb    ( 1'b1         ),
     .OutFifoDepth( 2            ),
     .PropagateWUser(1'b1),
-    .RUserExtra    (ObiCfg.IdWidth+ObiCfg.OptionalCfg.RUserWidth)
+    .RUserExtra    (IdRuserWidth)
   ) i_axi_to_mem_write (
     .clk_i,
     .rst_ni,
-    
+
     .busy_o      (),
-    
+
     .axi_req_i   ( axi_write_req ),
     .axi_resp_o  ( axi_write_rsp ),
 
@@ -239,14 +244,13 @@ module axi_to_obi #(
   assign bank_mem_id    [2*NumBanks-1:NumBanks] = req_write_aid_i;
   assign bank_mem_user  [2*NumBanks-1:NumBanks] = req_write_auser_i;
 
-  for (genvar i = 0; i < NumBanks; i++) begin
+  for (genvar i = 0; i < NumBanks; i++) begin : gen_user_rid
     assign req_w_user_o[i] = tmp_write_user[i][2*AxiUserWidth-1:AxiUserWidth];
     assign req_aw_user_o[i] = tmp_write_user[i][AxiUserWidth-1:0];
     assign rsp_read_rid_o   [i] = rsp_ruser[         i][ObiCfg.IdWidth-1:0];
-    assign rsp_read_ruser_o [i] = rsp_ruser[         i][ObiCfg.IdWidth+ObiCfg.OptionalCfg.RUserWidth-1:ObiCfg.IdWidth];
+    assign rsp_read_ruser_o [i] = rsp_ruser[         i][IdRuserWidth-1:ObiCfg.IdWidth];
     assign rsp_write_rid_o  [i] = rsp_ruser[NumBanks+i][ObiCfg.IdWidth-1:0];
-    assign rsp_write_ruser_o[i] = rsp_ruser[NumBanks+i][ObiCfg.IdWidth+ObiCfg.OptionalCfg.RUserWidth-1:ObiCfg.IdWidth];
-
+    assign rsp_write_ruser_o[i] = rsp_ruser[NumBanks+i][IdRuserWidth-1:ObiCfg.IdWidth];
   end
 
   if (ObiCfg.OptionalCfg.UseAtop) begin : gen_atop
@@ -267,6 +271,7 @@ module axi_to_obi #(
             axi_pkg::ATOP_SMAX: obi_atop[i] = obi_pkg::AMOMAX;
             axi_pkg::ATOP_UMIN: obi_atop[i] = obi_pkg::AMOMINU;
             axi_pkg::ATOP_UMAX: obi_atop[i] = obi_pkg::AMOMAXU;
+            default: ;
           endcase
         end
       end
@@ -281,7 +286,8 @@ module axi_to_obi #(
     assign obi_reqs[i].a.addr  = bank_mem_addr[i];
     if (ObiCfg.OptionalCfg.UseAtop) begin : gen_obi_bank_assign_atop
       assign obi_reqs[i].a.a_optional.atop = obi_atop[i];
-      assign obi_reqs[i].a.wdata = (obi_atop[i] == obi_pkg::AMOAND) ? ~bank_mem_wdata[i] : bank_mem_wdata[i];
+      assign obi_reqs[i].a.wdata = (obi_atop[i] == obi_pkg::AMOAND) ?
+                                   ~bank_mem_wdata[i] : bank_mem_wdata[i];
       assign bank_mem_exokay[i] = obi_rsps[i].r.r_optional.exokay;
     end else begin : gen_obi_bank_tie_atop
       assign obi_reqs[i].a.wdata = bank_mem_wdata[i];
@@ -293,8 +299,8 @@ module axi_to_obi #(
     assign bank_mem_rdata[i]   = obi_rsps[i].r.rdata;
     assign bank_mem_err[i]     = obi_rsps[i].r.err;
     assign bank_mem_ruser[i][ObiCfg.IdWidth-1:0] = obi_rsps[i].r.rid;
-    if (ObiCfg.OptionalCfg.RUserWidth) begin
-      assign bank_mem_ruser[i][ObiCfg.IdWidth+ObiCfg.OptionalCfg.RUserWidth-1:ObiCfg.IdWidth] = obi_rsps[i].r.r_optional.ruser;
+    if (ObiCfg.OptionalCfg.RUserWidth) begin : gen_ruser
+      assign bank_mem_ruser[i][IdRuserWidth-1:ObiCfg.IdWidth] = obi_rsps[i].r.r_optional.ruser;
     end
     if (ObiCfg.OptionalCfg.UseProt) begin : gen_obi_bank_assign_prot
       assign obi_reqs[i].a.a_optional.prot[0] = ~bank_mem_prot[i][2];
@@ -306,15 +312,15 @@ module axi_to_obi #(
       assign obi_reqs[i].a.a_optional.memtype[1] = ~bank_mem_cache[i][1];
     end
     assign obi_reqs[i].a.aid = bank_mem_id[i];
-    if (i < NumBanks) begin
-      if (ObiCfg.OptionalCfg.AUserWidth) begin
+    if (i < NumBanks) begin : gen_bank_auser
+      if (ObiCfg.OptionalCfg.AUserWidth) begin : gen_auser
         assign obi_reqs[i].a.a_optional.auser = req_read_auser_i;
       end
-    end else begin
-      if (ObiCfg.OptionalCfg.AUserWidth) begin
+    end else begin : gen_bank_awuser
+      if (ObiCfg.OptionalCfg.AUserWidth) begin : gen_auser
         assign obi_reqs[i].a.a_optional.auser = req_write_auser_i;
       end
-      if (ObiCfg.OptionalCfg.WUserWidth) begin
+      if (ObiCfg.OptionalCfg.WUserWidth) begin : gen_wuser
         assign obi_reqs[i].a.a_optional.wuser = req_write_wuser_i;
       end
     end

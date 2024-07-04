@@ -456,7 +456,7 @@ module axi_to_detailed_mem_user #(
     region: mem_req.region
   };
 
-  for (genvar i = 0; i < NumBanks; i++) begin
+  for (genvar i = 0; i < NumBanks; i++) begin : gen_atop_assign
     assign mem_atop_o  [i] = banked_req_atop[i].atop;
     assign mem_lock_o  [i] = banked_req_atop[i].lock;
     assign mem_id_o    [i] = banked_req_atop[i].id;
@@ -468,7 +468,7 @@ module axi_to_detailed_mem_user #(
   end
 
   logic [NumBanks-1:0][RUserExtra+2-1:0] tmp_ersp, bank_ersp;
-  for (genvar i = 0; i < NumBanks; i++) begin
+  for (genvar i = 0; i < NumBanks; i++) begin : gen_err_assign
     assign mem_rdata.err[i]    = tmp_ersp[i][0];
     assign mem_rdata.exokay[i] = tmp_ersp[i][1];
     assign mem_rdata.ruser[i]  = tmp_ersp[i][RUserExtra+2-1:2];
@@ -538,24 +538,27 @@ module axi_to_detailed_mem_user #(
     .ready_i      ({axi_req_i.b_ready,  axi_req_i.r_ready })
   );
 
-  localparam NumBytesPerBank = DataWidth/NumBanks/8;
+  localparam int unsigned NumBytesPerBank = DataWidth/NumBanks/8;
 
   logic [NumBanks-1:0] meta_buf_bank_strb, meta_buf_size_enable;
   logic resp_b_err, resp_b_exokay, resp_r_err, resp_r_exokay;
 
   // Collect `err` and `exokay` from all banks
   // To ensure correct propagation, `err` is grouped with `OR` and `exokay` is grouped with `AND`.
-  for (genvar i = 0; i < NumBanks; i++) begin
+  for (genvar i = 0; i < NumBanks; i++) begin : gen_meta_buf
     // Set active write banks based on strobe
     assign meta_buf_bank_strb[i] = |meta_buf.strb[i*NumBytesPerBank +: NumBytesPerBank];
-    // Set active read banks based on size and address offset: (bank.end > addr) && (bank.start < addr+size)
-    assign meta_buf_size_enable[i] = ((i*NumBytesPerBank + NumBytesPerBank) > (meta_buf.addr % DataWidth/8)) &&
-                                     ((i*NumBytesPerBank) < ((meta_buf.addr % DataWidth/8) + 1<<meta_buf.size));
+    // Set active read banks based on size and address offset:
+    //                 (bank.end > addr) && (bank.start < addr+size)
+    assign meta_buf_size_enable[i] =
+           ((i*NumBytesPerBank + NumBytesPerBank) > (meta_buf.addr % DataWidth/8)) &&
+           ((i*NumBytesPerBank) < ((meta_buf.addr % DataWidth/8) + 1<<meta_buf.size));
   end
-  assign resp_b_err    = |(m2s_resp.err    &  meta_buf_bank_strb);   // Ensure only active banks are used (strobe)
-  assign resp_b_exokay = &(m2s_resp.exokay | ~meta_buf_bank_strb);   // Ensure only active banks are used (strobe)
-  assign resp_r_err    = |(m2s_resp.err    &  meta_buf_size_enable); // Ensure only active banks are used (size & addr offset)
-  assign resp_r_exokay = &(m2s_resp.exokay | ~meta_buf_size_enable); // Ensure only active banks are used (size & addr offset)
+  // Ensure only active banks are used
+  assign resp_b_err    = |(m2s_resp.err    &  meta_buf_bank_strb);   // strobe
+  assign resp_b_exokay = &(m2s_resp.exokay | ~meta_buf_bank_strb);   // strobe
+  assign resp_r_err    = |(m2s_resp.err    &  meta_buf_size_enable); // size & addr offset
+  assign resp_r_exokay = &(m2s_resp.exokay | ~meta_buf_size_enable); // size & addr offset
 
   logic collect_b_err_d, collect_b_err_q;
   logic collect_b_exokay_d, collect_b_exokay_q;
@@ -585,7 +588,9 @@ module axi_to_detailed_mem_user #(
   // Compose B responses.
   assign axi_resp_o.b = '{
     id:   meta_buf.id,
-    resp: next_collect_b_err ? axi_pkg::RESP_SLVERR : next_collect_b_exokay ? axi_pkg::RESP_EXOKAY : axi_pkg::RESP_OKAY,
+    resp: next_collect_b_err ?
+          axi_pkg::RESP_SLVERR :
+          next_collect_b_exokay ? axi_pkg::RESP_EXOKAY : axi_pkg::RESP_OKAY,
     user: ruser_i
   };
 
@@ -594,7 +599,9 @@ module axi_to_detailed_mem_user #(
     data: m2s_resp.data,
     id:   meta_buf.id,
     last: meta_buf.last,
-    resp: resp_r_err ? axi_pkg::RESP_SLVERR : resp_r_exokay ? axi_pkg::RESP_EXOKAY : axi_pkg::RESP_OKAY,
+    resp: resp_r_err ?
+          axi_pkg::RESP_SLVERR :
+          resp_r_exokay ? axi_pkg::RESP_EXOKAY : axi_pkg::RESP_OKAY,
     user: ruser_i
   };
 

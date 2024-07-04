@@ -19,8 +19,8 @@
 
 // Auto-generated code
 module safety_island_bootrom #(
-    parameter ADDR_WIDTH=32,
-    parameter DATA_WIDTH=32
+    parameter int unsigned ADDR_WIDTH=32,
+    parameter int unsigned DATA_WIDTH=32
 ) (
    input logic                   CLK,
    input logic                   RST_N,
@@ -29,10 +29,10 @@ module safety_island_bootrom #(
    output logic [DATA_WIDTH-1:0] Q
 );
 
-    localparam   NUM_WORDS = 2**ADDR_WIDTH;
+    localparam int unsigned NumWords = 2**ADDR_WIDTH;
     logic [ADDR_WIDTH-1:0] A_Q;
 
-    const logic [DATA_WIDTH-1:0] MEM[NUM_WORDS] = {
+    const logic [DATA_WIDTH-1:0] MEM[NumWords] = {
         32'b00001000100000000000000001101111,
         32'b00001000010000000000000001101111,
         32'b00001000000000000000000001101111,

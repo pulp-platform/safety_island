@@ -66,9 +66,12 @@ module obi_to_axi #(
   logic [3:0] axi_obi_cache;
 
   if (ObiCfg.OptionalCfg.UseProt) begin : gen_prot
-    assign axi_obi_prot[0]  = obi_req_i.a.a_optional.prot[2:1] != 2'b00; // User mode is unpriviledged
-    assign axi_obi_prot[1]  = 1'b0;                                      // Always secure?
-    assign axi_obi_prot[2]  = ~obi_req_i.a.a_optional.prot[0];           // Instr / Data access
+    // User mode is unpriviledged
+    assign axi_obi_prot[0]  = obi_req_i.a.a_optional.prot[2:1] != 2'b00;
+    // Always secure?
+    assign axi_obi_prot[1]  = 1'b0;
+    // Instr / Data access
+    assign axi_obi_prot[2]  = ~obi_req_i.a.a_optional.prot[0];
   end else begin : gen_default_prot
     assign axi_obi_prot = DefaultProt;
   end
@@ -82,17 +85,33 @@ module obi_to_axi #(
         obi_pkg::ATOPLR:  axi_obi_lock = 1'b1;
         obi_pkg::ATOPSC:  axi_obi_lock = 1'b1;
         obi_pkg::AMOSWAP: axi_obi_atop = {axi_pkg::ATOP_ATOMICSWAP};
-        obi_pkg::AMOADD:  axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END, axi_pkg::ATOP_ADD};
-        obi_pkg::AMOXOR:  axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END, axi_pkg::ATOP_EOR};
+        obi_pkg::AMOADD:  axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD,
+                                          axi_pkg::ATOP_LITTLE_END,
+                                          axi_pkg::ATOP_ADD};
+        obi_pkg::AMOXOR:  axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD,
+                                          axi_pkg::ATOP_LITTLE_END,
+                                          axi_pkg::ATOP_EOR};
         obi_pkg::AMOAND: begin
-          axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END, axi_pkg::ATOP_CLR};
+          axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD,
+                          axi_pkg::ATOP_LITTLE_END,
+                          axi_pkg::ATOP_CLR};
           axi_obi_wdata = ~obi_req_i.a.wdata;
         end
-        obi_pkg::AMOOR:   axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END, axi_pkg::ATOP_SET};
-        obi_pkg::AMOMIN:  axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END, axi_pkg::ATOP_SMIN};
-        obi_pkg::AMOMAX:  axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END, axi_pkg::ATOP_SMAX};
-        obi_pkg::AMOMINU: axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END, axi_pkg::ATOP_UMIN};
-        obi_pkg::AMOMAXU: axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD, axi_pkg::ATOP_LITTLE_END, axi_pkg::ATOP_UMAX};
+        obi_pkg::AMOOR:   axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD,
+                                          axi_pkg::ATOP_LITTLE_END,
+                                          axi_pkg::ATOP_SET};
+        obi_pkg::AMOMIN:  axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD,
+                                          axi_pkg::ATOP_LITTLE_END,
+                                          axi_pkg::ATOP_SMIN};
+        obi_pkg::AMOMAX:  axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD,
+                                          axi_pkg::ATOP_LITTLE_END,
+                                          axi_pkg::ATOP_SMAX};
+        obi_pkg::AMOMINU: axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD,
+                                          axi_pkg::ATOP_LITTLE_END,
+                                          axi_pkg::ATOP_UMIN};
+        obi_pkg::AMOMAXU: axi_obi_atop = {axi_pkg::ATOP_ATOMICLOAD,
+                                          axi_pkg::ATOP_LITTLE_END,
+                                          axi_pkg::ATOP_UMAX};
         default:;
       endcase
     end
@@ -179,7 +198,8 @@ module obi_to_axi #(
   always_comb begin : proc_request_control
     data_offset = '0;
     if (AxiDataWidth > ObiCfg.DataWidth) begin
-      data_offset = obi_req_i.a.addr[$clog2(ObiCfg.DataWidth/8)+:$clog2(AxiDataWidth/ObiCfg.DataWidth)];
+      data_offset = obi_req_i.a.addr[$clog2(ObiCfg.DataWidth/8)+:
+                                     $clog2(AxiDataWidth/ObiCfg.DataWidth)];
     end
     axi_req_o.aw_valid = 1'b0;
     axi_req_o.w_valid  = 1'b0;
@@ -308,12 +328,14 @@ module obi_to_axi #(
 
   // Response selection control.
   // If something is in the FIFO, the corresponding channel is ready.
-  assign axi_req_o.b_ready = ~fifo_empty & (( rsp_sel[0] & ~rsp_sel[1]) | (rsp_sel[1] & axi_rsp_i.r_valid));
-  assign axi_req_o.r_ready = ~fifo_empty & ((~rsp_sel[0] & ~rsp_sel[1]) | (rsp_sel[1] & axi_rsp_i.b_valid));
+  assign axi_req_o.b_ready = ~fifo_empty &
+                             (( rsp_sel[0] & ~rsp_sel[1]) | (rsp_sel[1] & axi_rsp_i.r_valid));
+  assign axi_req_o.r_ready = ~fifo_empty &
+                             ((~rsp_sel[0] & ~rsp_sel[1]) | (rsp_sel[1] & axi_rsp_i.b_valid));
   // Read data is directly forwarded.
   assign obi_rsp_o.r.rdata = axi_rsp_i.r.data[ObiCfg.DataWidth*rdata_offset+:ObiCfg.DataWidth];
   // Error is taken from the respective channel.
-  assign obi_rsp_o.r.err = rsp_sel[1] ? 
+  assign obi_rsp_o.r.err = rsp_sel[1] ?
       (axi_rsp_i.b.resp inside {axi_pkg::RESP_SLVERR, axi_pkg::RESP_DECERR}) |
       (axi_rsp_i.r.resp inside {axi_pkg::RESP_SLVERR, axi_pkg::RESP_DECERR}) :
       rsp_sel[0] ?
@@ -344,7 +366,8 @@ module obi_to_axi #(
     initial begin : proc_assert
       if (AxiLite) begin
         assert (ObiCfg.OptionalCfg.UseAtop == 0) else $fatal(1, "ATOP not supported in AXI lite");
-        assert (ObiCfg.OptionalCfg.UseMemtype == 0) else $fatal(1, "Memtype/cache not supported in AXI lite");
+        assert (ObiCfg.OptionalCfg.UseMemtype == 0) else
+          $fatal(1, "Memtype/cache not supported in AXI lite");
       end
       assert (ObiCfg.AddrWidth > 32'd0) else $fatal(1, "OBI AddrWidth has to be greater than 0!");
       assert (AxiAddrWidth > 32'd0) else $fatal(1, "AxiAddrWidth has to be greater than 0!");
@@ -365,13 +388,17 @@ module obi_to_axi #(
     default disable iff (~rst_ni);
     assert property (@(posedge clk_i) (obi_req_i.req && !obi_rsp_o.gnt) |=> obi_req_i.req) else
         $fatal(1, "It is not allowed to deassert the request if it was not granted!");
-    assert property (@(posedge clk_i) (obi_req_i.req && !obi_rsp_o.gnt) |=> $stable(obi_req_i.a.addr)) else
+    assert property (@(posedge clk_i) (obi_req_i.req && !obi_rsp_o.gnt) |=>
+                                       $stable(obi_req_i.a.addr)) else
         $fatal(1, "obi_req_i.a.addr has to be stable if request is not granted!");
-    assert property (@(posedge clk_i) (obi_req_i.req && !obi_rsp_o.gnt) |=> $stable(obi_req_i.a.we)) else
+    assert property (@(posedge clk_i) (obi_req_i.req && !obi_rsp_o.gnt) |=>
+                                       $stable(obi_req_i.a.we)) else
         $fatal(1, "obi_req_i.a.we has to be stable if request is not granted!");
-    assert property (@(posedge clk_i) (obi_req_i.req && !obi_rsp_o.gnt) |=> $stable(obi_req_i.a.wdata)) else
+    assert property (@(posedge clk_i) (obi_req_i.req && !obi_rsp_o.gnt) |=>
+                                       $stable(obi_req_i.a.wdata)) else
         $fatal(1, "obi_req_i.a.wdata has to be stable if request is not granted!");
-    assert property (@(posedge clk_i) (obi_req_i.req && !obi_rsp_o.gnt) |=> $stable(obi_req_i.a.be)) else
+    assert property (@(posedge clk_i) (obi_req_i.req && !obi_rsp_o.gnt) |=>
+                                       $stable(obi_req_i.a.be)) else
         $fatal(1, "obi_req_i.a.be has to be stable if request is not granted!");
   `endif
   `endif
