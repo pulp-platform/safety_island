@@ -157,5 +157,23 @@ make clean all run
 This will start a simulation in Questasim. To activate GUI mode, add `gui=1` to
 the end of the last command.
 
+## Citing
+
+The safety island was presented at the RISC-V Summit Europe 2024 as SentryCore. If you use the safety island in your work, you can cite us:
+
+```
+@inproceedings{rogenmoser_sentrycore_2024
+  title = {SentryCore: A RISC-V Co-Processor System for Safe, Real-Time Control Applications},
+  author = {Rogenmoser, Michael and Ottaviano, Alessandro and Benz, Thomas and Balas, Robert and Perotti, Matteo and Garofalo, Angelo and Benini, Luca},
+  month = {June},
+  year = {2024},
+  abstract = {In the last decade, we have witnessed exponential growth in the complexity of control systems for safety-critical applications (automotive, robots, industrial automation) and their transition to heterogeneous mixed-criticality systems (MCSs). The growth of the RISC-V ecosystem is creating a major opportunity to develop open-source, vendor-neutral reference platforms for safety-critical computing. We present SentryCore, a reliable, real-time, self-contained, open-source mega-IP for advanced control functions that can be seamlessly integrated into Systems-on-Chip, e.g., for automotive applications, through industry-standard Advanced eXtensible Interface 4 (AXI4). SentryCore features three embedded RISC-V processor cores in lockstep with error-correcting code (ECC) protected data memory for reliable execution of any safety-critical application. Context switching is accelerated to under 110 clock cycles via a RISC-V core-local interrupt controller (CLIC) and dedicated hardware extensions, while a timer-based direct memory access (DMA) engine streamlines sensor data readout during periodic control loops. SentryCore was implemented in Intel’s 16nm process node and tested with FreeRTOS, ThreadX, and RTIC software support.},
+  booktitle = {RISC-V Summit Europe 2024},
+  language = {en},
+  DOI = {10.3929/ethz-b-000673440},
+  address = {Munich, Germany}
+}
+```
+
 ## License
 Unless specified otherwise in the respective file headers, all code checked into this repository is made available under a permissive license. All hardware sources and tool scripts are licensed under the Solderpad Hardware License 0.51 (see `LICENSE.md`). All software sources are licensed under Apache 2.0.
