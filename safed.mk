@@ -8,10 +8,11 @@ REGGEN  ?= $(PYTHON3) $(shell $(BENDER) path register_interface)/vendor/lowrisc_
 
 VLOG_ARGS += -suppress 2583 -suppress 13314 -svinputport=compat
 
-SAFED_ROOT    ?= $(shell $(BENDER) path safety_island)
-SAFED_SW_DIR  ?= $(SAFED_ROOT)/sw
-SAFED_HW_DIR  ?= $(SAFED_ROOT)/rtl
-SAFED_SIM_DIR ?= $(SAFED_ROOT)/sim
+SAFED_ROOT     ?= $(shell $(BENDER) path safety_island)
+SAFED_SW_DIR   ?= $(SAFED_ROOT)/sw
+SAFED_HW_DIR   ?= $(SAFED_ROOT)/rtl
+SAFED_SIM_DIR  ?= $(SAFED_ROOT)/sim
+SAFED_BOOT_DIR ?= $(SAFED_ROOT)/boot
 
 ################
 # Dependencies #
@@ -35,10 +36,10 @@ NONFREE_COMMIT ?= ea06e7dc80eb4d3cf592af41ef1e37789336ee3c
 .PHONY: nonfree-init
 ## Initialize Safety Island CI repository
 nonfree-init:
-	git clone $(NONFREE_REMOTE) nonfree
-	cd nonfree && git checkout $(NONFREE_COMMIT)
+	git clone $(NONFREE_REMOTE) $(SAFED_ROOT)/nonfree
+	cd $(SAFED_ROOT)/nonfree && git checkout $(NONFREE_COMMIT)
 
--include nonfree/nonfree.mk
+-include $(SAFED_ROOT)/nonfree/nonfree.mk
 
 
 #####################
@@ -48,7 +49,7 @@ REG_HTML_STRING = "<!DOCTYPE html>\n<html>\n<head>\n<link rel="stylesheet" href=
 
 $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_pkg.sv $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_top.sv: $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_regs.hjson
 	$(REGGEN) $< -t $(SAFED_HW_DIR)/soc_ctrl -r
-	git apply $(SAFED_HW_DIR)/soc_ctrl/boot_addr.patch
+	cd $(SAFED_ROOT) && git apply $(SAFED_HW_DIR)/soc_ctrl/boot_addr.patch
 	printf $(REG_HTML_STRING) > $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.html
 	$(REGGEN) $< -d >> $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.html
 	printf "</html>\n" >> $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.html
@@ -56,12 +57,12 @@ $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_pkg.sv $(SAFED_HW_DIR)/soc_ctrl/saf
 	cp $(shell $(BENDER) path register_interface)/vendor/lowrisc_opentitan/util/reggen/reg_html.css $(SAFED_HW_DIR)/soc_ctrl
 
 $(SAFED_HW_DIR)/safety_island_bootrom.sv:
-	$(MAKE) -C boot clean safety_island_bootrom.sv
-	cp boot/safety_island_bootrom.sv rtl/safety_island_bootrom.sv
+	$(MAKE) -C$(SAFED_BOOT_DIR) clean safety_island_bootrom.sv
+	cp $(SAFED_BOOT_DIR)/safety_island_bootrom.sv $(SAFED_HW_DIR)/safety_island_bootrom.sv
 
 $(SAFED_HW_DIR)/safety_island_bootrom_carfield.sv:
-	$(MAKE) -C boot clean safety_island_bootrom.sv CARFIELD=1
-	cp boot/safety_island_bootrom.sv rtl/safety_island_bootrom_carfield.sv
+	$(MAKE) -C$(SAFED_BOOT_DIR) clean safety_island_bootrom.sv CARFIELD=1
+	cp $(SAFED_BOOT_DIR)/safety_island_bootrom.sv $(SAFED_HW_DIR)/safety_island_bootrom_carfield.sv
 
 .PHONY: safed-hw-gen safed-bootrom-gen
 ## Generate Safety Island HW sources
@@ -91,7 +92,7 @@ clean: clean_$(SAFED_SIM_DIR)/compile.tcl
 ##############
 
 SIM_TOP ?= tb_safety_island_jtag
-include sim/safed_sim.mk
+include $(SAFED_ROOT)/sim/safed_sim.mk
 
 ##############
 ## SOFTWARE ##
