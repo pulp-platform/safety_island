@@ -1,0 +1,72 @@
+# Copyright 2024 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+# Author: Michael Rogenmoser <michaero@iis.ee.ethz.ch>
+
+name: lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  check-stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+      - name: Install Bender
+        uses: pulp-platform/pulp-actions/bender-install@v2
+      - name: Python Requirements
+        run: pip install -r requirements.txt
+      - name: Check clean make targets
+        # bootrom todo, toolchain required
+        run: |
+          make safed-hw-gen
+          git status && test -z "$(git status --porcelain)"
+
+  lint-verilog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chipsalliance/verible-linter-action@main
+        with:
+          paths: |
+            ./rtl
+            ./future/axi_obi/src
+          exclude_paths: |
+            ./rtl/soc_ctrl/safety_soc_ctrl_reg_pkg.sv
+            ./rtl/soc_ctrl/safety_soc_ctrl_reg_top.sv
+            ./rtl/tb/jtag_pkg.sv
+            ./rtl/tb/riscv_pkg.sv
+            ./rtl/tb/tb_fs_handler.sv
+            ./rtl/safety_island_bootrom_carfield.sv
+          extra_args: "--rules=-interface-name-style --lint_fatal --parse_fatal"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reviewdog_reporter: github-check
+
+  # lint-license:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - name: Checkout
+  #     uses: actions/checkout@v3
+  #   - name: Check license
+  #     uses: pulp-platform/pulp-actions/lint-license@v2
+  #     with:
+  #       license: |
+  #         Copyright (\d{4}(-\d{4})?\s)?(\(C\)\s)?(ETH Zurich and University of Bologna|lowRISC contributors|ETH Zurich|ETH Zurich, University of Bologna and GreenWaves Technologies)(.)?
+  #         ((Solderpad Hardware License, Version 0.51|Licensed under the Apache License, Version 2.0), see LICENSE for details.|\
+  #         Copyright and related rights are licensed under the Solderpad Hardware|\
+  #         Licensed under the Apache License, Version 2.0 \(the \"License\"\);)
+  #         (SPDX-License-Identifier: (SHL-0.51|Apache-2.0)|\
+  #         License, Version 0.51 \(the \"License\"\); you may not use this file except in|\
+  #         you may not use this file except in compliance with the License.)
+  #       # Exclude generated headers (no license checker support for optional lines)
+  #       exclude_paths:

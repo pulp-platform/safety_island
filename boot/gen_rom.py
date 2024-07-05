@@ -48,8 +48,8 @@ license = """\
 
 module = """\
 module $module_name #(
-    parameter ADDR_WIDTH=32,
-    parameter DATA_WIDTH=32
+    parameter int unsigned ADDR_WIDTH=32,
+    parameter int unsigned DATA_WIDTH=32
 ) (
    input logic                   CLK,
    input logic                   RST_N,
@@ -58,10 +58,10 @@ module $module_name #(
    output logic [DATA_WIDTH-1:0] Q
 );
 
-    localparam   NUM_WORDS = 2**ADDR_WIDTH;
+    localparam int unsigned NumWords = 2**ADDR_WIDTH;
     logic [ADDR_WIDTH-1:0] A_Q;
 
-    const logic [DATA_WIDTH-1:0] MEM[NUM_WORDS] = {
+    const logic [DATA_WIDTH-1:0] MEM[NumWords] = {
 $content
     };
 

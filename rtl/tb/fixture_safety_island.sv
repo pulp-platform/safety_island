@@ -36,11 +36,16 @@ module fixture_safety_island;
   localparam bit [31:0]                MemOffset       = 32'h0000_0000;
   localparam bit [31:0]                PeriphOffset    = 32'h0020_0000;
 
-  localparam SocCtrlAddr    = BaseAddr + PeriphOffset + SocCtrlAddrOffset;
-  localparam BootAddrAddr   = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTADDR_OFFSET;
-  localparam FetchEnAddr    = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_FETCHEN_OFFSET;
-  localparam CoreStatusAddr = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_CORESTATUS_OFFSET;
-  localparam BootModeAddr   = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTMODE_OFFSET;
+  localparam bit [GlobalAddrWidth-1:0] SocCtrlAddr     = BaseAddr +
+                                         PeriphOffset + SocCtrlAddrOffset;
+  localparam bit [GlobalAddrWidth-1:0] BootAddrAddr    = SocCtrlAddr +
+                                         safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTADDR_OFFSET;
+  localparam bit [GlobalAddrWidth-1:0] FetchEnAddr     = SocCtrlAddr +
+                                         safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_FETCHEN_OFFSET;
+  localparam bit [GlobalAddrWidth-1:0] CoreStatusAddr  = SocCtrlAddr +
+                                         safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_CORESTATUS_OFFSET;
+  localparam bit [GlobalAddrWidth-1:0] BootModeAddr    = SocCtrlAddr +
+                                         safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTMODE_OFFSET;
 
   // Global AXI Configs
   localparam int unsigned AxiDataWidth     = 64;
@@ -49,25 +54,51 @@ module fixture_safety_island;
   localparam int unsigned AxiUserWidth     = 10;
   localparam int unsigned AxiOutputIdWidth = 2;
 
-  `AXI_TYPEDEF_ALL(axi_input,  logic[AxiAddrWidth-1:0], logic[AxiInputIdWidth-1:0],  logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0], logic[AxiUserWidth-1:0])
-  `AXI_TYPEDEF_ALL(axi_output, logic[AxiAddrWidth-1:0], logic[AxiOutputIdWidth-1:0], logic[AxiDataWidth-1:0], logic[AxiDataWidth/8-1:0], logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_ALL(axi_input,
+                   logic[AxiAddrWidth-1:0],
+                   logic[AxiInputIdWidth-1:0],
+                   logic[AxiDataWidth-1:0],
+                   logic[AxiDataWidth/8-1:0],
+                   logic[AxiUserWidth-1:0])
+  `AXI_TYPEDEF_ALL(axi_output,
+                   logic[AxiAddrWidth-1:0],
+                   logic[AxiOutputIdWidth-1:0],
+                   logic[AxiDataWidth-1:0],
+                   logic[AxiDataWidth/8-1:0],
+                   logic[AxiUserWidth-1:0])
 
   localparam int unsigned LogDepth = 3;
 
-  localparam int unsigned AsyncInAwWidth = (2**LogDepth)*axi_pkg::aw_width(AxiAddrWidth, AxiInputIdWidth, AxiUserWidth);
-  localparam int unsigned AsyncInWWidth  = (2**LogDepth)*axi_pkg::w_width(AxiDataWidth, AxiUserWidth);
-  localparam int unsigned AsyncInBWidth  = (2**LogDepth)*axi_pkg::b_width(AxiInputIdWidth, AxiUserWidth);
-  localparam int unsigned AsyncInArWidth = (2**LogDepth)*axi_pkg::ar_width(AxiAddrWidth, AxiInputIdWidth, AxiUserWidth);
-  localparam int unsigned AsyncInRWidth  = (2**LogDepth)*axi_pkg::r_width(AxiDataWidth, AxiInputIdWidth, AxiUserWidth);
+  localparam int unsigned AsyncInAwWidth = (2**LogDepth)*axi_pkg::aw_width(AxiAddrWidth,
+                                                                           AxiInputIdWidth,
+                                                                           AxiUserWidth);
+  localparam int unsigned AsyncInWWidth  = (2**LogDepth)*axi_pkg::w_width(AxiDataWidth,
+                                                                          AxiUserWidth);
+  localparam int unsigned AsyncInBWidth  = (2**LogDepth)*axi_pkg::b_width(AxiInputIdWidth,
+                                                                          AxiUserWidth);
+  localparam int unsigned AsyncInArWidth = (2**LogDepth)*axi_pkg::ar_width(AxiAddrWidth,
+                                                                           AxiInputIdWidth,
+                                                                           AxiUserWidth);
+  localparam int unsigned AsyncInRWidth  = (2**LogDepth)*axi_pkg::r_width(AxiDataWidth,
+                                                                          AxiInputIdWidth,
+                                                                          AxiUserWidth);
 
-  localparam int unsigned AsyncOutAwWidth = (2**LogDepth)*axi_pkg::aw_width(AxiAddrWidth, AxiOutputIdWidth, AxiUserWidth);
-  localparam int unsigned AsyncOutWWidth  = (2**LogDepth)*axi_pkg::w_width(AxiDataWidth, AxiUserWidth);
-  localparam int unsigned AsyncOutBWidth  = (2**LogDepth)*axi_pkg::b_width(AxiOutputIdWidth, AxiUserWidth);
-  localparam int unsigned AsyncOutArWidth = (2**LogDepth)*axi_pkg::ar_width(AxiAddrWidth, AxiOutputIdWidth, AxiUserWidth);
-  localparam int unsigned AsyncOutRWidth  = (2**LogDepth)*axi_pkg::r_width(AxiDataWidth, AxiOutputIdWidth, AxiUserWidth);
+  localparam int unsigned AsyncOutAwWidth = (2**LogDepth)*axi_pkg::aw_width(AxiAddrWidth,
+                                                                            AxiOutputIdWidth,
+                                                                            AxiUserWidth);
+  localparam int unsigned AsyncOutWWidth  = (2**LogDepth)*axi_pkg::w_width(AxiDataWidth,
+                                                                           AxiUserWidth);
+  localparam int unsigned AsyncOutBWidth  = (2**LogDepth)*axi_pkg::b_width(AxiOutputIdWidth,
+                                                                           AxiUserWidth);
+  localparam int unsigned AsyncOutArWidth = (2**LogDepth)*axi_pkg::ar_width(AxiAddrWidth,
+                                                                            AxiOutputIdWidth,
+                                                                            AxiUserWidth);
+  localparam int unsigned AsyncOutRWidth  = (2**LogDepth)*axi_pkg::r_width(AxiDataWidth,
+                                                                           AxiOutputIdWidth,
+                                                                           AxiUserWidth);
 
   // exit
-  localparam int EXIT_FAIL = 1;
+  localparam int ExitFail = 1;
 
   bit exit_status;  // per default we fail
   int stim_fd;

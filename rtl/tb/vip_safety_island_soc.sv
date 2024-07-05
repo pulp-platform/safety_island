@@ -63,11 +63,15 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
   `include "axi/typedef.svh"
   `include "axi/assign.svh"
 
-  localparam SocCtrlAddr    = BaseAddr + PeriphOffset + SocCtrlAddrOffset;
-  localparam BootAddrAddr   = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTADDR_OFFSET;
-  localparam FetchEnAddr    = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_FETCHEN_OFFSET;
-  localparam CoreStatusAddr = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_CORESTATUS_OFFSET;
-  localparam BootModeAddr   = SocCtrlAddr + safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTMODE_OFFSET;
+  localparam bit [AxiAddrWidth-1:0] SocCtrlAddr    = BaseAddr + PeriphOffset + SocCtrlAddrOffset;
+  localparam bit [AxiAddrWidth-1:0] BootAddrAddr   = SocCtrlAddr +
+                  safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTADDR_OFFSET;
+  localparam bit [AxiAddrWidth-1:0] FetchEnAddr    = SocCtrlAddr +
+                  safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_FETCHEN_OFFSET;
+  localparam bit [AxiAddrWidth-1:0] CoreStatusAddr = SocCtrlAddr +
+                  safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_CORESTATUS_OFFSET;
+  localparam bit [AxiAddrWidth-1:0] BootModeAddr   = SocCtrlAddr +
+                  safety_soc_ctrl_reg_pkg::SAFETY_SOC_CTRL_BOOTMODE_OFFSET;
 
   typedef logic [AxiAddrWidth-1:0] addr_t;
   typedef logic [AxiDataWidth-1:0] axi_data_t;
@@ -91,7 +95,9 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
   import "DPI-C" function byte read_elf(input string filename);
   import "DPI-C" function byte get_entry(output longint entry);
   import "DPI-C" function byte get_section(output longint address, output longint len);
-  import "DPI-C" context function byte read_section(input longint address, inout byte buffer[], input longint len);
+  import "DPI-C" context function byte read_section(input longint address,
+                                                    inout byte buffer[],
+                                                    input longint len);
 
   //////////////////////////////
   // AXI external master port //
@@ -188,16 +194,16 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
     boot_mode = '0;
   end
 
-  task safed_wait_for_reset;
+  task automatic safed_wait_for_reset;
     @(posedge rst_n);
     @(posedge clk);
   endtask
 
-  task set_safed_test_mode(input logic mode);
+  task automatic set_safed_test_mode(input logic mode);
     test_mode = mode;
   endtask
 
-  task set_safed_boot_mode(input logic [1:0] mode);
+  task automatic set_safed_boot_mode(input logic [1:0] mode);
     boot_mode = mode;
   endtask
 
@@ -286,7 +292,8 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
     repeat(100) @(posedge jtag_tck);
     jtag_dbg.get_idcode(idcode);
     if (idcode != DutCfg.PulpJtagIdCode)
-        $fatal(1, "[JTAG] %t - Unexpected ID code: expected 0x%h, got 0x%h!", $realtime, DutCfg.PulpJtagIdCode, idcode);
+        $fatal(1, "[JTAG] %t - Unexpected ID code: expected 0x%h, got 0x%h!",
+               $realtime, DutCfg.PulpJtagIdCode, idcode);
     // Activate, wait for debug module
     jtag_safed_write(dm::DMControl, dmcontrol);
     do jtag_dbg.read_dmi_exp_backoff(dm::DMControl, dmcontrol);
@@ -344,7 +351,8 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
       for (longint i = 0; i <= sec_len ; i += 4) begin
         bit checkpoint = (i != 0 && i % 512 == 0);
         if (checkpoint)
-          $display("[JTAG] %t - %0d/%0d bytes (%0d%%)", $realtime, i, sec_len, i*100/(sec_len>1 ? sec_len-1 : 1));
+          $display("[JTAG] %t - %0d/%0d bytes (%0d%%)",
+                   $realtime, i, sec_len, i*100/(sec_len>1 ? sec_len-1 : 1));
         jtag_safed_write(dm::SBData0, {bf[i+3], bf[i+2], bf[i+1], bf[i]}, checkpoint, checkpoint);
       end
     end
@@ -357,7 +365,11 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
     dm::dmstatus_t status;
     word_bt entry;
     // Halt hart
-    jtag_safed_write(dm::DMControl, dm::dmcontrol_t'{haltreq: 1, hartsello: DutCfg.HartId[9:0], hartselhi: DutCfg.HartId[19:10], dmactive: 1, default: '0});
+    jtag_safed_write(dm::DMControl, dm::dmcontrol_t'{haltreq: 1,
+                                                     hartsello: DutCfg.HartId[9:0],
+                                                     hartselhi: DutCfg.HartId[19:10],
+                                                     dmactive: 1,
+                                                     default: '0});
     do jtag_dbg.read_dmi_exp_backoff(dm::DMStatus, status);
     while (~status.allhalted);
     $display("[JTAG] %t - Halted hart %d", $realtime, DutCfg.HartId);
@@ -366,9 +378,15 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
     // Write entry point
     // jtag_safed_write(dm::Data1, entry[63:32]);
     jtag_safed_write(dm::Data0, entry[31:0]);
-    jtag_safed_write(dm::Command, {8'h0, 1'b0, 3'd2, 1'b0, 1'b0, 1'b1, 1'b1, 4'h0, riscv_pkg::CSR_DPC}, 0, 1);//32'h0033_07b1, 0, 1);
+    jtag_safed_write(dm::Command, {8'h0,
+                                   1'b0, 3'd2, 1'b0, 1'b0, 1'b1, 1'b1,
+                                   4'h0, riscv_pkg::CSR_DPC}, 0, 1);
     // Resume hart
-    jtag_safed_write(dm::DMControl, dm::dmcontrol_t'{resumereq: 1, hartsello: DutCfg.HartId[9:0], hartselhi: DutCfg.HartId[19:10], dmactive: 1, default: '0});
+    jtag_safed_write(dm::DMControl, dm::dmcontrol_t'{resumereq: 1,
+                                                     hartsello: DutCfg.HartId[9:0],
+                                                     hartselhi: DutCfg.HartId[19:10],
+                                                     dmactive: 1,
+                                                     default: '0});
     $display("[JTAG] %t - Resumed hart %d from 0x%h", $realtime, DutCfg.HartId, entry);
   endtask
 

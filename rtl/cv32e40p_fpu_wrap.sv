@@ -12,7 +12,7 @@
 // Contributor: Davide Schiavone <davide@openhwgroup.org>
 
 module cv32e40p_fpu_wrap import cv32e40p_apu_core_pkg::*; #(
-   parameter FP_DIVSQRT = 0
+   parameter bit FP_DIVSQRT = 0
 )
 (
    // Clock and Reset
@@ -56,13 +56,13 @@ assign {fpu_vec_op, fpu_op_mod, fpu_op}                     = apu_op_i;
 
 assign {fpu_int_fmt, fpu_src_fmt, fpu_dst_fmt, fp_rnd_mode} = apu_flags_i;
 
-localparam fpnew_pkg::unit_type_t C_DIV = FP_DIVSQRT ? fpnew_pkg::MERGED : fpnew_pkg::DISABLED;
+localparam fpnew_pkg::unit_type_t Cdiv = FP_DIVSQRT ? fpnew_pkg::MERGED : fpnew_pkg::DISABLED;
 
 // -----------
 // FPU Config
 // -----------
 // Features (enabled formats, vectors etc.)
-localparam fpnew_pkg::fpu_features_t FPU_FEATURES = '{
+localparam fpnew_pkg::fpu_features_t FPUFeatures = '{
   Width:         C_FLEN,
   EnableVectors: C_XFVEC,
   EnableNanBox:  1'b0,
@@ -71,15 +71,20 @@ localparam fpnew_pkg::fpu_features_t FPU_FEATURES = '{
 };
 
 // Implementation (number of registers etc)
-localparam fpnew_pkg::fpu_implementation_t FPU_IMPLEMENTATION = '{
+localparam fpnew_pkg::fpu_implementation_t FPUImplementation = '{
   PipeRegs:  '{// FP32, FP64, FP16, FP8, FP16alt
-               '{C_LAT_FP32, C_LAT_FP64, C_LAT_FP16, C_LAT_FP8, C_LAT_FP16ALT, C_LAT_FP8ALT}, // ADDMUL
+               '{C_LAT_FP32,
+                 C_LAT_FP64,
+                 C_LAT_FP16,
+                 C_LAT_FP8,
+                 C_LAT_FP16ALT,
+                 C_LAT_FP8ALT}, // ADDMUL
                '{default: C_LAT_DIVSQRT}, // DIVSQRT
                '{default: C_LAT_NONCOMP}, // NONCOMP
                '{default: C_LAT_CONV},    // CONV
                '{default: C_LAT_DOTP}},   // DOTP
   UnitTypes: '{'{default: fpnew_pkg::MERGED},   // ADDMUL
-               '{default: C_DIV},   // DIVSQRT
+               '{default: Cdiv},   // DIVSQRT
                '{default: fpnew_pkg::PARALLEL}, // NONCOMP
                '{default: fpnew_pkg::MERGED},   // CONV
                '{default: fpnew_pkg::DISABLED}}, // DOTP
@@ -91,8 +96,8 @@ localparam fpnew_pkg::fpu_implementation_t FPU_IMPLEMENTATION = '{
 //---------------
 
 fpnew_top #(
-  .Features       ( FPU_FEATURES       ),
-  .Implementation ( FPU_IMPLEMENTATION ),
+  .Features       ( FPUFeatures        ),
+  .Implementation ( FPUImplementation  ),
   .TagType        ( logic              ),
   .PulpDivsqrt    ( 1'b0               ),
   .TrueSIMDClass  ( 1'b0               ),

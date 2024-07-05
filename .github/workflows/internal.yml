@@ -1,0 +1,30 @@
+# Copyright 2024 ETH Zurich and University of Bologna.
+# Solderpad Hardware License, Version 0.51, see LICENSE for details.
+# SPDX-License-Identifier: SHL-0.51
+
+# Author: Michael Rogenmoser <michaero@iis.ee.ethz.ch>
+
+name: internal
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  gitlab-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror and check
+        uses: pulp-platform/pulp-actions/gitlab-ci@v2
+        # Skip on forks or pull requests from forks due to missing secrets.
+        if: >
+          github.repository == 'pulp-platform/safety_island' &&
+          (github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository)
+        with:
+          domain: iis-git.ee.ethz.ch
+          repo: github-mirror/safety_island
+          token: ${{ secrets.GITLAB_TOKEN }}

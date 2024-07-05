@@ -11,7 +11,8 @@
 `include "axi/typedef.svh"
 
 module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
-  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
+  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg =
+            safety_island_pkg::SafetyIslandDefaultConfig,
 
   parameter int unsigned AxiAddrWidth  = SynthAxiAddrWidth,
   parameter int unsigned AxiDataWidth  = SynthAxiDataWidth,
@@ -30,7 +31,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   parameter int unsigned CdcSyncStages = SynthCdcSyncStages,
 
   parameter int unsigned SyncStages    = 3,
-  
+
   parameter bit [AxiAddrWidth-1:0] SafetyIslandBaseAddr     = SynthSafetyIslandBaseAddr,
   parameter bit [31:0]             SafetyIslandAddrRange    = SynthSafetyIslandAddrRange,
   parameter bit [31:0]             SafetyIslandMemOffset    = SynthSafetyIslandMemOffset,
@@ -120,7 +121,7 @@ module safety_island_synth_wrapper import safety_island_synth_pkg::*; #(
   input  logic             [LogDepth:0] async_axi_out_r_wptr_i,
   output logic             [LogDepth:0] async_axi_out_r_rptr_o
 );
- 
+
   axi_in_req_t axi_in_req;
   axi_in_resp_t axi_in_resp;
 

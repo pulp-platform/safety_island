@@ -15,7 +15,8 @@
 `include "apb/typedef.svh"
 
 module safety_island_top import safety_island_pkg::*; #(
-  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg = safety_island_pkg::SafetyIslandDefaultConfig,
+  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg =
+            safety_island_pkg::SafetyIslandDefaultConfig,
 
   parameter  int unsigned              GlobalAddrWidth = 32,
   parameter  bit [GlobalAddrWidth-1:0] BaseAddr        = 32'h0000_0000,
@@ -111,14 +112,35 @@ module safety_island_top import safety_island_pkg::*; #(
     AChkWidth:     0,
     RChkWidth:     0
   };
-  localparam obi_pkg::obi_cfg_t MgrObiCfg = obi_pkg::obi_default_cfg(AddrWidth, DataWidth, (AxiUserAtop ? AxiUserAtopMsb+1-AxiUserAtopLsb : AxiInputIdWidth), MgrObiOptionalCfg);
+  localparam obi_pkg::obi_cfg_t MgrObiCfg =
+             obi_pkg::obi_default_cfg(AddrWidth,
+                                      DataWidth,
+                                      (AxiUserAtop ?
+                                        AxiUserAtopMsb+1-AxiUserAtopLsb :
+                                        AxiInputIdWidth),
+                                      MgrObiOptionalCfg);
   localparam obi_pkg::obi_cfg_t XbarSbrObiCfg = obi_pkg::mux_grow_cfg(MgrObiCfg, NumManagers);
-  localparam obi_pkg::obi_cfg_t SbrObiCfg = obi_pkg::obi_default_cfg(AddrWidth, DataWidth, XbarSbrObiCfg.IdWidth, SbrObiOptionalCfg);
+  localparam obi_pkg::obi_cfg_t SbrObiCfg = obi_pkg::obi_default_cfg(AddrWidth,
+                                                                     DataWidth,
+                                                                     XbarSbrObiCfg.IdWidth,
+                                                                     SbrObiOptionalCfg);
   `OBI_TYPEDEF_ATOP_A_OPTIONAL(obi_a_optional_t)
   `OBI_TYPEDEF_MINIMAL_A_OPTIONAL(sbr_obi_a_optional_t)
-  `OBI_TYPEDEF_A_CHAN_T(mgr_obi_a_chan_t, MgrObiCfg.AddrWidth, MgrObiCfg.DataWidth, MgrObiCfg.IdWidth, obi_a_optional_t)
-  `OBI_TYPEDEF_A_CHAN_T(xbar_sbr_obi_a_chan_t, XbarSbrObiCfg.AddrWidth, XbarSbrObiCfg.DataWidth, XbarSbrObiCfg.IdWidth, obi_a_optional_t)
-  `OBI_TYPEDEF_A_CHAN_T(sbr_obi_a_chan_t, SbrObiCfg.AddrWidth, SbrObiCfg.DataWidth, SbrObiCfg.IdWidth, sbr_obi_a_optional_t)
+  `OBI_TYPEDEF_A_CHAN_T(mgr_obi_a_chan_t,
+                        MgrObiCfg.AddrWidth,
+                        MgrObiCfg.DataWidth,
+                        MgrObiCfg.IdWidth,
+                        obi_a_optional_t)
+  `OBI_TYPEDEF_A_CHAN_T(xbar_sbr_obi_a_chan_t,
+                        XbarSbrObiCfg.AddrWidth,
+                        XbarSbrObiCfg.DataWidth,
+                        XbarSbrObiCfg.IdWidth,
+                        obi_a_optional_t)
+  `OBI_TYPEDEF_A_CHAN_T(sbr_obi_a_chan_t,
+                        SbrObiCfg.AddrWidth,
+                        SbrObiCfg.DataWidth,
+                        SbrObiCfg.IdWidth,
+                        sbr_obi_a_optional_t)
   `OBI_TYPEDEF_DEFAULT_REQ_T(mgr_obi_req_t, mgr_obi_a_chan_t)
   `OBI_TYPEDEF_DEFAULT_REQ_T(xbar_sbr_obi_req_t, xbar_sbr_obi_a_chan_t)
   `OBI_TYPEDEF_DEFAULT_REQ_T(sbr_obi_req_t, sbr_obi_a_chan_t)
@@ -130,12 +152,21 @@ module safety_island_top import safety_island_pkg::*; #(
     logic [0:0] ruser; // ECC error
   } sbr_obi_r_optional_t;
   `OBI_TYPEDEF_R_CHAN_T(mgr_obi_r_chan_t, MgrObiCfg.DataWidth, MgrObiCfg.IdWidth, obi_r_optional_t)
-  `OBI_TYPEDEF_R_CHAN_T(xbar_sbr_obi_r_chan_t, XbarSbrObiCfg.DataWidth, XbarSbrObiCfg.IdWidth, obi_r_optional_t)
-  `OBI_TYPEDEF_R_CHAN_T(sbr_obi_r_chan_t, SbrObiCfg.DataWidth, SbrObiCfg.IdWidth, sbr_obi_r_optional_t)
+  `OBI_TYPEDEF_R_CHAN_T(xbar_sbr_obi_r_chan_t,
+                        XbarSbrObiCfg.DataWidth,
+                        XbarSbrObiCfg.IdWidth,
+                        obi_r_optional_t)
+  `OBI_TYPEDEF_R_CHAN_T(sbr_obi_r_chan_t,
+                        SbrObiCfg.DataWidth,
+                        SbrObiCfg.IdWidth,
+                        sbr_obi_r_optional_t)
   `OBI_TYPEDEF_RSP_T(mgr_obi_rsp_t, mgr_obi_r_chan_t)
   `OBI_TYPEDEF_RSP_T(xbar_sbr_obi_rsp_t, xbar_sbr_obi_r_chan_t)
   `OBI_TYPEDEF_RSP_T(sbr_obi_rsp_t, sbr_obi_r_chan_t)
-  `REG_BUS_TYPEDEF_ALL(safety_reg, logic[AddrWidth-1:0], logic[DataWidth-1:0], logic[(DataWidth/8)-1:0]);
+  `REG_BUS_TYPEDEF_ALL(safety_reg,
+                       logic[AddrWidth-1:0],
+                       logic[DataWidth-1:0],
+                       logic[(DataWidth/8)-1:0]);
 
 `ifdef TARGET_SIMULATION
   localparam int unsigned NumPeriphs     = 9;
@@ -146,7 +177,9 @@ module safety_island_top import safety_island_pkg::*; #(
 `endif
 
   localparam int unsigned NumSubordinates = 2 + SafetyIslandCfg.NumBanks;
-  localparam int unsigned NumRules = (MemOffset != 0) ? 2 + SafetyIslandCfg.NumBanks : 1 + SafetyIslandCfg.NumBanks;
+  localparam int unsigned NumRules = (MemOffset != 0) ?
+                                        2 + SafetyIslandCfg.NumBanks :
+                                        1 + SafetyIslandCfg.NumBanks;
 
   function automatic addr_map_rule_t [NumRules-1:0] gen_xbar_addr_rules();
     addr_map_rule_t [NumRules-1:0] ret;
@@ -161,24 +194,41 @@ module safety_island_top import safety_island_pkg::*; #(
                            end_addr: BaseAddr32+MemOffset};
     end
     ret[NumRules-1]   = '{ idx: NumSubordinates-1, // 3: Periphs
-                         start_addr: BaseAddr32+MemOffset+SafetyIslandCfg.NumBanks*SafetyIslandCfg.BankNumBytes,
+                         start_addr: BaseAddr32+MemOffset+
+                                     SafetyIslandCfg.NumBanks*SafetyIslandCfg.BankNumBytes,
                          end_addr: BaseAddr32+AddrRange};
     return ret;
   endfunction
 
-  localparam addr_map_rule_t [NumRules-1:0] main_addr_map = gen_xbar_addr_rules();
+  localparam addr_map_rule_t [NumRules-1:0] MainAddrMap = gen_xbar_addr_rules();
 
-  localparam addr_map_rule_t [NumPeriphRules-1:0] periph_addr_map = '{                                  // 0: Error subordinate (default)
-    '{ idx: PeriphSocCtrl,       start_addr: PeriphBaseAddr+SocCtrlAddrOffset,       end_addr: PeriphBaseAddr+SocCtrlAddrOffset+      SocCtrlAddrRange},       // 1: SoC control
-    '{ idx: PeriphBootROM,       start_addr: PeriphBaseAddr+BootROMAddrOffset,       end_addr: PeriphBaseAddr+BootROMAddrOffset+      BootROMAddrRange},       // 2: Boot ROM
-    '{ idx: PeriphGlobalPrepend, start_addr: PeriphBaseAddr+GlobalPrependAddrOffset, end_addr: PeriphBaseAddr+GlobalPrependAddrOffset+GlobalPrependAddrRange}, // 3: Global prepend
-    '{ idx: PeriphDebug,         start_addr: PeriphBaseAddr+DebugAddrOffset,         end_addr: PeriphBaseAddr+DebugAddrOffset+        DebugAddrRange},         // 4: Debug
-    '{ idx: PeriphEccManager,    start_addr: PeriphBaseAddr+EccManagerAddrOffset,    end_addr: PeriphBaseAddr+EccManagerAddrOffset+   EccManagerAddrRange},    // 5: ECC Manager
-    '{ idx: PeriphTimer,         start_addr: PeriphBaseAddr+TimerAddrOffset,         end_addr: PeriphBaseAddr+TimerAddrOffset+        TimerAddrRange},         // 6: Timer
-    '{ idx: PeriphCoreLocal,     start_addr: PeriphBaseAddr+CoreLocalAddrOffset,     end_addr: PeriphBaseAddr+CoreLocalAddrOffset+    CoreLocalAddrRange}      // 7: Core-Local peripherals
+  localparam addr_map_rule_t [NumPeriphRules-1:0] PeriphAddrMap = '{ // 0: Error subordinate (def)
+    '{ idx: PeriphSocCtrl,
+       start_addr: PeriphBaseAddr+SocCtrlAddrOffset,
+       end_addr: PeriphBaseAddr+SocCtrlAddrOffset+      SocCtrlAddrRange},       // 1: SoC control
+    '{ idx: PeriphBootROM,
+       start_addr: PeriphBaseAddr+BootROMAddrOffset,
+       end_addr: PeriphBaseAddr+BootROMAddrOffset+      BootROMAddrRange},       // 2: Boot ROM
+    '{ idx: PeriphGlobalPrepend,
+       start_addr: PeriphBaseAddr+GlobalPrependAddrOffset,
+       end_addr: PeriphBaseAddr+GlobalPrependAddrOffset+GlobalPrependAddrRange}, // 3: Global prep
+    '{ idx: PeriphDebug,
+       start_addr: PeriphBaseAddr+DebugAddrOffset,
+       end_addr: PeriphBaseAddr+DebugAddrOffset+        DebugAddrRange},         // 4: Debug
+    '{ idx: PeriphEccManager,
+       start_addr: PeriphBaseAddr+EccManagerAddrOffset,
+       end_addr: PeriphBaseAddr+EccManagerAddrOffset+   EccManagerAddrRange},    // 5: ECC Manager
+    '{ idx: PeriphTimer,
+       start_addr: PeriphBaseAddr+TimerAddrOffset,
+       end_addr: PeriphBaseAddr+TimerAddrOffset+        TimerAddrRange},         // 6: Timer
+    '{ idx: PeriphCoreLocal,
+       start_addr: PeriphBaseAddr+CoreLocalAddrOffset,
+       end_addr: PeriphBaseAddr+CoreLocalAddrOffset+    CoreLocalAddrRange}      // 7: Core-Local
 `ifdef TARGET_SIMULATION
     ,
-    '{ idx: PeriphTBPrintf,      start_addr: PeriphBaseAddr+TBPrintfAddrOffset,      end_addr: PeriphBaseAddr+TBPrintfAddrOffset+     TBPrintfAddrRange}       // 8: TBPrintf
+    '{ idx: PeriphTBPrintf,
+       start_addr: PeriphBaseAddr+TBPrintfAddrOffset,
+       end_addr: PeriphBaseAddr+TBPrintfAddrOffset+     TBPrintfAddrRange}       // 8: TBPrintf
 `endif
   };
 
@@ -333,7 +383,9 @@ module safety_island_top import safety_island_pkg::*; #(
   // Core
   // -----------------
 
-  localparam NumInternalDebug = NumDebug > SafetyIslandCfg.HartId ? NumDebug : SafetyIslandCfg.HartId;
+  localparam int unsigned NumInternalDebug = NumDebug > SafetyIslandCfg.HartId ?
+                                               NumDebug :
+                                               SafetyIslandCfg.HartId;
 
   logic [NumInternalDebug-1:0] debug_req;
 
@@ -407,7 +459,8 @@ module safety_island_top import safety_island_pkg::*; #(
     datasize: dm::DataCount,
     dataaddr: dm::DataAddr
   };
-  localparam bit [NumInternalDebug-1:0] ActuallySelectableHarts = SelectableHarts | 1<<SafetyIslandCfg.HartId;
+  localparam bit [NumInternalDebug-1:0] ActuallySelectableHarts =
+    SelectableHarts | 1<<SafetyIslandCfg.HartId;
 
   dm::hartinfo_t [NumInternalDebug-1:0] hartinfo;
   for (genvar i = 0; i < NumInternalDebug; i++) begin : gen_hartinfo
@@ -529,12 +582,20 @@ module safety_island_top import safety_island_pkg::*; #(
     .rst_ni,
     .testmode_i       ( test_enable_i ),
 
-    .sbr_ports_req_i  ( {axi_input_obi_req, core_instr_obi_req, core_data_obi_req, core_shadow_obi_req, dbg_req_obi_req} ),
-    .sbr_ports_rsp_o  ( {axi_input_obi_rsp, core_instr_obi_rsp, core_data_obi_rsp, core_shadow_obi_rsp, dbg_req_obi_rsp} ),
+    .sbr_ports_req_i  ( {axi_input_obi_req,
+                         core_instr_obi_req,
+                         core_data_obi_req,
+                         core_shadow_obi_req,
+                         dbg_req_obi_req} ),
+    .sbr_ports_rsp_o  ( {axi_input_obi_rsp,
+                         core_instr_obi_rsp,
+                         core_data_obi_rsp,
+                         core_shadow_obi_rsp,
+                         dbg_req_obi_rsp} ),
     .mgr_ports_req_o  ( all_sbr_obi_req ),
     .mgr_ports_rsp_i  ( all_sbr_obi_rsp ),
 
-    .addr_map_i       ( main_addr_map ),
+    .addr_map_i       ( MainAddrMap ),
     .en_default_idx_i ( 5'b11111 ),
     .default_idx_i    ( '0 )
   );
@@ -711,7 +772,7 @@ module safety_island_top import safety_island_pkg::*; #(
     .Napot     ( 1'b0            )
   ) i_addr_decode_periphs (
     .addr_i           ( periph_obi_req.a.addr ),
-    .addr_map_i       ( periph_addr_map ),
+    .addr_map_i       ( PeriphAddrMap ),
     .idx_o            ( periph_idx      ),
     .dec_valid_o      (),
     .dec_error_o      (),
@@ -999,7 +1060,7 @@ module safety_island_top import safety_island_pkg::*; #(
 
   // AXI input
 
-  localparam NumInterBanks = AxiDataWidth/MgrObiCfg.DataWidth;
+  localparam int unsigned NumInterBanks = AxiDataWidth/MgrObiCfg.DataWidth;
   logic [NumInterBanks-1:0][AxiInputIdWidth-1:0] axi_in_aw_id, axi_in_ar_id;
   logic [NumInterBanks-1:0][AxiUserWidth-1:0] axi_in_aw_user, axi_in_w_user, axi_in_ar_user;
   logic [NumInterBanks-1:0][MgrObiCfg.IdWidth-1:0] obi_in_write_aid, obi_in_read_aid;
@@ -1008,7 +1069,8 @@ module safety_island_top import safety_island_pkg::*; #(
   logic [AxiUserWidth-1:0] axi_in_r_user, axi_in_b_user;
   logic [NumInterBanks-1:0] axi_in_rsp_write_bank_strobe, axi_in_rsp_read_size_enable;
   logic [NumInterBanks-1:0][MgrObiCfg.IdWidth-1:0] obi_in_rsp_write_rid, obi_in_rsp_read_rid;
-  logic [NumInterBanks-1:0][MgrObiCfg.OptionalCfg.RUserWidth-1:0] obi_in_rsp_write_ruser, obi_in_rsp_read_ruser;
+  logic [NumInterBanks-1:0][MgrObiCfg.OptionalCfg.RUserWidth-1:0] obi_in_rsp_write_ruser,
+                                                                  obi_in_rsp_read_ruser;
   logic axi_in_rsp_write_last, axi_in_rsp_write_hs;
 
   logic axi_b_ecc_err_incr;
@@ -1029,14 +1091,17 @@ module safety_island_top import safety_island_pkg::*; #(
     // Respond with same ATOP ID
     if (AxiUserAtop) begin
       for (int i = 0; i < NumInterBanks; i++) begin
-        axi_in_r_user[AxiUserAtopMsb:AxiUserAtopLsb] |= axi_in_rsp_read_size_enable[i] ? obi_in_rsp_read_rid[i] : '0;
+        axi_in_r_user[AxiUserAtopMsb:AxiUserAtopLsb] |= axi_in_rsp_read_size_enable[i] ?
+                                                          obi_in_rsp_read_rid[i] : '0;
         // No need to buffer the ATOP ID
-        axi_in_b_user[AxiUserAtopMsb:AxiUserAtopLsb] |= axi_in_rsp_write_bank_strobe[i] ? obi_in_rsp_write_rid[i] : '0;
+        axi_in_b_user[AxiUserAtopMsb:AxiUserAtopLsb] |= axi_in_rsp_write_bank_strobe[i] ?
+                                                          obi_in_rsp_write_rid[i] : '0;
       end
     end
     // Attach ECC error
     if (AxiUserEccErr) begin
-      axi_in_r_user[AxiUserEccErrBit:AxiUserEccErrBit] = |(axi_in_rsp_read_size_enable & obi_in_rsp_read_ruser);
+      axi_in_r_user[AxiUserEccErrBit:AxiUserEccErrBit] =
+        |(axi_in_rsp_read_size_enable & obi_in_rsp_read_ruser);
       axi_in_b_user[AxiUserEccErrBit:AxiUserEccErrBit] = axi_b_ecc_err_incr;
     end
   end
@@ -1044,7 +1109,9 @@ module safety_island_top import safety_island_pkg::*; #(
   // Collect ECC error
   if (AxiUserEccErr) begin : gen_ext_obi_ecc_err
     logic axi_b_ecc_err_d, axi_b_ecc_err_q;
-    assign axi_b_ecc_err_incr = axi_b_ecc_err_q | (axi_in_rsp_write_hs & |(obi_in_rsp_write_ruser & axi_in_rsp_write_bank_strobe));
+    assign axi_b_ecc_err_incr = axi_b_ecc_err_q |
+                                (axi_in_rsp_write_hs &
+                                  |(obi_in_rsp_write_ruser & axi_in_rsp_write_bank_strobe));
     assign axi_b_ecc_err_d = axi_in_rsp_write_last && axi_in_rsp_write_hs ? '0 : axi_b_ecc_err_incr;
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_axi_b_ecc_err
       if(~rst_ni) begin
@@ -1053,7 +1120,7 @@ module safety_island_top import safety_island_pkg::*; #(
         axi_b_ecc_err_q <= axi_b_ecc_err_d;
       end
     end
-  end else begin
+  end else begin : gen_ext_obi_ecc_no_err
     assign axi_b_ecc_err_incr = '0;
   end
 
@@ -1116,8 +1183,11 @@ module safety_island_top import safety_island_pkg::*; #(
 
   // Currently only implements ECC error bit
   if (AxiUserEccErr) begin : gen_ext_ecc_err
-    assign axi_out_obi_user = axi_out_rsp_sel[1] ? axi_out_b_user[AxiUserEccErrBit] | axi_out_r_user[AxiUserEccErrBit] :
-                              axi_out_rsp_sel[0] ? axi_out_b_user[AxiUserEccErrBit] : axi_out_r_user[AxiUserEccErrBit];
+    assign axi_out_obi_user = axi_out_rsp_sel[1] ?
+                                axi_out_b_user[AxiUserEccErrBit] | axi_out_r_user[AxiUserEccErrBit]:
+                                axi_out_rsp_sel[0] ?
+                                  axi_out_b_user[AxiUserEccErrBit] :
+                                  axi_out_r_user[AxiUserEccErrBit];
   end else begin : gen_plain_user
     assign axi_out_obi_user = '0;
   end

@@ -72,12 +72,22 @@ module safety_core_wrap import safety_island_pkg::*; #(
 
   localparam int unsigned NumCoreLocalPeriphs = 5; // CLIC, TCLS, 3xBus_err
 
-  localparam addr_map_rule_t [NumCoreLocalPeriphs-1:0] cl_regbus_addr_map_rule = '{
-   '{ idx: RegbusOutTCLS,     start_addr: PeriphBaseAddr+TCLSAddrOffset,  end_addr: PeriphBaseAddr+TCLSAddrOffset+TCLSAddrRange },   // 0: TCLS
-   '{ idx: RegbusOutCLIC,     start_addr: PeriphBaseAddr+ClicAddrOffset,  end_addr: PeriphBaseAddr+ClicAddrOffset+ClicAddrRange },   // 1: CLIC
-   '{ idx: RegbusOutInstrErr, start_addr: PeriphBaseAddr+InstrErrOffset,  end_addr: PeriphBaseAddr+InstrErrOffset+InstrErrRange },
-   '{ idx: RegbusOutDataErr,  start_addr: PeriphBaseAddr+DataErrOffset,   end_addr: PeriphBaseAddr+DataErrOffset+DataErrRange   },
-   '{ idx: RegbusOutShadowErr,start_addr: PeriphBaseAddr+ShadowErrOffset, end_addr: PeriphBaseAddr+ShadowErrOffset+ShadowErrRange }
+  localparam addr_map_rule_t [NumCoreLocalPeriphs-1:0] ClRegbusAddrMapRule = '{
+   '{ idx: RegbusOutTCLS,
+      start_addr: PeriphBaseAddr+TCLSAddrOffset,
+      end_addr: PeriphBaseAddr+TCLSAddrOffset+TCLSAddrRange },   // 0: TCLS
+   '{ idx: RegbusOutCLIC,
+      start_addr: PeriphBaseAddr+ClicAddrOffset,
+      end_addr: PeriphBaseAddr+ClicAddrOffset+ClicAddrRange },   // 1: CLIC
+   '{ idx: RegbusOutInstrErr,
+      start_addr: PeriphBaseAddr+InstrErrOffset,
+      end_addr: PeriphBaseAddr+InstrErrOffset+InstrErrRange },
+   '{ idx: RegbusOutDataErr,
+      start_addr: PeriphBaseAddr+DataErrOffset,
+      end_addr: PeriphBaseAddr+DataErrOffset+DataErrRange   },
+   '{ idx: RegbusOutShadowErr,
+      start_addr: PeriphBaseAddr+ShadowErrOffset,
+      end_addr: PeriphBaseAddr+ShadowErrOffset+ShadowErrRange }
   };
 
   reg_req_t [NumCoreLocalPeriphs-1:0] cl_periph_req;
@@ -535,7 +545,7 @@ module safety_core_wrap import safety_island_pkg::*; #(
     .Napot            ( 1'b0 )
   ) i_addr_decode_regbus (
     .addr_i           ( cl_periph_req_i.addr ),
-    .addr_map_i       ( cl_regbus_addr_map_rule ),
+    .addr_map_i       ( ClRegbusAddrMapRule ),
     .idx_o            ( regbus_idx ),
     .dec_valid_o      ( ),
     .dec_error_o      ( ),
