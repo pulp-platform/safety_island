@@ -107,6 +107,9 @@ $(SAFED_SW_DIR)/pulp-freertos:
 	git checkout carfield/safety-island; \
 	git submodule update --init --recursive
 
+$(SAFED_SW_DIR)/threadx:
+	git clone git@github.com:alex96295/threadx.git -b pulp
+
 .PHONY: safed-sw-all
 ## Generate Safety Island software dependencies
-safed-sw-all: $(SAFED_SW_DIR)/pulp-runtime $(SAFED_SW_DIR)/pulp-freertos
+safed-sw-all: $(SAFED_SW_DIR)/pulp-runtime $(SAFED_SW_DIR)/pulp-freertos $(SAFED_SW_DIR)/threadx
