@@ -109,6 +109,8 @@ package safety_island_pkg;
                                                  // to the safety island
     int unsigned              NumMhpmCounters;   // Number of performance
                                                  // counters implemented in CV32
+    bit                       UseICache;         // Enable instruction cache for external
+                                                 // memory regions for CV32
   } safety_island_cfg_t;
 
   localparam safety_island_cfg_t SafetyIslandDefaultConfig = '{
@@ -136,7 +138,8 @@ package safety_island_pkg;
     UseZfinx:           1,
     UseTCLS:            1,
     NumInterrupts:      64,
-    NumMhpmCounters:    1
+    NumMhpmCounters:    1,
+    UseICache:          1
   };
 
   localparam int unsigned NumTimerInterrupts = 2*SafetyIslandDefaultConfig.NumTimers;

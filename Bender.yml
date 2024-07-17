@@ -23,6 +23,7 @@ dependencies:
   obi:                  { git: "https://github.com/pulp-platform/obi.git",                  version: 0.1.1 }
   unbent:               { git: "https://github.com/pulp-platform/unbent.git",               version: 0.1.6 }
   axi_obi:              { path: "future/axi_obi" }
+  cluster_icache:       { git: "https://github.com/pulp-platform/cluster_icache.git",       rev: astral_tmp }
 
 sources:
   # Level 1

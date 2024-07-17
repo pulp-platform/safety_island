@@ -11,6 +11,7 @@
 `include "register_interface/typedef.svh"
 `include "axi/typedef.svh"
 `include "axi/assign.svh"
+`include "obi/assign.svh"
 `include "obi/typedef.svh"
 `include "apb/typedef.svh"
 
@@ -86,6 +87,12 @@ module safety_island_top import safety_island_pkg::*; #(
   localparam bit [31:0] PeriphBaseAddr = BaseAddr32+PeriphOffset;
 
   localparam int unsigned NumManagers = 5; // AXI, DBG, Core Instr, Core Data, Core Shadow
+
+  localparam int unsigned NumAxiManagers = 1 + (SafetyIslandCfg.UseICache ? 1 : 0);
+  localparam int unsigned AxiInternalIdWidth = AxiOutputIdWidth -
+                                               (NumAxiManagers == 1 ? 0 :
+                                                cf_math_pkg::idx_width(NumAxiManagers));
+  localparam int unsigned AxiStrbWidth = AxiDataWidth/8;
 
   // typedef obi for default config
   localparam obi_pkg::obi_optional_cfg_t MgrObiOptionalCfg= '{
@@ -167,7 +174,18 @@ module safety_island_top import safety_island_pkg::*; #(
                        logic[AddrWidth-1:0],
                        logic[DataWidth-1:0],
                        logic[(DataWidth/8)-1:0]);
-
+  `AXI_TYPEDEF_ALL(axi_internal,
+                   logic [AxiAddrWidth-1:0],
+                   logic [AxiInternalIdWidth-1:0],
+                   logic [AxiDataWidth-1:0],
+                   logic [AxiStrbWidth-1:0],
+                   logic [AxiUserWidth-1:0])
+  `AXI_TYPEDEF_ALL(axi_external,
+                   logic [AxiAddrWidth-1:0],
+                   logic [AxiOutputIdWidth-1:0],
+                   logic [AxiDataWidth-1:0],
+                   logic [AxiStrbWidth-1:0],
+                   logic [AxiUserWidth-1:0])
 `ifdef TARGET_SIMULATION
   localparam int unsigned NumPeriphs     = 9;
   localparam int unsigned NumPeriphRules = 8;
@@ -251,6 +269,9 @@ module safety_island_top import safety_island_pkg::*; #(
   assign core_instr_obi_req.a.we = '0;
   assign core_instr_obi_req.a.be = '1;
   assign core_instr_obi_req.a.wdata = '0;
+
+  mgr_obi_req_t direct_instr_obi_req;
+  mgr_obi_rsp_t direct_instr_obi_rsp;
 
   // Core data bus
   mgr_obi_req_t core_data_obi_req;
@@ -380,6 +401,13 @@ module safety_island_top import safety_island_pkg::*; #(
 `endif
 
   // -----------------
+  // AXI buses
+  // -----------------
+
+  axi_internal_req_t  [NumAxiManagers-1:0] axi_output_axi_reqs;
+  axi_internal_resp_t [NumAxiManagers-1:0] axi_output_axi_rsps;
+
+  // -----------------
   // Core
   // -----------------
 
@@ -446,6 +474,110 @@ module safety_island_top import safety_island_pkg::*; #(
     .debug_req_i      ( debug_req[SafetyIslandCfg.HartId] ),
     .fetch_enable_i   ( fetch_enable                      )
   );
+
+  // Instruction Cache for core
+  if (SafetyIslandCfg.UseICache) begin : gen_icache
+    logic sel_icache;
+
+    mgr_obi_req_t [1:0] icache_obi_req;
+    mgr_obi_rsp_t [1:0] icache_obi_rsp;
+
+    // Entire internal range to ID 1, rest goes out.
+    localparam addr_map_rule_t [0:0] ICacheMap = '{
+      '{idx: 1,
+        start_addr: BaseAddr32,
+        end_addr:   BaseAddr32+AddrRange}
+    };
+
+    addr_decode #(
+      .NoIndices ( 2 ),
+      .NoRules   ( 1 ),
+      .addr_t    ( logic[31:0] ),
+      .rule_t    ( addr_map_rule_t )
+    ) i_instruction_bus_demux_decode (
+      .addr_i           ( core_instr_obi_req.a.addr ),
+      .addr_map_i       ( ICacheMap ),
+      .idx_o            ( sel_icache ),
+      .dec_valid_o      (),
+      .dec_error_o      (),
+      .en_default_idx_i ( 1'b1 ),
+      .default_idx_i    ( '0 )
+    );
+
+    obi_demux #(
+      .ObiCfg     ( MgrObiCfg     ),
+      .obi_req_t  ( mgr_obi_req_t ),
+      .obi_rsp_t  ( mgr_obi_rsp_t ),
+      .NumMgrPorts( 2 ),
+      .NumMaxTrans( 2 ),
+      .select_t   ( logic )
+    ) i_instruction_bus_demux (
+      .clk_i,
+      .rst_ni,
+      .sbr_port_select_i ( sel_icache ),
+      .sbr_port_req_i    ( core_instr_obi_req ),
+      .sbr_port_rsp_o    ( core_instr_obi_rsp ),
+      .mgr_ports_req_o   ( icache_obi_req ),
+      .mgr_ports_rsp_i   ( icache_obi_rsp )
+    );
+
+    pulp_icache_wrap #(
+      .NumFetchPorts    ( 1 ),
+      .L0_LINE_COUNT    ( 2 ),
+      .LINE_WIDTH       ( 128 ),
+      .LINE_COUNT       ( 32 ),
+      .SET_COUNT        ( 4 ),
+      .L1DataParityWidth( 0 ),
+      .L0DataParityWidth( 0 ),
+      .FetchAddrWidth   ( 32 ),
+      .FetchDataWidth   ( DataWidth ),
+      .AxiAddrWidth     ( AxiAddrWidth ),
+      .AxiDataWidth     ( AxiDataWidth ),
+      .sram_cfg_data_t  ( logic        ),
+      .sram_cfg_tag_t   ( logic        ),
+      .axi_req_t        ( axi_internal_req_t ),
+      .axi_rsp_t        ( axi_internal_resp_t )
+    ) i_icache (
+      .clk_i,
+      .rst_ni,
+
+      .fetch_req_i         ( icache_obi_req[0].req     ),
+      .fetch_addr_i        ( icache_obi_req[0].a.addr  ),
+      .fetch_gnt_o         ( icache_obi_rsp[0].gnt     ),
+      .fetch_rvalid_o      ( icache_obi_rsp[0].rvalid  ),
+      .fetch_rdata_o       ( icache_obi_rsp[0].r.rdata ),
+      .fetch_rerror_o      ( icache_obi_rsp[0].r.err   ),
+
+      .enable_prefetching_i('0),
+      .icache_l0_events_o  (),
+      .icache_l1_events_o  (),
+      .flush_valid_i       ('0),
+      .flush_ready_o       (),
+
+      .sram_cfg_data_i     ('0),
+      .sram_cfg_tag_i      ('0),
+
+      .axi_req_o           ( axi_output_axi_reqs[1] ),
+      .axi_rsp_i           ( axi_output_axi_rsps[1] )
+    );
+
+    // ID already zero on instruction bus
+    assign icache_obi_rsp[0].r.rid = '0;
+    // optional not supported on this bus
+    assign icache_obi_rsp[0].r.r_optional = '0;
+
+    `OBI_ASSIGN_A_STRUCT(direct_instr_obi_req.a, icache_obi_req[1].a)
+    assign direct_instr_obi_req.req = icache_obi_req[1].req;
+    `OBI_ASSIGN_R_STRUCT(icache_obi_rsp[1].r, direct_instr_obi_rsp.r)
+    assign icache_obi_rsp[1].gnt = direct_instr_obi_rsp.gnt;
+    assign icache_obi_rsp[1].rvalid = direct_instr_obi_rsp.rvalid;
+  end else begin : gen_no_icache
+    `OBI_ASSIGN_A_STRUCT(direct_instr_obi_req.a, core_instr_obi_req.a)
+    assign direct_instr_obi_req.req = core_instr_obi_req.req;
+    `OBI_ASSIGN_R_STRUCT(core_instr_obi_rsp.r, direct_instr_obi_rsp.r)
+    assign core_instr_obi_rsp.gnt = direct_instr_obi_rsp.gnt;
+    assign core_instr_obi_rsp.rvalid = direct_instr_obi_rsp.rvalid;
+  end
 
   // -----------------
   // Debug
@@ -591,12 +723,12 @@ module safety_island_top import safety_island_pkg::*; #(
     .testmode_i       ( test_enable_i ),
 
     .sbr_ports_req_i  ( {axi_input_obi_req,
-                         core_instr_obi_req,
+                         direct_instr_obi_req,
                          core_data_obi_req,
                          core_shadow_obi_req,
                          dbg_req_obi_req} ),
     .sbr_ports_rsp_o  ( {axi_input_obi_rsp,
-                         core_instr_obi_rsp,
+                         direct_instr_obi_rsp,
                          core_data_obi_rsp,
                          core_shadow_obi_rsp,
                          dbg_req_obi_rsp} ),
@@ -1210,16 +1342,16 @@ module safety_island_top import safety_island_pkg::*; #(
   end
 
   obi_to_axi #(
-    .ObiCfg       ( XbarSbrObiCfg      ),
-    .obi_req_t    ( xbar_sbr_obi_req_t ),
-    .obi_rsp_t    ( xbar_sbr_obi_rsp_t ),
-    .axi_req_t    ( axi_output_req_t   ),
-    .axi_rsp_t    ( axi_output_resp_t  ),
-    .AxiAddrWidth ( AxiAddrWidth       ),
-    .AxiDataWidth ( AxiDataWidth       ),
-    .AxiUserWidth ( AxiUserWidth       ),
-    .MaxRequests  ( 2                  ),
-    .AxiLite      ( 1'b0               )
+    .ObiCfg       ( XbarSbrObiCfg       ),
+    .obi_req_t    ( xbar_sbr_obi_req_t  ),
+    .obi_rsp_t    ( xbar_sbr_obi_rsp_t  ),
+    .axi_req_t    ( axi_internal_req_t  ),
+    .axi_rsp_t    ( axi_internal_resp_t ),
+    .AxiAddrWidth ( AxiAddrWidth        ),
+    .AxiDataWidth ( AxiDataWidth        ),
+    .AxiUserWidth ( AxiUserWidth        ),
+    .MaxRequests  ( 2                   ),
+    .AxiLite      ( 1'b0                )
   ) i_obi_to_axi (
     .clk_i,
     .rst_ni,
@@ -1227,14 +1359,57 @@ module safety_island_top import safety_island_pkg::*; #(
     .obi_rsp_o ( axi_output_obi_rsp ),
     .user_i    ( DefaultUser        ),// Only one ATOP-capable master (cv32e40p data port),
                                       // so we have only one user config even when using user as ATOP ID.
-    .axi_req_o ( axi_output_req_o   ),
-    .axi_rsp_i ( axi_output_resp_i  ),
+    .axi_req_o ( axi_output_axi_reqs[0]   ),
+    .axi_rsp_i ( axi_output_axi_rsps[0] ),
 
     .axi_rsp_channel_sel ( axi_out_rsp_sel  ),
     .axi_rsp_b_user_o    ( axi_out_b_user   ),
     .axi_rsp_r_user_o    ( axi_out_r_user   ),
     .obi_rsp_user_i      ( axi_out_obi_user )
   );
+
+  if (SafetyIslandCfg.UseICache) begin : gen_axi_mux
+    axi_external_req_t axi_output_axi_req;
+    axi_external_resp_t axi_output_axi_rsp;
+
+    axi_mux #(
+      .SlvAxiIDWidth ( AxiInternalIdWidth     ),
+      .slv_aw_chan_t ( axi_internal_aw_chan_t ),
+      .mst_aw_chan_t ( axi_external_aw_chan_t ),
+      .w_chan_t      ( axi_internal_w_chan_t  ),
+      .slv_b_chan_t  ( axi_internal_b_chan_t  ),
+      .mst_b_chan_t  ( axi_external_b_chan_t  ),
+      .slv_ar_chan_t ( axi_internal_ar_chan_t ),
+      .mst_ar_chan_t ( axi_external_ar_chan_t ),
+      .slv_r_chan_t  ( axi_internal_r_chan_t  ),
+      .mst_r_chan_t  ( axi_external_r_chan_t  ),
+      .slv_req_t     ( axi_internal_req_t     ),
+      .slv_resp_t    ( axi_internal_resp_t    ),
+      .mst_req_t     ( axi_external_req_t     ),
+      .mst_resp_t    ( axi_external_resp_t    ),
+      .NoSlvPorts    ( NumAxiManagers         ),
+      .MaxWTrans     ( 2                      ),
+      .FallThrough   ( 1'b0                   ),
+      .SpillAw       ( 1'b0                   ),
+      .SpillW        ( 1'b0                   ),
+      .SpillB        ( 1'b0                   ),
+      .SpillAr       ( 1'b0                   ),
+      .SpillR        ( 1'b0                   )
+    ) i_axi_mux (
+      .clk_i,
+      .rst_ni,
+      .test_i      ( test_enable_i       ),
+      .slv_reqs_i  ( axi_output_axi_reqs ),
+      .slv_resps_o ( axi_output_axi_rsps ),
+      .mst_req_o   ( axi_output_axi_req  ),
+      .mst_resp_i  ( axi_output_axi_rsp  )
+    );
+    `AXI_ASSIGN_REQ_STRUCT(axi_output_req_o, axi_output_axi_req)
+    `AXI_ASSIGN_RESP_STRUCT(axi_output_axi_rsp, axi_output_resp_i)
+  end else begin : gen_no_axi_mux
+    `AXI_ASSIGN_REQ_STRUCT(axi_output_req_o, axi_output_axi_reqs[0])
+    `AXI_ASSIGN_RESP_STRUCT(axi_output_axi_rsps[0], axi_output_resp_i)
+  end
 
   // TODO?: AXI AddrWidth prepend
 
