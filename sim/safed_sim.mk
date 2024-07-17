@@ -26,7 +26,7 @@ safed_sim_all: safed_sim_build safed_sim_opt
 
 .PHONY: safed_sim_build
 safed_sim_build:
-	cd $(SAFED_SIM_DIR) && $(VSIM) -c -do 'source compile.tcl; quit'
+	cd $(SAFED_SIM_DIR) && $(VSIM) -c -do 'quit -code [source compile.tcl]'
 
 .PHONY: safed_sim_opt
 safed_sim_opt:

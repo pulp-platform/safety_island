@@ -81,6 +81,7 @@ $(SAFED_SIM_DIR)/compile.tcl: $(SAFED_ROOT)/.deps
 		--vlog-arg="$(VLOG_ARGS)" --vcom-arg="" \
 		| grep -v "set ROOT" >> $(SAFED_SIM_DIR)/compile.tcl
 	echo 'vlog "$$ROOT/rtl/tb/elfloader.cpp" -ccflags "-std=c++11"' >> $(SAFED_SIM_DIR)/compile.tcl
+	echo 'return 0;' >> $(SAFED_SIM_DIR)/compile.tcl
 
 clean_$(SAFED_SIM_DIR)/compile.tcl:
 	rm -rf $(SAFED_SIM_DIR)/compile.tcl
