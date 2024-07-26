@@ -23,7 +23,8 @@ package safety_island_pkg;
     PeriphDebug,
     PeriphEccManager,
     PeriphTimer,
-    PeriphCoreLocal
+    PeriphCoreLocal,
+    PeriphDmaCfg
 `ifdef TARGET_SIMULATION
     ,
     PeriphTBPrintf
@@ -58,6 +59,8 @@ package safety_island_pkg;
   localparam bit [31:0] EccManagerAddrRange    = 32'h0000_0040; // Temporary for 2 banks
   localparam bit [31:0] TBPrintfAddrOffset      = 32'h0000_6000;
   localparam bit [31:0] TBPrintfAddrRange      = 32'h0000_1000;
+  localparam bit [31:0] DmaCfgAddrOffset        = 32'h0000_7000;
+  localparam bit [31:0] DmaCfgAddrRange        = 32'h0000_1000;
   localparam bit [31:0] TimerAddrOffset         = 32'h0000_8000;
   localparam bit [31:0] TimerAddrRange         = 32'h0000_5000;
   localparam bit [31:0] CoreLocalAddrOffset     = 32'h0000_D000;
@@ -109,6 +112,7 @@ package safety_island_pkg;
                                                  // to the safety island
     int unsigned              NumMhpmCounters;   // Number of performance
                                                  // counters implemented in CV32
+    int unsigned              UseDMA;            // Add DMA unit
   } safety_island_cfg_t;
 
   localparam safety_island_cfg_t SafetyIslandDefaultConfig = '{
@@ -136,7 +140,8 @@ package safety_island_pkg;
     UseZfinx:           1,
     UseTCLS:            1,
     NumInterrupts:      64,
-    NumMhpmCounters:    1
+    NumMhpmCounters:    1,
+    UseDMA:             1
   };
 
   localparam int unsigned NumTimerInterrupts = 2*SafetyIslandDefaultConfig.NumTimers;
