@@ -521,22 +521,28 @@ module safety_island_top import safety_island_pkg::*; #(
       .mgr_ports_rsp_i   ( icache_obi_rsp )
     );
 
-    pulp_icache_wrap #(
-      .NumFetchPorts    ( 1 ),
-      .L0_LINE_COUNT    ( 2 ),
-      .LINE_WIDTH       ( 128 ),
-      .LINE_COUNT       ( 32 ),
-      .SET_COUNT        ( 4 ),
-      .L1DataParityWidth( 0 ),
-      .L0DataParityWidth( 0 ),
-      .FetchAddrWidth   ( 32 ),
-      .FetchDataWidth   ( DataWidth ),
-      .AxiAddrWidth     ( AxiAddrWidth ),
-      .AxiDataWidth     ( AxiDataWidth ),
-      .sram_cfg_data_t  ( logic        ),
-      .sram_cfg_tag_t   ( logic        ),
-      .axi_req_t        ( axi_internal_req_t ),
-      .axi_rsp_t        ( axi_internal_resp_t )
+    obi_icache_wrap #(
+      .NumFetchPorts     ( 1 ),
+      .L0LineCount       ( 2 ),
+      .LineWidth         ( 128 ),
+      .LineCount         ( 32 ),
+      .WayCount          ( 4 ),
+      .FetchAddrWidth    ( 32 ),
+      .FetchDataWidth    ( DataWidth ),
+      .AxiAddrWidth      ( AxiAddrWidth ),
+      .AxiDataWidth      ( AxiDataWidth ),
+      .FetchPriority     ( 1'b1 ),
+      .MergeFetches      ( 1'b0 ), // No fetches to merge as only single core
+      .SerialLookup      ( 1'b1 ),
+      .L1TagScm          ( 1'b1 ),
+      .NumAxiOutstanding ( 2 ), // One fetch, one prefetch
+      .EarlyLatch        ( 1'b0 ),
+      .L0EarlyTagWidth   ( -1 ),
+      .IsoCrossing       ( 1'b0 ),
+      .sram_cfg_data_t   ( logic ),
+      .sram_cfg_tag_t    ( logic ),
+      .axi_req_t         ( axi_internal_req_t ),
+      .axi_rsp_t         ( axi_internal_resp_t )
     ) i_icache (
       .clk_i,
       .rst_ni,
