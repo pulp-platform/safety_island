@@ -31,7 +31,7 @@ include $(SAFED_ROOT)/.deps
 ######################
 
 NONFREE_REMOTE ?= git@iis-git.ee.ethz.ch:carfield/safety-island-nonfree.git
-NONFREE_COMMIT ?= ea06e7dc80eb4d3cf592af41ef1e37789336ee3c
+NONFREE_COMMIT ?= 28bc83e510a880a56cbd9e45b9a19fd6fa5675e1
 
 .PHONY: nonfree-init
 ## Initialize Safety Island CI repository
