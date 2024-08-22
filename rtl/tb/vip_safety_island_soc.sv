@@ -103,8 +103,11 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
   // AXI external master port //
   //////////////////////////////
 
-  axi_mst_ext_req_t filtered_to_ext_req;
-  axi_mst_ext_rsp_t filtered_to_ext_rsp;
+  axi_mst_ext_req_t filtered_to_ext_req, internal_axi_mst_req;
+  axi_mst_ext_rsp_t filtered_to_ext_rsp, internal_axi_mst_rsp;
+
+  axi_slv_ext_req_t internal_axi_req, internal_axi_slv_req;
+  axi_slv_ext_rsp_t internal_axi_rsp, internal_axi_slv_rsp;
 
   axi_riscv_atomics_structs #(
     .AxiAddrWidth   ( AxiAddrWidth      ),
@@ -134,6 +137,7 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
     .DataWidth         ( AxiDataWidth          ),
     .IdWidth           ( AxiOutputIdWidth      ),
     .UserWidth         ( AxiUserWidth          ),
+    .NumPorts          ( 2                     ),
     .axi_req_t         ( axi_mst_ext_req_t     ),
     .axi_rsp_t         ( axi_mst_ext_rsp_t     ),
     .WarnUninitialized ( 1'b0                  ),
@@ -143,8 +147,8 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
   ) i_ext_mem (
     .clk_i              ( ext_clk   ),
     .rst_ni             ( rst_n     ),
-    .axi_req_i          ( filtered_to_ext_req ),
-    .axi_rsp_o          ( filtered_to_ext_rsp ),
+    .axi_req_i          ( {filtered_to_ext_req, internal_axi_mst_req} ),
+    .axi_rsp_o          ( {filtered_to_ext_rsp, internal_axi_mst_rsp} ),
     .mon_w_valid_o      (),
     .mon_w_addr_o       (),
     .mon_w_data_o       (),
@@ -159,6 +163,94 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
     .mon_r_user_o       (),
     .mon_r_beat_count_o (),
     .mon_r_last_o       ()
+  );
+
+  typedef struct packed {
+    int unsigned idx;
+    logic [AxiAddrWidth-1:0] start_addr;
+    logic [AxiAddrWidth-1:0] end_addr;
+  } rule_t;
+  localparam rule_t LocalRule = '{
+    idx: 0,
+    start_addr: BaseAddr,
+    end_addr: BaseAddr + AddrRange
+  };
+
+  logic aw_idx, ar_idx;
+
+  addr_decode #(
+    .NoIndices ( 2 ),
+    .NoRules   ( 1 ),
+    .addr_t    ( logic [AxiAddrWidth-1:0] ),
+    .rule_t    ( rule_t )
+  ) i_internal_decode_aw (
+    .addr_i           ( internal_axi_req.aw.addr ),
+    .addr_map_i       ( LocalRule ),
+    .idx_o            ( aw_idx ),
+    .dec_valid_o      (),
+    .dec_error_o      (),
+    .en_default_idx_i ( 1'b1 ),
+    .default_idx_i    ( 1'b1 )
+  );
+
+  addr_decode #(
+    .NoIndices ( 2 ),
+    .NoRules   ( 1 ),
+    .addr_t    ( logic [AxiAddrWidth-1:0] ),
+    .rule_t    ( rule_t )
+  ) i_internal_decode_ar (
+    .addr_i           ( internal_axi_req.ar.addr ),
+    .addr_map_i       ( LocalRule ),
+    .idx_o            ( ar_idx ),
+    .dec_valid_o      (),
+    .dec_error_o      (),
+    .en_default_idx_i ( 1'b1 ),
+    .default_idx_i    ( 1'b1 )
+  );
+
+  axi_demux_simple #(
+    .AxiIdWidth  ( AxiInputIdWidth   ),
+    .AtopSupport ( 1'b0              ),
+    .axi_req_t   ( axi_slv_ext_req_t ),
+    .axi_resp_t  ( axi_slv_ext_rsp_t ),
+    .NoMstPorts  ( 2                 ),
+    .MaxTrans    ( 2                 ),
+    .AxiLookBits ( AxiInputIdWidth   ),
+    .UniqueIds   ( 1'b0              )
+  ) i_internal_demux (
+    .clk_i           ( ext_clk ),
+    .rst_ni          ( rst_n   ),
+    .test_i          ('0),
+    .slv_req_i       ( internal_axi_req ),
+    .slv_aw_select_i ( aw_idx ),
+    .slv_ar_select_i ( ar_idx ),
+    .slv_resp_o      ( internal_axi_rsp ),
+    .mst_reqs_o      ( {internal_axi_slv_req, axi_slv_req} ),
+    .mst_resps_i     ( {internal_axi_slv_rsp, axi_slv_rsp} )
+  );
+
+  axi_iw_converter #(
+    .AxiSlvPortIdWidth     ( AxiInputIdWidth   ),
+    .AxiMstPortIdWidth     ( AxiOutputIdWidth  ),
+    .AxiSlvPortMaxUniqIds  ( 1                 ),
+    .AxiSlvPortMaxTxnsPerId( 1                 ),
+    .AxiSlvPortMaxTxns     ( 1                 ),
+    .AxiMstPortMaxUniqIds  ( 1                 ),
+    .AxiMstPortMaxTxnsPerId( 1                 ),
+    .AxiAddrWidth          ( AxiAddrWidth      ),
+    .AxiDataWidth          ( AxiDataWidth      ),
+    .AxiUserWidth          ( AxiUserWidth      ),
+    .slv_req_t             ( axi_slv_ext_req_t ),
+    .slv_resp_t            ( axi_slv_ext_rsp_t ),
+    .mst_req_t             ( axi_mst_ext_req_t ),
+    .mst_resp_t            ( axi_mst_ext_rsp_t )
+  ) i_internal_iw (
+    .clk_i      ( ext_clk              ),
+    .rst_ni     ( rst_n                ),
+    .slv_req_i  ( internal_axi_slv_req ),
+    .slv_resp_o ( internal_axi_slv_rsp ),
+    .mst_req_o  ( internal_axi_mst_req ),
+    .mst_resp_i ( internal_axi_mst_rsp )
   );
 
   ///////////////////////////////
@@ -411,8 +503,8 @@ module vip_safety_island_soc import safety_island_pkg::*; #(
     .clk_i  ( clk )
   );
 
-  `AXI_ASSIGN_TO_REQ(axi_slv_req, ext_driver)
-  `AXI_ASSIGN_FROM_RESP(ext_driver, axi_slv_rsp)
+  `AXI_ASSIGN_TO_REQ(internal_axi_req, ext_driver)
+  `AXI_ASSIGN_FROM_RESP(ext_driver, internal_axi_rsp)
 
   // We use an AXI driver to inject serial link transfers
   typedef axi_test::axi_driver #(
