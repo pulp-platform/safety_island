@@ -45,16 +45,17 @@ nonfree-init:
 #####################
 # Generate Hardware #
 #####################
-REG_HTML_STRING = "<!DOCTYPE html>\n<html>\n<head>\n<link rel="stylesheet" href="reg_html.css">\n</head>\n"
-
 $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_pkg.sv $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_top.sv: $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_regs.hjson
 	$(REGGEN) $< -t $(SAFED_HW_DIR)/soc_ctrl -r
 	cd $(SAFED_ROOT) && git apply $(SAFED_HW_DIR)/soc_ctrl/boot_addr.patch
-	printf $(REG_HTML_STRING) > $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.html
-	$(REGGEN) $< -d >> $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.html
-	printf "</html>\n" >> $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.html
+	$(REGGEN) $< -d >> $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.md
 	$(REGGEN) $< -D > $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl.h
-	cp $(shell $(BENDER) path register_interface)/vendor/lowrisc_opentitan/util/reggen/reg_html.css $(SAFED_HW_DIR)/soc_ctrl
+
+$(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_icache_reg_pkg.sv $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_icache_reg_top.sv: $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_regs_icache.hjson
+	$(REGGEN) $< -t $(SAFED_HW_DIR)/soc_ctrl -r
+	cd $(SAFED_ROOT) && git apply $(SAFED_HW_DIR)/soc_ctrl/boot_addr_icache.patch
+	$(REGGEN) $< -d >> $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_icache.md
+	$(REGGEN) $< -D > $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_icache.h
 
 $(SAFED_HW_DIR)/safety_island_bootrom.sv:
 	$(MAKE) -C$(SAFED_BOOT_DIR) clean safety_island_bootrom.sv
@@ -67,6 +68,7 @@ $(SAFED_HW_DIR)/safety_island_bootrom_carfield.sv:
 .PHONY: safed-hw-gen safed-bootrom-gen
 ## Generate Safety Island HW sources
 safed-hw-gen: $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_pkg.sv $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_reg_top.sv
+safed-hw-gen: $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_icache_reg_pkg.sv $(SAFED_HW_DIR)/soc_ctrl/safety_soc_ctrl_icache_reg_top.sv
 ## Generate Safety Island bootrom
 safed-bootrom-gen: $(SAFED_HW_DIR)/safety_island_bootrom.sv $(SAFED_HW_DIR)/safety_island_bootrom_carfield.sv
 

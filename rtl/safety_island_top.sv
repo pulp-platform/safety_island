@@ -474,6 +474,10 @@ module safety_island_top import safety_island_pkg::*; #(
     .fetch_enable_i   ( fetch_enable                      )
   );
 
+  logic icache_enable_prefetching, icache_flush_valid, icache_flush_ready;
+  snitch_icache_pkg::icache_l0_events_t icache_l0_events;
+  snitch_icache_pkg::icache_l1_events_t icache_l1_events;
+
   // Instruction Cache for core
   if (SafetyIslandCfg.UseICache) begin : gen_icache
     logic sel_icache;
@@ -553,11 +557,11 @@ module safety_island_top import safety_island_pkg::*; #(
       .fetch_rdata_o       ( icache_obi_rsp[0].r.rdata ),
       .fetch_rerror_o      ( icache_obi_rsp[0].r.err   ),
 
-      .enable_prefetching_i('0),
-      .icache_l0_events_o  (),
-      .icache_l1_events_o  (),
-      .flush_valid_i       ('0),
-      .flush_ready_o       (),
+      .enable_prefetching_i( icache_enable_prefetching ),
+      .icache_l0_events_o  ( icache_l0_events          ),
+      .icache_l1_events_o  ( icache_l1_events          ),
+      .flush_valid_i       ( icache_flush_valid        ),
+      .flush_ready_o       ( icache_flush_ready        ),
 
       .sram_cfg_data_i     ('0),
       .sram_cfg_tag_i      ('0),
@@ -582,6 +586,10 @@ module safety_island_top import safety_island_pkg::*; #(
     `OBI_ASSIGN_R_STRUCT(core_instr_obi_rsp.r, direct_instr_obi_rsp.r)
     assign core_instr_obi_rsp.gnt = direct_instr_obi_rsp.gnt;
     assign core_instr_obi_rsp.rvalid = direct_instr_obi_rsp.rvalid;
+
+    assign icache_l0_events = '0;
+    assign icache_l1_events = '0;
+    assign icache_flush_ready = '0;
   end
 
   // -----------------
@@ -1003,15 +1011,6 @@ module safety_island_top import safety_island_pkg::*; #(
   assign soc_ctrl_obi_rsp.r.r_optional = '0;
 
   logic first_cycle;
-  safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t soc_ctrl_reg2hw;
-  safety_soc_ctrl_reg_pkg::safety_soc_ctrl_hw2reg_t soc_ctrl_hw2reg;
-  // allow control of fetch_enable from hardware
-  assign soc_ctrl_hw2reg.bootmode.d  = bootmode_i;
-  assign soc_ctrl_hw2reg.bootmode.de = first_cycle;
-  assign soc_ctrl_hw2reg.fetchen.d   = bootmode_i == Jtag;
-  assign soc_ctrl_hw2reg.fetchen.de  = first_cycle;
-  assign fetch_enable = soc_ctrl_reg2hw.fetchen.q | fetch_enable_i;
-  assign boot_addr = soc_ctrl_reg2hw.bootaddr.q;
 
 
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_initial_ff
@@ -1022,19 +1021,95 @@ module safety_island_top import safety_island_pkg::*; #(
     end
   end
 
-  safety_soc_ctrl_reg_top #(
-    .reg_req_t( safety_reg_req_t ),
-    .reg_rsp_t( safety_reg_rsp_t ),
-    .BootAddrDefault ( PeriphBaseAddr + BootROMAddrOffset + 32'h80 )
-  ) i_soc_ctrl (
-    .clk_i,
-    .rst_ni,
-    .reg_req_i ( soc_ctrl_reg_req ),
-    .reg_rsp_o ( soc_ctrl_reg_rsp ),
-    .reg2hw    ( soc_ctrl_reg2hw  ),
-    .hw2reg    ( soc_ctrl_hw2reg  ),
-    .devmode_i ( 1'b0             )
-  );
+  if (SafetyIslandCfg.UseICache) begin : gen_soc_ctrl_icache_regs
+    safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_reg2hw_t soc_ctrl_reg2hw;
+    safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_hw2reg_t soc_ctrl_hw2reg;
+    safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_hw2reg_counters_mreg_t [8:0] counters_reg;
+
+    // allow control of fetch_enable from hardware
+    assign soc_ctrl_hw2reg.bootmode.d  = bootmode_i;
+    assign soc_ctrl_hw2reg.bootmode.de = first_cycle;
+    assign soc_ctrl_hw2reg.fetchen.d   = bootmode_i == Jtag;
+    assign soc_ctrl_hw2reg.fetchen.de  = first_cycle;
+    assign fetch_enable = soc_ctrl_reg2hw.fetchen.q | fetch_enable_i;
+    assign boot_addr = soc_ctrl_reg2hw.bootaddr.q;
+
+    safety_soc_ctrl_icache_reg_top #(
+      .reg_req_t      ( safety_reg_req_t ),
+      .reg_rsp_t      ( safety_reg_rsp_t ),
+      .BootAddrDefault( PeriphBaseAddr + BootROMAddrOffset + 32'h80 )
+    ) i_soc_ctrl (
+      .clk_i,
+      .rst_ni,
+      .reg_req_i ( soc_ctrl_reg_req ),
+      .reg_rsp_o ( soc_ctrl_reg_rsp ),
+      .reg2hw    ( soc_ctrl_reg2hw  ),
+      .hw2reg    ( soc_ctrl_hw2reg  ),
+      .devmode_i ( 1'b0             )
+    );
+
+    assign icache_enable_prefetching = soc_ctrl_reg2hw.icache_enable_prefetch.q;
+    assign icache_flush_valid        = soc_ctrl_reg2hw.icache_flush.q & soc_ctrl_reg2hw.icache_flush.qe;
+
+    assign soc_ctrl_hw2reg.icache_flush.d = ~icache_flush_ready;
+    assign soc_ctrl_hw2reg.icache_perfctr_ctrl.enable.de = 1'b0;
+    assign soc_ctrl_hw2reg.icache_perfctr_ctrl.enable.d = 1'b1;
+    assign soc_ctrl_hw2reg.icache_perfctr_ctrl.clear_all.d = 1'b0;
+    assign soc_ctrl_hw2reg.icache_perfctr_ctrl.clear_all.de = 1'b1;
+    assign soc_ctrl_hw2reg.counters = counters_reg;
+
+    always_comb begin
+      for (int unsigned i = 0; i < 9; i++) begin
+        counters_reg[i].d = soc_ctrl_reg2hw.counters[i].q + 1;
+        counters_reg[i].de = '0;
+      end
+
+      counters_reg[0].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l1_events.l1_miss;
+      counters_reg[1].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l1_events.l1_hit;
+      counters_reg[2].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l1_events.l1_stall;
+      counters_reg[3].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l1_events.l1_handler_stall;
+      counters_reg[4].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_miss;
+      counters_reg[5].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_hit;
+      counters_reg[6].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_prefetch;
+      counters_reg[7].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_double_hit;
+      counters_reg[8].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_stall;
+    
+      if (soc_ctrl_reg2hw.icache_perfctr_ctrl.clear_all.q) begin
+        for (int unsigned i = 0; i < 9; i++) begin
+          counters_reg[i].d = '0;
+          counters_reg[i].de = 1'b1;
+        end
+      end
+    end
+
+  end else begin : gen_soc_ctrl_regs
+    safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t soc_ctrl_reg2hw;
+    safety_soc_ctrl_reg_pkg::safety_soc_ctrl_hw2reg_t soc_ctrl_hw2reg;
+    // allow control of fetch_enable from hardware
+    assign soc_ctrl_hw2reg.bootmode.d  = bootmode_i;
+    assign soc_ctrl_hw2reg.bootmode.de = first_cycle;
+    assign soc_ctrl_hw2reg.fetchen.d   = bootmode_i == Jtag;
+    assign soc_ctrl_hw2reg.fetchen.de  = first_cycle;
+    assign fetch_enable = soc_ctrl_reg2hw.fetchen.q | fetch_enable_i;
+    assign boot_addr = soc_ctrl_reg2hw.bootaddr.q;
+
+    safety_soc_ctrl_reg_top #(
+      .reg_req_t( safety_reg_req_t ),
+      .reg_rsp_t( safety_reg_rsp_t ),
+      .BootAddrDefault ( PeriphBaseAddr + BootROMAddrOffset + 32'h80 )
+    ) i_soc_ctrl (
+      .clk_i,
+      .rst_ni,
+      .reg_req_i ( soc_ctrl_reg_req ),
+      .reg_rsp_o ( soc_ctrl_reg_rsp ),
+      .reg2hw    ( soc_ctrl_reg2hw  ),
+      .hw2reg    ( soc_ctrl_hw2reg  ),
+      .devmode_i ( 1'b0             )
+    );
+
+    assign icache_enable_prefetching = '0;
+    assign icache_flush_valid = '0;
+  end
 
   // Boot ROM
   safety_island_bootrom #(

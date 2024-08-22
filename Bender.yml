@@ -29,6 +29,7 @@ sources:
   # Level 1
   - rtl/safety_island_pkg.sv
   - rtl/soc_ctrl/safety_soc_ctrl_reg_pkg.sv
+  - rtl/soc_ctrl/safety_soc_ctrl_icache_reg_pkg.sv
   - target: carfield
     files:
       - rtl/safety_island_bootrom_carfield.sv
@@ -43,6 +44,7 @@ sources:
   # Level 2
   - rtl/safety_core_wrap.sv
   - rtl/soc_ctrl/safety_soc_ctrl_reg_top.sv
+  - rtl/soc_ctrl/safety_soc_ctrl_icache_reg_top.sv
   # Level 3
   - rtl/safety_island_top.sv
   - rtl/synth/safety_island_synth_pkg.sv
