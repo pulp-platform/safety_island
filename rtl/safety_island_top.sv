@@ -16,8 +16,7 @@
 `include "apb/typedef.svh"
 
 module safety_island_top import safety_island_pkg::*; #(
-  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg =
-            safety_island_pkg::SafetyIslandDefaultConfig,
+  parameter safety_island_cfg_t        SafetyIslandCfg = SafetyIslandDefaultConfig,
 
   parameter  int unsigned              GlobalAddrWidth = 32,
   parameter  bit [GlobalAddrWidth-1:0] BaseAddr        = 32'h0000_0000,
@@ -523,18 +522,18 @@ module safety_island_top import safety_island_pkg::*; #(
 
     obi_icache_wrap #(
       .NumFetchPorts     ( 1 ),
-      .L0LineCount       ( 2 ),
-      .LineWidth         ( 128 ),
-      .LineCount         ( 32 ),
-      .WayCount          ( 4 ),
+      .L0LineCount       ( ICacheL0LineCount ),
+      .LineWidth         ( ICacheLineWidth ),
+      .LineCount         ( ICacheLineCount ),
+      .WayCount          ( ICacheWayCount ),
       .FetchAddrWidth    ( 32 ),
       .FetchDataWidth    ( DataWidth ),
       .AxiAddrWidth      ( AxiAddrWidth ),
       .AxiDataWidth      ( AxiDataWidth ),
       .FetchPriority     ( 1'b1 ),
       .MergeFetches      ( 1'b0 ), // No fetches to merge as only single core
-      .SerialLookup      ( 1'b1 ),
-      .L1TagScm          ( 1'b1 ),
+      .SerialLookup      ( ICacheSerialLookup ),
+      .L1TagScm          ( ICacheL1TagScm ),
       .NumAxiOutstanding ( 2 ), // One fetch, one prefetch
       .EarlyLatch        ( 1'b0 ),
       .L0EarlyTagWidth   ( -1 ),
