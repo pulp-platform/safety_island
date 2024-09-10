@@ -44,6 +44,8 @@ jobs:
           exclude_paths: |
             ./rtl/soc_ctrl/safety_soc_ctrl_reg_pkg.sv
             ./rtl/soc_ctrl/safety_soc_ctrl_reg_top.sv
+            ./rtl/soc_ctrl/safety_soc_ctrl_icache_reg_pkg.sv
+            ./rtl/soc_ctrl/safety_soc_ctrl_icache_reg_top.sv
             ./rtl/tb/jtag_pkg.sv
             ./rtl/tb/riscv_pkg.sv
             ./rtl/tb/tb_fs_handler.sv

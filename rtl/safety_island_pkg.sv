@@ -109,6 +109,8 @@ package safety_island_pkg;
                                                  // to the safety island
     int unsigned              NumMhpmCounters;   // Number of performance
                                                  // counters implemented in CV32
+    bit                       UseICache;         // Enable instruction cache for external
+                                                 // memory regions for CV32
   } safety_island_cfg_t;
 
   localparam safety_island_cfg_t SafetyIslandDefaultConfig = '{
@@ -136,7 +138,8 @@ package safety_island_pkg;
     UseZfinx:           1,
     UseTCLS:            1,
     NumInterrupts:      64,
-    NumMhpmCounters:    1
+    NumMhpmCounters:    1,
+    UseICache:          1
   };
 
   localparam int unsigned NumTimerInterrupts = 2*SafetyIslandDefaultConfig.NumTimers;
@@ -146,5 +149,20 @@ package safety_island_pkg;
   localparam int unsigned AxiMaxInTrans = 3;
   // Cores do not support more than 2 outstanding transactions
   localparam int unsigned AxiMaxOutTrans = 2;
+
+  // Cache configuration
+  // Number of lines in L0 - one for current, one for prefetch
+  localparam int unsigned ICacheL0LineCount = 2;
+  // Line Width
+  localparam int unsigned ICacheLineWidth = 128;
+  // Number of L1 lines
+  localparam int unsigned ICacheLineCount = 32;
+  // Number of cache ways
+  localparam int unsigned ICacheWayCount = 4;
+  // Serial lookup (tag then data)
+  localparam bit ICacheSerialLookup = 1'b1;
+  // Use standard cells for L1 tag
+  localparam bit ICacheL1TagScm = 1'b1;
+
 
 endpackage

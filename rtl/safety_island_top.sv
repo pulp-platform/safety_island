@@ -11,12 +11,12 @@
 `include "register_interface/typedef.svh"
 `include "axi/typedef.svh"
 `include "axi/assign.svh"
+`include "obi/assign.svh"
 `include "obi/typedef.svh"
 `include "apb/typedef.svh"
 
 module safety_island_top import safety_island_pkg::*; #(
-  parameter safety_island_pkg::safety_island_cfg_t SafetyIslandCfg =
-            safety_island_pkg::SafetyIslandDefaultConfig,
+  parameter safety_island_cfg_t        SafetyIslandCfg = SafetyIslandDefaultConfig,
 
   parameter  int unsigned              GlobalAddrWidth = 32,
   parameter  bit [GlobalAddrWidth-1:0] BaseAddr        = 32'h0000_0000,
@@ -86,6 +86,12 @@ module safety_island_top import safety_island_pkg::*; #(
   localparam bit [31:0] PeriphBaseAddr = BaseAddr32+PeriphOffset;
 
   localparam int unsigned NumManagers = 5; // AXI, DBG, Core Instr, Core Data, Core Shadow
+
+  localparam int unsigned NumAxiManagers = 1 + (SafetyIslandCfg.UseICache ? 1 : 0);
+  localparam int unsigned AxiInternalIdWidth = AxiOutputIdWidth -
+                                               (NumAxiManagers == 1 ? 0 :
+                                                cf_math_pkg::idx_width(NumAxiManagers));
+  localparam int unsigned AxiStrbWidth = AxiDataWidth/8;
 
   // typedef obi for default config
   localparam obi_pkg::obi_optional_cfg_t MgrObiOptionalCfg= '{
@@ -167,7 +173,18 @@ module safety_island_top import safety_island_pkg::*; #(
                        logic[AddrWidth-1:0],
                        logic[DataWidth-1:0],
                        logic[(DataWidth/8)-1:0]);
-
+  `AXI_TYPEDEF_ALL(axi_internal,
+                   logic [AxiAddrWidth-1:0],
+                   logic [AxiInternalIdWidth-1:0],
+                   logic [AxiDataWidth-1:0],
+                   logic [AxiStrbWidth-1:0],
+                   logic [AxiUserWidth-1:0])
+  `AXI_TYPEDEF_ALL(axi_external,
+                   logic [AxiAddrWidth-1:0],
+                   logic [AxiOutputIdWidth-1:0],
+                   logic [AxiDataWidth-1:0],
+                   logic [AxiStrbWidth-1:0],
+                   logic [AxiUserWidth-1:0])
 `ifdef TARGET_SIMULATION
   localparam int unsigned NumPeriphs     = 9;
   localparam int unsigned NumPeriphRules = 8;
@@ -251,6 +268,9 @@ module safety_island_top import safety_island_pkg::*; #(
   assign core_instr_obi_req.a.we = '0;
   assign core_instr_obi_req.a.be = '1;
   assign core_instr_obi_req.a.wdata = '0;
+
+  mgr_obi_req_t direct_instr_obi_req;
+  mgr_obi_rsp_t direct_instr_obi_rsp;
 
   // Core data bus
   mgr_obi_req_t core_data_obi_req;
@@ -380,6 +400,13 @@ module safety_island_top import safety_island_pkg::*; #(
 `endif
 
   // -----------------
+  // AXI buses
+  // -----------------
+
+  axi_internal_req_t  [NumAxiManagers-1:0] axi_output_axi_reqs;
+  axi_internal_resp_t [NumAxiManagers-1:0] axi_output_axi_rsps;
+
+  // -----------------
   // Core
   // -----------------
 
@@ -446,6 +473,124 @@ module safety_island_top import safety_island_pkg::*; #(
     .debug_req_i      ( debug_req[SafetyIslandCfg.HartId] ),
     .fetch_enable_i   ( fetch_enable                      )
   );
+
+  logic icache_enable_prefetching, icache_flush_valid, icache_flush_ready;
+  snitch_icache_pkg::icache_l0_events_t icache_l0_events;
+  snitch_icache_pkg::icache_l1_events_t icache_l1_events;
+
+  // Instruction Cache for core
+  if (SafetyIslandCfg.UseICache) begin : gen_icache
+    logic sel_icache;
+
+    mgr_obi_req_t [1:0] icache_obi_req;
+    mgr_obi_rsp_t [1:0] icache_obi_rsp;
+
+    // Entire internal range to ID 1, rest goes out.
+    localparam addr_map_rule_t [0:0] ICacheMap = '{
+      '{idx: 1,
+        start_addr: BaseAddr32,
+        end_addr:   BaseAddr32+AddrRange}
+    };
+
+    addr_decode #(
+      .NoIndices ( 2 ),
+      .NoRules   ( 1 ),
+      .addr_t    ( logic[31:0] ),
+      .rule_t    ( addr_map_rule_t )
+    ) i_instruction_bus_demux_decode (
+      .addr_i           ( core_instr_obi_req.a.addr ),
+      .addr_map_i       ( ICacheMap ),
+      .idx_o            ( sel_icache ),
+      .dec_valid_o      (),
+      .dec_error_o      (),
+      .en_default_idx_i ( 1'b1 ),
+      .default_idx_i    ( '0 )
+    );
+
+    obi_demux #(
+      .ObiCfg     ( MgrObiCfg     ),
+      .obi_req_t  ( mgr_obi_req_t ),
+      .obi_rsp_t  ( mgr_obi_rsp_t ),
+      .NumMgrPorts( 2 ),
+      .NumMaxTrans( 2 ),
+      .select_t   ( logic )
+    ) i_instruction_bus_demux (
+      .clk_i,
+      .rst_ni,
+      .sbr_port_select_i ( sel_icache ),
+      .sbr_port_req_i    ( core_instr_obi_req ),
+      .sbr_port_rsp_o    ( core_instr_obi_rsp ),
+      .mgr_ports_req_o   ( icache_obi_req ),
+      .mgr_ports_rsp_i   ( icache_obi_rsp )
+    );
+
+    obi_icache_wrap #(
+      .NumFetchPorts     ( 1 ),
+      .L0LineCount       ( ICacheL0LineCount ),
+      .LineWidth         ( ICacheLineWidth ),
+      .LineCount         ( ICacheLineCount ),
+      .WayCount          ( ICacheWayCount ),
+      .FetchAddrWidth    ( 32 ),
+      .FetchDataWidth    ( DataWidth ),
+      .AxiAddrWidth      ( AxiAddrWidth ),
+      .AxiDataWidth      ( AxiDataWidth ),
+      .FetchPriority     ( 1'b1 ),
+      .MergeFetches      ( 1'b0 ), // No fetches to merge as only single core
+      .SerialLookup      ( ICacheSerialLookup ),
+      .L1TagScm          ( ICacheL1TagScm ),
+      .NumAxiOutstanding ( 2 ), // One fetch, one prefetch
+      .EarlyLatch        ( 1'b0 ),
+      .L0EarlyTagWidth   ( -1 ),
+      .IsoCrossing       ( 1'b0 ),
+      .sram_cfg_data_t   ( logic ),
+      .sram_cfg_tag_t    ( logic ),
+      .axi_req_t         ( axi_internal_req_t ),
+      .axi_rsp_t         ( axi_internal_resp_t )
+    ) i_icache (
+      .clk_i,
+      .rst_ni,
+
+      .fetch_req_i         ( icache_obi_req[0].req     ),
+      .fetch_addr_i        ( icache_obi_req[0].a.addr  ),
+      .fetch_gnt_o         ( icache_obi_rsp[0].gnt     ),
+      .fetch_rvalid_o      ( icache_obi_rsp[0].rvalid  ),
+      .fetch_rdata_o       ( icache_obi_rsp[0].r.rdata ),
+      .fetch_rerror_o      ( icache_obi_rsp[0].r.err   ),
+
+      .enable_prefetching_i( icache_enable_prefetching ),
+      .icache_l0_events_o  ( icache_l0_events          ),
+      .icache_l1_events_o  ( icache_l1_events          ),
+      .flush_valid_i       ( icache_flush_valid        ),
+      .flush_ready_o       ( icache_flush_ready        ),
+
+      .sram_cfg_data_i     ('0),
+      .sram_cfg_tag_i      ('0),
+
+      .axi_req_o           ( axi_output_axi_reqs[1] ),
+      .axi_rsp_i           ( axi_output_axi_rsps[1] )
+    );
+
+    // ID already zero on instruction bus
+    assign icache_obi_rsp[0].r.rid = '0;
+    // optional not supported on this bus
+    assign icache_obi_rsp[0].r.r_optional = '0;
+
+    `OBI_ASSIGN_A_STRUCT(direct_instr_obi_req.a, icache_obi_req[1].a)
+    assign direct_instr_obi_req.req = icache_obi_req[1].req;
+    `OBI_ASSIGN_R_STRUCT(icache_obi_rsp[1].r, direct_instr_obi_rsp.r)
+    assign icache_obi_rsp[1].gnt = direct_instr_obi_rsp.gnt;
+    assign icache_obi_rsp[1].rvalid = direct_instr_obi_rsp.rvalid;
+  end else begin : gen_no_icache
+    `OBI_ASSIGN_A_STRUCT(direct_instr_obi_req.a, core_instr_obi_req.a)
+    assign direct_instr_obi_req.req = core_instr_obi_req.req;
+    `OBI_ASSIGN_R_STRUCT(core_instr_obi_rsp.r, direct_instr_obi_rsp.r)
+    assign core_instr_obi_rsp.gnt = direct_instr_obi_rsp.gnt;
+    assign core_instr_obi_rsp.rvalid = direct_instr_obi_rsp.rvalid;
+
+    assign icache_l0_events = '0;
+    assign icache_l1_events = '0;
+    assign icache_flush_ready = '0;
+  end
 
   // -----------------
   // Debug
@@ -591,12 +736,12 @@ module safety_island_top import safety_island_pkg::*; #(
     .testmode_i       ( test_enable_i ),
 
     .sbr_ports_req_i  ( {axi_input_obi_req,
-                         core_instr_obi_req,
+                         direct_instr_obi_req,
                          core_data_obi_req,
                          core_shadow_obi_req,
                          dbg_req_obi_req} ),
     .sbr_ports_rsp_o  ( {axi_input_obi_rsp,
-                         core_instr_obi_rsp,
+                         direct_instr_obi_rsp,
                          core_data_obi_rsp,
                          core_shadow_obi_rsp,
                          dbg_req_obi_rsp} ),
@@ -866,15 +1011,6 @@ module safety_island_top import safety_island_pkg::*; #(
   assign soc_ctrl_obi_rsp.r.r_optional = '0;
 
   logic first_cycle;
-  safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t soc_ctrl_reg2hw;
-  safety_soc_ctrl_reg_pkg::safety_soc_ctrl_hw2reg_t soc_ctrl_hw2reg;
-  // allow control of fetch_enable from hardware
-  assign soc_ctrl_hw2reg.bootmode.d  = bootmode_i;
-  assign soc_ctrl_hw2reg.bootmode.de = first_cycle;
-  assign soc_ctrl_hw2reg.fetchen.d   = bootmode_i == Jtag;
-  assign soc_ctrl_hw2reg.fetchen.de  = first_cycle;
-  assign fetch_enable = soc_ctrl_reg2hw.fetchen.q | fetch_enable_i;
-  assign boot_addr = soc_ctrl_reg2hw.bootaddr.q;
 
 
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_initial_ff
@@ -885,19 +1021,106 @@ module safety_island_top import safety_island_pkg::*; #(
     end
   end
 
-  safety_soc_ctrl_reg_top #(
-    .reg_req_t( safety_reg_req_t ),
-    .reg_rsp_t( safety_reg_rsp_t ),
-    .BootAddrDefault ( PeriphBaseAddr + BootROMAddrOffset + 32'h80 )
-  ) i_soc_ctrl (
-    .clk_i,
-    .rst_ni,
-    .reg_req_i ( soc_ctrl_reg_req ),
-    .reg_rsp_o ( soc_ctrl_reg_rsp ),
-    .reg2hw    ( soc_ctrl_reg2hw  ),
-    .hw2reg    ( soc_ctrl_hw2reg  ),
-    .devmode_i ( 1'b0             )
-  );
+  if (SafetyIslandCfg.UseICache) begin : gen_soc_ctrl_icache_regs
+    safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_reg2hw_t soc_ctrl_reg2hw;
+    safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_hw2reg_t soc_ctrl_hw2reg;
+    safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_hw2reg_counters_mreg_t [8:0]
+                                                                    counters_reg;
+
+    // allow control of fetch_enable from hardware
+    assign soc_ctrl_hw2reg.bootmode.d  = bootmode_i;
+    assign soc_ctrl_hw2reg.bootmode.de = first_cycle;
+    assign soc_ctrl_hw2reg.fetchen.d   = bootmode_i == Jtag;
+    assign soc_ctrl_hw2reg.fetchen.de  = first_cycle;
+    assign fetch_enable = soc_ctrl_reg2hw.fetchen.q | fetch_enable_i;
+    assign boot_addr = soc_ctrl_reg2hw.bootaddr.q;
+
+    safety_soc_ctrl_icache_reg_top #(
+      .reg_req_t      ( safety_reg_req_t ),
+      .reg_rsp_t      ( safety_reg_rsp_t ),
+      .BootAddrDefault( PeriphBaseAddr + BootROMAddrOffset + 32'h80 )
+    ) i_soc_ctrl (
+      .clk_i,
+      .rst_ni,
+      .reg_req_i ( soc_ctrl_reg_req ),
+      .reg_rsp_o ( soc_ctrl_reg_rsp ),
+      .reg2hw    ( soc_ctrl_reg2hw  ),
+      .hw2reg    ( soc_ctrl_hw2reg  ),
+      .devmode_i ( 1'b0             )
+    );
+
+    assign icache_enable_prefetching = soc_ctrl_reg2hw.icache_enable_prefetch.q;
+    assign icache_flush_valid        = soc_ctrl_reg2hw.icache_flush.q &
+                                       soc_ctrl_reg2hw.icache_flush.qe;
+
+    assign soc_ctrl_hw2reg.icache_flush.d = ~icache_flush_ready;
+    assign soc_ctrl_hw2reg.icache_perfctr_ctrl.enable.de = 1'b0;
+    assign soc_ctrl_hw2reg.icache_perfctr_ctrl.enable.d = 1'b1;
+    assign soc_ctrl_hw2reg.icache_perfctr_ctrl.clear_all.d = 1'b0;
+    assign soc_ctrl_hw2reg.icache_perfctr_ctrl.clear_all.de = 1'b1;
+    assign soc_ctrl_hw2reg.counters = counters_reg;
+
+    always_comb begin
+      for (int unsigned i = 0; i < 9; i++) begin
+        counters_reg[i].d = soc_ctrl_reg2hw.counters[i].q + 1;
+        counters_reg[i].de = '0;
+      end
+
+      counters_reg[0].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l1_events.l1_miss;
+      counters_reg[1].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l1_events.l1_hit;
+      counters_reg[2].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l1_events.l1_stall;
+      counters_reg[3].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l1_events.l1_handler_stall;
+      counters_reg[4].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_miss;
+      counters_reg[5].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_hit;
+      counters_reg[6].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_prefetch;
+      counters_reg[7].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_double_hit;
+      counters_reg[8].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_stall;
+
+      if (soc_ctrl_reg2hw.icache_perfctr_ctrl.clear_all.q) begin
+        for (int unsigned i = 0; i < 9; i++) begin
+          counters_reg[i].d = '0;
+          counters_reg[i].de = 1'b1;
+        end
+      end
+    end
+
+  end else begin : gen_soc_ctrl_regs
+    safety_soc_ctrl_reg_pkg::safety_soc_ctrl_reg2hw_t soc_ctrl_reg2hw;
+    safety_soc_ctrl_reg_pkg::safety_soc_ctrl_hw2reg_t soc_ctrl_hw2reg;
+    // allow control of fetch_enable from hardware
+    assign soc_ctrl_hw2reg.bootmode.d  = bootmode_i;
+    assign soc_ctrl_hw2reg.bootmode.de = first_cycle;
+    assign soc_ctrl_hw2reg.fetchen.d   = bootmode_i == Jtag;
+    assign soc_ctrl_hw2reg.fetchen.de  = first_cycle;
+    assign fetch_enable = soc_ctrl_reg2hw.fetchen.q | fetch_enable_i;
+    assign boot_addr = soc_ctrl_reg2hw.bootaddr.q;
+
+    safety_soc_ctrl_reg_top #(
+      .reg_req_t( safety_reg_req_t ),
+      .reg_rsp_t( safety_reg_rsp_t ),
+      .BootAddrDefault ( PeriphBaseAddr + BootROMAddrOffset + 32'h80 )
+    ) i_soc_ctrl (
+      .clk_i,
+      .rst_ni,
+      .reg_req_i ( soc_ctrl_reg_req ),
+      .reg_rsp_o ( soc_ctrl_reg_rsp ),
+      .reg2hw    ( soc_ctrl_reg2hw  ),
+      .hw2reg    ( soc_ctrl_hw2reg  ),
+      .devmode_i ( 1'b0             )
+    );
+
+    assign icache_enable_prefetching = '0;
+    assign icache_flush_valid = '0;
+  end
 
   // Boot ROM
   safety_island_bootrom #(
@@ -1210,16 +1433,16 @@ module safety_island_top import safety_island_pkg::*; #(
   end
 
   obi_to_axi #(
-    .ObiCfg       ( XbarSbrObiCfg      ),
-    .obi_req_t    ( xbar_sbr_obi_req_t ),
-    .obi_rsp_t    ( xbar_sbr_obi_rsp_t ),
-    .axi_req_t    ( axi_output_req_t   ),
-    .axi_rsp_t    ( axi_output_resp_t  ),
-    .AxiAddrWidth ( AxiAddrWidth       ),
-    .AxiDataWidth ( AxiDataWidth       ),
-    .AxiUserWidth ( AxiUserWidth       ),
-    .MaxRequests  ( 2                  ),
-    .AxiLite      ( 1'b0               )
+    .ObiCfg       ( XbarSbrObiCfg       ),
+    .obi_req_t    ( xbar_sbr_obi_req_t  ),
+    .obi_rsp_t    ( xbar_sbr_obi_rsp_t  ),
+    .axi_req_t    ( axi_internal_req_t  ),
+    .axi_rsp_t    ( axi_internal_resp_t ),
+    .AxiAddrWidth ( AxiAddrWidth        ),
+    .AxiDataWidth ( AxiDataWidth        ),
+    .AxiUserWidth ( AxiUserWidth        ),
+    .MaxRequests  ( 2                   ),
+    .AxiLite      ( 1'b0                )
   ) i_obi_to_axi (
     .clk_i,
     .rst_ni,
@@ -1227,14 +1450,57 @@ module safety_island_top import safety_island_pkg::*; #(
     .obi_rsp_o ( axi_output_obi_rsp ),
     .user_i    ( DefaultUser        ),// Only one ATOP-capable master (cv32e40p data port),
                                       // so we have only one user config even when using user as ATOP ID.
-    .axi_req_o ( axi_output_req_o   ),
-    .axi_rsp_i ( axi_output_resp_i  ),
+    .axi_req_o ( axi_output_axi_reqs[0]   ),
+    .axi_rsp_i ( axi_output_axi_rsps[0] ),
 
     .axi_rsp_channel_sel ( axi_out_rsp_sel  ),
     .axi_rsp_b_user_o    ( axi_out_b_user   ),
     .axi_rsp_r_user_o    ( axi_out_r_user   ),
     .obi_rsp_user_i      ( axi_out_obi_user )
   );
+
+  if (SafetyIslandCfg.UseICache) begin : gen_axi_mux
+    axi_external_req_t axi_output_axi_req;
+    axi_external_resp_t axi_output_axi_rsp;
+
+    axi_mux #(
+      .SlvAxiIDWidth ( AxiInternalIdWidth     ),
+      .slv_aw_chan_t ( axi_internal_aw_chan_t ),
+      .mst_aw_chan_t ( axi_external_aw_chan_t ),
+      .w_chan_t      ( axi_internal_w_chan_t  ),
+      .slv_b_chan_t  ( axi_internal_b_chan_t  ),
+      .mst_b_chan_t  ( axi_external_b_chan_t  ),
+      .slv_ar_chan_t ( axi_internal_ar_chan_t ),
+      .mst_ar_chan_t ( axi_external_ar_chan_t ),
+      .slv_r_chan_t  ( axi_internal_r_chan_t  ),
+      .mst_r_chan_t  ( axi_external_r_chan_t  ),
+      .slv_req_t     ( axi_internal_req_t     ),
+      .slv_resp_t    ( axi_internal_resp_t    ),
+      .mst_req_t     ( axi_external_req_t     ),
+      .mst_resp_t    ( axi_external_resp_t    ),
+      .NoSlvPorts    ( NumAxiManagers         ),
+      .MaxWTrans     ( 2                      ),
+      .FallThrough   ( 1'b0                   ),
+      .SpillAw       ( 1'b0                   ),
+      .SpillW        ( 1'b0                   ),
+      .SpillB        ( 1'b0                   ),
+      .SpillAr       ( 1'b0                   ),
+      .SpillR        ( 1'b0                   )
+    ) i_axi_mux (
+      .clk_i,
+      .rst_ni,
+      .test_i      ( test_enable_i       ),
+      .slv_reqs_i  ( axi_output_axi_reqs ),
+      .slv_resps_o ( axi_output_axi_rsps ),
+      .mst_req_o   ( axi_output_axi_req  ),
+      .mst_resp_i  ( axi_output_axi_rsp  )
+    );
+    `AXI_ASSIGN_REQ_STRUCT(axi_output_req_o, axi_output_axi_req)
+    `AXI_ASSIGN_RESP_STRUCT(axi_output_axi_rsp, axi_output_resp_i)
+  end else begin : gen_no_axi_mux
+    `AXI_ASSIGN_REQ_STRUCT(axi_output_req_o, axi_output_axi_reqs[0])
+    `AXI_ASSIGN_RESP_STRUCT(axi_output_axi_rsps[0], axi_output_resp_i)
+  end
 
   // TODO?: AXI AddrWidth prepend
 

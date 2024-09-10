@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: SHL-0.51
 
 {
-  name: "safety_soc_ctrl",
+  name: "safety_soc_ctrl_icache",
   clock_primary: "clk_i",
   reset_primary: "rst_ni",
   bus_interfaces: [
@@ -62,6 +62,65 @@
           resval: 0x0
         }
       ]
+    },
+    { name: "icache_enable_prefetch",
+      desc: "Enable iCache prefetching",
+      swaccess: "rw",
+      hwaccess: "hro",
+      fields: [
+        { bits: "0",
+          name: "prefetch_enable",
+          desc: "Enable prefetching",
+          resval: 0x1
+        }
+      ]
+    },
+    { name: "icache_flush",
+      desc: "Flush iCache",
+      swaccess: "rw",
+      hwaccess: "hrw",
+      hwqe: "true",
+      hwext: "true",
+      fields: [
+        { bits: "0",
+          name: "flush",
+          desc: "Flush",
+          resval: 0x0
+        }
+      ]
+    },
+    { name: "icache_perfctr_ctrl",
+      desc: "iCache Performance Counter Control",
+      swaccess: "rw",
+      hwaccess: "hrw",
+      fields: [
+        { bits: "0",
+          name: "enable",
+          desc: "Enable performance counters",
+          resval: 0x1
+        },
+        { bits: "16",
+          name: "clear_all",
+          desc: "Clear all performance counters",
+          resval: 0x0
+        }
+      ]
+    },
+    { multireg: {
+        name: "counters",
+        desc: "Performance counters",
+        count: "9",
+        cname: "id",
+        swaccess: "rw0c",
+        hwaccess: "hrw",
+        fields: [
+          { bits: "31:0",
+            name: "counter",
+            desc: "",
+            resval: 0x0000_0000
+          }
+        ]
+      }
     },
   ],
 }
