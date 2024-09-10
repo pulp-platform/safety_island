@@ -1024,7 +1024,8 @@ module safety_island_top import safety_island_pkg::*; #(
   if (SafetyIslandCfg.UseICache) begin : gen_soc_ctrl_icache_regs
     safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_reg2hw_t soc_ctrl_reg2hw;
     safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_hw2reg_t soc_ctrl_hw2reg;
-    safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_hw2reg_counters_mreg_t [8:0] counters_reg;
+    safety_soc_ctrl_icache_reg_pkg::safety_soc_ctrl_icache_hw2reg_counters_mreg_t [8:0]
+                                                                    counters_reg;
 
     // allow control of fetch_enable from hardware
     assign soc_ctrl_hw2reg.bootmode.d  = bootmode_i;
@@ -1049,7 +1050,8 @@ module safety_island_top import safety_island_pkg::*; #(
     );
 
     assign icache_enable_prefetching = soc_ctrl_reg2hw.icache_enable_prefetch.q;
-    assign icache_flush_valid        = soc_ctrl_reg2hw.icache_flush.q & soc_ctrl_reg2hw.icache_flush.qe;
+    assign icache_flush_valid        = soc_ctrl_reg2hw.icache_flush.q &
+                                       soc_ctrl_reg2hw.icache_flush.qe;
 
     assign soc_ctrl_hw2reg.icache_flush.d = ~icache_flush_ready;
     assign soc_ctrl_hw2reg.icache_perfctr_ctrl.enable.de = 1'b0;
@@ -1064,16 +1066,25 @@ module safety_island_top import safety_island_pkg::*; #(
         counters_reg[i].de = '0;
       end
 
-      counters_reg[0].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l1_events.l1_miss;
-      counters_reg[1].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l1_events.l1_hit;
-      counters_reg[2].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l1_events.l1_stall;
-      counters_reg[3].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l1_events.l1_handler_stall;
-      counters_reg[4].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_miss;
-      counters_reg[5].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_hit;
-      counters_reg[6].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_prefetch;
-      counters_reg[7].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_double_hit;
-      counters_reg[8].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q & icache_l0_events.l0_stall;
-    
+      counters_reg[0].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l1_events.l1_miss;
+      counters_reg[1].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l1_events.l1_hit;
+      counters_reg[2].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l1_events.l1_stall;
+      counters_reg[3].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l1_events.l1_handler_stall;
+      counters_reg[4].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_miss;
+      counters_reg[5].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_hit;
+      counters_reg[6].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_prefetch;
+      counters_reg[7].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_double_hit;
+      counters_reg[8].de = soc_ctrl_reg2hw.icache_perfctr_ctrl.enable.q &
+                           icache_l0_events.l0_stall;
+
       if (soc_ctrl_reg2hw.icache_perfctr_ctrl.clear_all.q) begin
         for (int unsigned i = 0; i < 9; i++) begin
           counters_reg[i].d = '0;
