@@ -248,9 +248,14 @@ module axi_to_obi #(
     assign req_w_user_o[i] = tmp_write_user[i][2*AxiUserWidth-1:AxiUserWidth];
     assign req_aw_user_o[i] = tmp_write_user[i][AxiUserWidth-1:0];
     assign rsp_read_rid_o   [i] = rsp_ruser[         i][ObiCfg.IdWidth-1:0];
-    assign rsp_read_ruser_o [i] = rsp_ruser[         i][IdRuserWidth-1:ObiCfg.IdWidth];
+    if (ObiCfg.OptionalCfg.RUserWidth) begin : gen_ruser
+      assign rsp_read_ruser_o [i] = rsp_ruser[         i][IdRuserWidth-1:ObiCfg.IdWidth];
+      assign rsp_write_ruser_o[i] = rsp_ruser[NumBanks+i][IdRuserWidth-1:ObiCfg.IdWidth];
+    end else begin : gen_tieoff
+      assign rsp_read_ruser_o [i] = '0;
+      assign rsp_write_ruser_o[i] = '0;
+    end
     assign rsp_write_rid_o  [i] = rsp_ruser[NumBanks+i][ObiCfg.IdWidth-1:0];
-    assign rsp_write_ruser_o[i] = rsp_ruser[NumBanks+i][IdRuserWidth-1:ObiCfg.IdWidth];
   end
 
   if (ObiCfg.OptionalCfg.UseAtop) begin : gen_atop
