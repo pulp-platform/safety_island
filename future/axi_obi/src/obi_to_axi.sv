@@ -175,12 +175,17 @@ module obi_to_axi #(
     end
   end
 
+  generate
+    if (AxiDataWidth > ObiCfg.DataWidth) begin
+      assign data_offset = obi_req_i.a.addr[$clog2(ObiCfg.DataWidth/8)+:$clog2(AxiDataWidth/ObiCfg.DataWidth)];
+    end else begin
+      assign data_offset = '0;
+    end
+  endgenerate
+
   // Control for translating request to the AXI4-Lite `AW`, `W` and `AR` channels.
   always_comb begin : proc_request_control
-    data_offset = '0;
-    if (AxiDataWidth > ObiCfg.DataWidth) begin
-      data_offset = obi_req_i.a.addr[$clog2(ObiCfg.DataWidth/8)+:$clog2(AxiDataWidth/ObiCfg.DataWidth)];
-    end
+  
     axi_req_o.aw_valid = 1'b0;
     axi_req_o.w_valid  = 1'b0;
     axi_req_o.ar_valid = 1'b0;
