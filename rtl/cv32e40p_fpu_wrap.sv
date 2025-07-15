@@ -99,7 +99,7 @@ fpnew_top #(
   .Features       ( FPUFeatures        ),
   .Implementation ( FPUImplementation  ),
   .TagType        ( logic              ),
-  .PulpDivsqrt    ( 1'b0               ),
+  .DivSqrtSel     ( fpnew_pkg::TH32    ),
   .TrueSIMDClass  ( 1'b0               ),
   .EnableSIMDMask ( 1'b0               ),
   .CompressedVecCmpResult ( 1'b0       ),
