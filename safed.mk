@@ -77,7 +77,7 @@ safed-bootrom-gen: $(SAFED_HW_DIR)/safety_island_bootrom.sv $(SAFED_HW_DIR)/safe
 # Generate Safety Island Questa Simulation Compile script
 $(SAFED_SIM_DIR)/compile.tcl: $(SAFED_ROOT)/.deps
 	echo 'set ROOT [file normalize [file dirname [info script]]/..]' > $(SAFED_SIM_DIR)/compile.tcl
-	bender script vsim -p safety_island -t test -t rtl -t cv32e40p_use_ff_regfile \
+	bender script vsim -p safety_island -t test -t rtl -t cv32e40p_use_ff_regfile -t deprecated \
 		--vlog-arg="$(VLOG_ARGS)" --vcom-arg="" \
 		| grep -v "set ROOT" >> $(SAFED_SIM_DIR)/compile.tcl
 	echo 'vlog "$$ROOT/rtl/tb/elfloader.cpp" -ccflags "-std=c++11"' >> $(SAFED_SIM_DIR)/compile.tcl
